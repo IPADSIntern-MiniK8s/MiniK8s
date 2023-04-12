@@ -4,6 +4,7 @@ import (
 	"github.com/containerd/containerd/oci"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"strconv"
+	"strings"
 )
 
 func GenerateMountSpec(mounts map[string]string) oci.SpecOpts {
@@ -33,9 +34,10 @@ func GenerateCMDSpec(CmdLine string) oci.SpecOpts {
 type CPUSpecType int
 
 const (
-	CPUNumber CPUSpecType = iota //float ,not bind to certain cpu; eg: 1 ,0.5
-	CPUCoreID                    // bind certain cpus ,start from 0; eg: 0,1, 0-2
-	CPUShares                    // priority
+	CPUNone   CPUSpecType = iota
+	CPUNumber             //float ,not bind to certain cpu; eg: 1 ,0.5
+	CPUCoreID             // bind certain cpus ,start from 0; eg: 0,1, 0-2
+	CPUShares             // priority
 )
 
 type CPUSpec struct {
@@ -66,4 +68,17 @@ func GenerateMemorySpec(limit uint64) oci.SpecOpts {
 	return oci.WithMemoryLimit(limit)
 }
 
-//TODO port
+func GenerateEnvSpec(envs []string) oci.SpecOpts {
+	return oci.WithEnv(envs)
+}
+
+func PadImageName(image string) string {
+	res := image
+	if strings.Index(image, ":") == -1 {
+		res += ":latest"
+	}
+	if strings.Index(image, "/") == -1 {
+		res = "docker.io/library/" + res
+	}
+	return res
+}

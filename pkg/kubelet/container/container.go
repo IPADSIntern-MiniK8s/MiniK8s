@@ -15,6 +15,7 @@ type ContainerSpec struct {
 	CPU     CPUSpec
 	Memory  uint64
 	CmdLine string
+	Envs    []string
 }
 
 func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Container {
@@ -28,17 +29,27 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	if err != nil {
 		return nil
 	}
+	opts := []oci.SpecOpts{oci.WithImageConfig(image), GenerateHostnameSpec(spec.Name)}
+	if len(spec.Mounts) > 0 {
+		opts = append(opts, GenerateMountSpec(spec.Mounts))
+	}
+	if spec.CPU.Type != CPUNone {
+		opts = append(opts, GenerateCPUSpec(spec.CPU))
+	}
+	if spec.CmdLine != "" {
+		opts = append(opts, GenerateCMDSpec(spec.CmdLine))
+	}
+	if spec.Memory != 0 {
+		opts = append(opts, GenerateMemorySpec(spec.Memory))
+	}
+	if len(spec.Envs) > 0 {
+		opts = append(opts, GenerateEnvSpec(spec.Envs))
+	}
 	newContainer, err := client.NewContainer(
 		ctx,
 		spec.Name, //container name
 		containerd.WithNewSnapshot(spec.Name, image), //rootfs?
-		containerd.WithNewSpec(oci.WithImageConfig(image),
-			GenerateHostnameSpec(spec.Name),
-			GenerateMountSpec(spec.Mounts),
-			GenerateCPUSpec(spec.CPU),
-			GenerateCMDSpec(spec.CmdLine),
-			GenerateMemorySpec(spec.Memory),
-		),
+		containerd.WithNewSpec(opts...),
 	)
 	if err != nil {
 		fmt.Println(err)

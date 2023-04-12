@@ -20,6 +20,7 @@ func TestCreateContainer(t *testing.T) {
 		},
 		Memory:  100 * 1024 * 1024,           //100M
 		CmdLine: "/root/test_mount/test_cpu", //test_cpu test_memory
+		Envs:    []string{"a=b", "c=d"},
 	}
 	_, _ = ctl("stop", spec.Name)
 	_, _ = ctl("rm", spec.Name)
@@ -34,4 +35,20 @@ func TestCreateContainer(t *testing.T) {
 		t.Fatalf("start container failed")
 	}
 
+}
+
+func TestPadImageName(t *testing.T) {
+	answer := "docker.io/library/ubuntu:latest"
+	if PadImageName("ubuntu") != answer {
+		t.Fatalf("pad image name wrong")
+	}
+	if PadImageName("ubuntu:latest") != answer {
+		t.Fatalf("pad image name wrong")
+	}
+	if PadImageName("docker.io/library/ubuntu") != answer {
+		t.Fatalf("pad image name wrong")
+	}
+	if PadImageName(answer) != answer {
+		t.Fatalf("pad image name wrong")
+	}
 }
