@@ -24,7 +24,6 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	if err != nil {
 		return nil
 	}
-	//TODO parse imageName, add latest if necessary
 	image, err := client.Pull(ctx, spec.Image, containerd.WithPullUnpack)
 	if err != nil {
 		return nil
@@ -74,6 +73,14 @@ func StartContainer(ctx context.Context, containerToStart containerd.Container) 
 	//status, err := task.Wait(ctx)
 }
 
-//TODO stop
-
-//TODO status
+func GetContainerStatus(ctx context.Context, c containerd.Container) string {
+	task, err := c.Task(ctx, nil)
+	if err != nil {
+		return err.Error()
+	}
+	status, err := task.Status(ctx)
+	if err != nil {
+		return err.Error()
+	}
+	return string(status.Status)
+}
