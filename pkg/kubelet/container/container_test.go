@@ -3,30 +3,28 @@ package container
 import (
 	"context"
 	"github.com/containerd/containerd"
-	"os"
 	"testing"
 )
 
 func TestCreateContainer(t *testing.T) {
 	ctx := context.Background()
-	name := "python-container"
-	_, _ = ctl("stop", name)
-	_, _ = ctl("rm", name)
+	spec := ContainerSpec{
+		Image: "docker.io/library/ubuntu:latest",
+		Name:  "test-container",
+		Mounts: map[string]string{
+			"/home/test_mount": "/root/test_mount",
+		},
+		CPU: CPUSpec{
+			Type:  CPUCoreID,
+			Value: "1",
+		},
+		Memory:  100 * 1024 * 1024,           //100M
+		CmdLine: "/root/test_mount/test_cpu", //test_cpu test_memory
+	}
+	_, _ = ctl("stop", spec.Name)
+	_, _ = ctl("rm", spec.Name)
 
-	mounts := map[string]string{
-		"/home/test_mount": "/root/test_mount",
-	}
-	file, err := os.OpenFile("/home/test_mount/test.txt", os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-	mountFileContent := "test mount\n"
-	_, err = file.WriteString(mountFileContent)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	container := CreateContainer(ctx, "docker.io/library/python:latest", name, mounts)
+	container := CreateContainer(ctx, spec)
 	if container == nil {
 		t.Fatalf("create container failed")
 	}
@@ -35,10 +33,5 @@ func TestCreateContainer(t *testing.T) {
 	if pid == 0 {
 		t.Fatalf("start container failed")
 	}
-
-	//no console,test by hand
-	//output, err := ctl("exec", "-it", name, "cat", "/root/test_mount/test.txt")
-
-	//fmt.Println(output)
 
 }

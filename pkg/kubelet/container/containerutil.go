@@ -3,6 +3,7 @@ package container
 import (
 	"github.com/containerd/containerd/oci"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"strconv"
 )
 
 func GenerateMountSpec(mounts map[string]string) oci.SpecOpts {
@@ -24,10 +25,45 @@ func GenerateHostnameSpec(hostname string) oci.SpecOpts {
 	return oci.WithHostname(hostname)
 }
 
-//TODO command
+func GenerateCMDSpec(CmdLine string) oci.SpecOpts {
+	//TODO split by space;
+	return oci.WithProcessArgs(CmdLine)
+}
 
-//TODO cpu
+type CPUSpecType int
 
-//TODO memory
+const (
+	CPUNumber CPUSpecType = iota //float ,not bind to certain cpu; eg: 1 ,0.5
+	CPUCoreID                    // bind certain cpus ,start from 0; eg: 0,1, 0-2
+	CPUShares                    // priority
+)
+
+type CPUSpec struct {
+	Type  CPUSpecType
+	Value string
+}
+
+func GenerateCPUSpec(spec CPUSpec) oci.SpecOpts {
+	switch spec.Type {
+	case CPUNumber:
+		cpus, _ := strconv.ParseFloat(spec.Value, 64)
+		var (
+			period = uint64(100000)
+			quota  = int64(cpus * 100000.0)
+		)
+		return oci.WithCPUCFS(quota, period)
+	case CPUCoreID:
+		return oci.WithCPUs(spec.Value)
+	case CPUShares:
+		shares, _ := strconv.ParseUint(spec.Value, 10, 64)
+		return oci.WithCPUShares(shares)
+	}
+	return nil
+}
+
+// bytes, if exceed ,the container will be stopped at once
+func GenerateMemorySpec(limit uint64) oci.SpecOpts {
+	return oci.WithMemoryLimit(limit)
+}
 
 //TODO port

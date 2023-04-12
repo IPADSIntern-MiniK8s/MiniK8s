@@ -8,24 +8,36 @@ import (
 	"github.com/containerd/containerd/oci"
 )
 
-func CreateContainer(ctx context.Context, imageName string, containerName string, mounts map[string]string) containerd.Container {
+type ContainerSpec struct {
+	Image   string
+	Name    string
+	Mounts  map[string]string
+	CPU     CPUSpec
+	Memory  uint64
+	CmdLine string
+}
+
+func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Container {
 	//must add tag and host
 	client, err := NewClient()
 	if err != nil {
 		return nil
 	}
 	//TODO parse imageName, add latest if necessary
-	image, err := client.Pull(ctx, imageName, containerd.WithPullUnpack)
+	image, err := client.Pull(ctx, spec.Image, containerd.WithPullUnpack)
 	if err != nil {
 		return nil
 	}
 	newContainer, err := client.NewContainer(
 		ctx,
-		containerName, //container name
-		containerd.WithNewSnapshot(containerName, image), //rootfs?
+		spec.Name, //container name
+		containerd.WithNewSnapshot(spec.Name, image), //rootfs?
 		containerd.WithNewSpec(oci.WithImageConfig(image),
-			GenerateHostnameSpec(containerName),
-			GenerateMountSpec(mounts),
+			GenerateHostnameSpec(spec.Name),
+			GenerateMountSpec(spec.Mounts),
+			GenerateCPUSpec(spec.CPU),
+			GenerateCMDSpec(spec.CmdLine),
+			GenerateMemorySpec(spec.Memory),
 		),
 	)
 	if err != nil {
