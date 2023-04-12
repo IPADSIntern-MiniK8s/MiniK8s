@@ -72,6 +72,10 @@ func GenerateEnvSpec(envs []string) oci.SpecOpts {
 	return oci.WithEnv(envs)
 }
 
+func GenerateNamespaceSpec(nsType,path string) oci.SpecOpts{
+	return oci.WithLinuxNamespace(specs.LinuxNamespace{Type:specs.LinuxNamespaceType(nsType),Path: path})
+}
+
 func PadImageName(image string) string {
 	res := image
 	if strings.Index(image, ":") == -1 {

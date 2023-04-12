@@ -9,13 +9,14 @@ import (
 )
 
 type ContainerSpec struct {
-	Image   string
-	Name    string
-	Mounts  map[string]string
-	CPU     CPUSpec
-	Memory  uint64
-	CmdLine string
-	Envs    []string
+	Image      string
+	Name       string
+	Mounts     map[string]string
+	CPU        CPUSpec
+	Memory     uint64
+	CmdLine    string
+	Envs       []string
+	Namespaces map[string]string
 }
 
 func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Container {
@@ -29,7 +30,7 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 		return nil
 	}
 	opts := []oci.SpecOpts{oci.WithImageConfig(image), GenerateHostnameSpec(spec.Name)}
-	if len(spec.Mounts) > 0 {
+	if spec.Mounts != nil && len(spec.Mounts) > 0 {
 		opts = append(opts, GenerateMountSpec(spec.Mounts))
 	}
 	if spec.CPU.Type != CPUNone {
@@ -41,8 +42,13 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	if spec.Memory != 0 {
 		opts = append(opts, GenerateMemorySpec(spec.Memory))
 	}
-	if len(spec.Envs) > 0 {
+	if spec.Envs != nil && len(spec.Envs) > 0 {
 		opts = append(opts, GenerateEnvSpec(spec.Envs))
+	}
+	if spec.Namespaces != nil {
+		for nsType, path := range spec.Namespaces {
+			opts = append(opts, GenerateNamespaceSpec(nsType, path))
+		}
 	}
 	newContainer, err := client.NewContainer(
 		ctx,
