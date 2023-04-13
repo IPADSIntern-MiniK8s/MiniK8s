@@ -1,15 +1,24 @@
 package kubeapiserver
 
 import (
+	"github.com/coreos/etcd/clientv3"
 	"github.com/gin-gonic/gin"
 )
 
 type APIServer struct {
-	engine *gin.Engine
+	engine  *gin.Engine
+	storage *clientv3.Client
 }
 
 func NewAPI() *APIServer {
-	return &APIServer{engine: gin.Default()}
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints: []string{"http://etcd:2379"},
+	})
+	if err != nil {
+		return nil
+	}
+
+	return &APIServer{engine: gin.Default(), storage: client}
 }
 
 func (a *APIServer) RegisterHandler(method string, path string, handler gin.HandlerFunc) {

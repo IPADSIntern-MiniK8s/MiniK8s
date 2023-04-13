@@ -3,6 +3,7 @@
 ## 依赖安装
 ```bash
 go get -u github.com/gin-gonic/gin
+go get github.com/coreos/etcd/clientv3
 ```
 
 ## 参考资料
