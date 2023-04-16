@@ -18,7 +18,7 @@ func NewEtcdStorage(client *clientv3.Client) *EtcdStorage {
 // Get retrieves the value at the specified key.
 // the interface description in k8s.io/apiserver/pkg/storage/interfaces.go:
 // Get unmarshals json found at key into objPtr. On a not found error, will either
-// return a zero object of the requested type, or an error, depending on 'opts.ignoreNotFound'.
+// return a zero apiobject of the requested type, or an error, depending on 'opts.ignoreNotFound'.
 // Treats empty responses and nil response nodes exactly like a not found error.
 // The returned contents may be delayed, but it is guaranteed that they will
 // match 'opts.ResourceVersion' according 'opts.ResourceVersionMatch'.
@@ -39,7 +39,7 @@ func (e *EtcdStorage) Get(ctx context.Context, key string, out interface{}) erro
 // Create creates a new key with the given value.
 // TODO：need to consider TTL ?
 // the interface description in k8s.io/apiserver/pkg/storage/interfaces.go
-// Create adds a new object at a key unless it already exists. 'ttl' is time-to-live
+// Create adds a new apiobject at a key unless it already exists. 'ttl' is time-to-live
 // in seconds (0 means forever). If no error is returned and out is not nil, out will be
 // set to the read value from database.
 func (e *EtcdStorage) Create(ctx context.Context, key string, value interface{}) error {
@@ -55,7 +55,7 @@ func (e *EtcdStorage) Create(ctx context.Context, key string, value interface{})
 // the interface description in k8s.io/apiserver/pkg/storage/interfaces.go:
 // If key didn't exist, it will return NotFound storage error.
 // If 'cachedExistingObject' is non-nil, it can be used as a suggestion about the
-// current version of the object to avoid read operation from storage to get it.
+// current version of the apiobject to avoid read operation from storage to get it.
 // However, the implementations have to retry in case suggestion is stale.
 func (e *EtcdStorage) Delete(ctx context.Context, key string) error {
 	_, err := e.client.Delete(ctx, key)

@@ -1,11 +1,11 @@
-package object
+package apiobject
 
 import (
 	"encoding/json"
 	"fmt"
 )
 
-/* an basic example of a pod object:
+/* an basic example of a pod apiobject:
 apiVersion: v1
 kind: Pod
 metadata:
