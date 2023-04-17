@@ -10,21 +10,25 @@ type ServiceRoutes struct {
 
 // Route specific route
 type Route struct {
+	Path         string
+	RouteHandler RouteHandler
+}
+
+type RouteHandler struct {
 	Method  string
-	Path    string
 	Handler gin.HandlerFunc
 }
 
 func (r *Route) register(engine *gin.Engine) {
-	switch r.Method {
+	switch r.RouteHandler.Method {
 	case "GET":
-		engine.GET(r.Path, r.Handler)
+		engine.GET(r.Path, r.RouteHandler.Handler)
 	case "POST":
-		engine.POST(r.Path, r.Handler)
+		engine.POST(r.Path, r.RouteHandler.Handler)
 	case "PUT":
-		engine.PUT(r.Path, r.Handler)
+		engine.PUT(r.Path, r.RouteHandler.Handler)
 	case "DELETE":
-		engine.DELETE(r.Path, r.Handler)
+		engine.DELETE(r.Path, r.RouteHandler.Handler)
 	default:
 		panic("invalid HTTP method")
 	}
