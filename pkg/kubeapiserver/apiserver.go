@@ -12,7 +12,7 @@ type APIServer struct {
 
 func NewAPI() *APIServer {
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{"http://etcd:2379"},
+		Endpoints: []string{"localhost:2380"},
 	})
 	if err != nil {
 		return nil

@@ -11,6 +11,10 @@ type EtcdStorage struct {
 	client *clientv3.Client
 }
 
+func (e *EtcdStorage) Client() *clientv3.Client {
+	return e.client
+}
+
 func NewEtcdStorage(client *clientv3.Client) *EtcdStorage {
 	return &EtcdStorage{client: client}
 }
@@ -87,6 +91,55 @@ func (e *EtcdStorage) Watch(ctx context.Context, key string, callback func(strin
 	}
 }
 
+// GuaranteedUpdate keeps trying to update key 'key' (of type 'ptrToType')
+// retrying the update until success if there is index conflict.
+func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData interface{}) error {
+	for {
+		// Get the current version of the data to update
+		var existingData interface{}
+		resp, err := e.client.Get(ctx, key)
+		if err != nil {
+			return err
+		}
+		if resp.Kvs == nil || len(resp.Kvs) == 0 {
+			return fmt.Errorf("key not found: %s", key)
+		}
+		if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+			return err
+		}
+
+		// Compare the current data to the new data to see if an update is needed
+		if existingData == newData {
+			return nil // No update needed
+		}
+
+		// Create a transaction to update the data with optimistic concurrency control
+		jsonValue, err := json.Marshal(newData)
+		if err != nil {
+			return err
+		}
+		txn := e.Client().Txn(ctx).
+			If(clientv3.Compare(clientv3.ModifiedRevision(key), "=", resp.Kvs[0].ModRevision)).
+			Then(clientv3.OpPut(key, string(jsonValue)))
+
+		// Execute the transaction
+		txnResp, err := txn.Commit()
+		if err != nil {
+			return err
+		}
+
+		// Check if the transaction succeeded
+		if !txnResp.Succeeded {
+			// Another client updated the data, so retry the update
+			continue
+		}
+
+		// The update succeeded, so return
+		return nil
+	}
+}
+
+// Close closes the storage client.
 func (e *EtcdStorage) Close() error {
 	return e.client.Close()
 }
