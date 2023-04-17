@@ -1,0 +1,41 @@
+version: '1.0'
+name: pipeline-test1
+displayName: pipeline-test1
+triggers:
+  trigger: manual
+  pr:
+    branches:
+      prefix:
+        - ''
+stages:
+  - name: stage-cc6a9f8d
+    displayName: test
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: ut@golang
+        name: unit_test_go
+        displayName: Golang 单元测试
+        golangVersion: '1.12'
+        commands:
+          - '# 默认使用goproxy.cn用户可手动调整'
+          - export GOPROXY=https://goproxy.cn
+          - '# 默认的单元测试命令'
+          - '# 输出测试报告目录到当前工作目录，可自动上传并展示'
+          - echo test
+          - mkdir -p golang-report
+          - '# 未使用Go Mod的用户需要打开一下注释'
+          - '# export GOFLAGS=-mod=vendor'
+          - go test -v -json -cover -coverprofile cover.out ./... > golang-report/report.jsonl
+          - go tool cover -html=cover.out -o golang-report/index.html
+        report:
+          path: golang-report
+          file: report.jsonl
+          index: index.html
+        checkpoints: []
+        caches:
+          - /go/pkg/mod
+        notify: []
+        strategy:
+          retry: '0'
