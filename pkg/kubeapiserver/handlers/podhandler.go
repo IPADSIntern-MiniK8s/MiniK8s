@@ -21,9 +21,16 @@ func NewPodHandler(client *clientv3.Client) *PodHandler {
 	}
 }
 
-// CreatePod the url format is POST /api/v1/namespaces/:namespace/pods
+var client, _ = clientv3.New(clientv3.Config{
+	Endpoints: []string{"localhost:2380"},
+})
+
+// use global variable p to store the for handle pod
+var p = NewPodHandler(client)
+
+// CreatePodHandler the url format is POST /api/v1/namespaces/:namespace/pods
 // TODO: bind the pod in runtime
-func (p *PodHandler) CreatePod(c *gin.Context) {
+func CreatePodHandler(c *gin.Context) {
 	// 1. parse the request get the pod from the request
 	rawUrl := c.Request.URL.Path
 	r, err := regexp.Compile("/api/v1/namespaces/([^/]+)/pods")
@@ -33,8 +40,8 @@ func (p *PodHandler) CreatePod(c *gin.Context) {
 	}
 
 	namespace := r.FindStringSubmatch(rawUrl)[1]
-	log.Debug("[CreatePod] namespace: ", namespace)
-	log.Debug("[CreatePod] the raw url is: ", rawUrl)
+	log.Debug("[CreatePodHandler] namespace: ", namespace)
+	log.Debug("[CreatePodHandler] the raw url is: ", rawUrl)
 
 	var pod *apiobject.Pod
 	if err = c.Bind(&pod); err != nil {
@@ -49,7 +56,7 @@ func (p *PodHandler) CreatePod(c *gin.Context) {
 		return
 	}
 	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
-	log.Debug("[CreatePod] key: ", key)
+	log.Debug("[CreatePodHandler] key: ", key)
 
 	err = p.StorageTool.Create(context.Background(), key, jsonBytes)
 	if err != nil {
@@ -59,4 +66,70 @@ func (p *PodHandler) CreatePod(c *gin.Context) {
 
 	// 3. return the pod to the client
 	c.JSON(http.StatusOK, pod)
+}
+
+// GetPodHandler the url format is GET /api/v1/namespaces/:namespace/pods/:name
+func GetPodHandler(c *gin.Context) {
+	// 1. parse the request get the pod from the request
+	rawUrl := c.Request.URL.Path
+	r, err := regexp.Compile("/api/v1/namespaces/([^/]+)/pods/([^/]+)")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	namespace := r.FindStringSubmatch(rawUrl)[1]
+	name := r.FindStringSubmatch(rawUrl)[2]
+	log.Debug("[GetPodHandler] namespace: ", namespace)
+	log.Debug("[GetPodHandler] name: ", name)
+	log.Debug("[GetPodHandler] the raw url is: ", rawUrl)
+
+	// 2. get the pod's information from the storage
+	key := "/registry/pods/" + namespace + "/" + name
+	log.Debug("[GetPodHandler] key: ", key)
+
+	var jsonBytes []byte
+	err = p.StorageTool.Get(context.Background(), key, &jsonBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. return the pod to the client
+	var pod apiobject.Pod
+	err = pod.UnmarshalJSON(jsonBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, pod)
+}
+
+func DeletePodHandler(c *gin.Context) {
+	// 1. parse the request get the pod from the request
+	rawUrl := c.Request.URL.Path
+	r, err := regexp.Compile("/api/v1/namespaces/([^/]+)/pods/([^/]+)")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	namespace := r.FindStringSubmatch(rawUrl)[1]
+	name := r.FindStringSubmatch(rawUrl)[2]
+	log.Debug("[DeletePodHandler] namespace: ", namespace)
+	log.Debug("[DeletePodHandler] name: ", name)
+	log.Debug("[DeletePodHandler] the raw url is: ", rawUrl)
+
+	// 2. delete the pod's information from the storage
+	key := "/registry/pods/" + namespace + "/" + name
+	log.Debug("[DeletePodHandler] key: ", key)
+
+	err = p.StorageTool.Delete(context.Background(), key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. return the pod to the client
+	c.JSON(http.StatusOK, gin.H{"message": "delete pod successfully"})
 }

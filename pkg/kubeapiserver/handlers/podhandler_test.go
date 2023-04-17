@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/coreos/etcd/clientv3"
 	"github.com/gin-gonic/gin"
 	"minik8s/pkg/apiobject"
 	"net/http"
@@ -11,15 +10,7 @@ import (
 )
 
 func TestPodHandler_CreatePod(t *testing.T) {
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{"localhost:2380"},
-	})
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	podHandler := NewPodHandler(client)
 	p := &apiobject.Pod{
 		Data: apiobject.MetaData{
 			Name: "test-pod",
@@ -48,7 +39,7 @@ func TestPodHandler_CreatePod(t *testing.T) {
 
 	c.Request = req
 
-	podHandler.CreatePod(c)
+	CreatePodHandler(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("unexpected status code: %d", w.Code)
