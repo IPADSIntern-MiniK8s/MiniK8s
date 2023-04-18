@@ -19,6 +19,16 @@ func NewEtcdStorage(client *clientv3.Client) *EtcdStorage {
 	return &EtcdStorage{client: client}
 }
 
+func NewEtcdStorageNoParam() *EtcdStorage {
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints: []string{"localhost:2380"},
+	})
+	if err != nil {
+		return nil
+	}
+	return &EtcdStorage{client: client}
+}
+
 // Get retrieves the value at the specified key.
 // the interface description in k8s.io/apiserver/pkg/storage/interfaces.go:
 // Get unmarshals json found at key into objPtr. On a not found error, will either
