@@ -25,6 +25,13 @@ spec:
         value: "localhost"
       - name: DB_PORT
         value: "3306"
+	resources:
+		limits:
+        	cpu: "0.5"
+        memory: "250Mi"
+      	requests:
+        	cpu: "0.25"
+			memory: "125Mi"
     ports:
       - containerPort: 80
         name: http
@@ -40,7 +47,7 @@ spec:
 */
 
 type Pod struct {
-	APIVersion string    `json:"apiVersion"`
+	APIVersion string    `json:"apiVersion,omitempty"`
 	Data       MetaData  `json:"metadata"`
 	Spec       PodSpec   `json:"spec,omitempty"`
 	Status     PodStatus `json:"status,omitempty"`
@@ -48,7 +55,12 @@ type Pod struct {
 
 type MetaData struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
+	Labels    Label  `json:"labels,omitempty"`
+}
+
+type Label struct {
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type PodSpec struct {
@@ -58,11 +70,12 @@ type PodSpec struct {
 
 type Container struct {
 	Name            string         `json:"name"`
-	Image           string         `json:"image"`
+	Image           string         `json:"image,omitempty"`
 	ImagePullPolicy string         `json:"imagePullPolicy,omitempty"`
 	Command         []string       `json:"command,omitempty"`
 	Args            []string       `json:"args,omitempty"`
 	Env             []Env          `json:"env,omitempty"`
+	Resources       Resources      `json:"resources,omitempty"`
 	Ports           []Port         `json:"ports,omitempty"`
 	VolumeMounts    []volumeMounts `json:"volumeMounts,omitempty"`
 }
@@ -70,6 +83,21 @@ type Container struct {
 type Env struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
+}
+
+type Resources struct {
+	Limits   Limit   `json:"limits,omitempty"`
+	Requests Request `json:"requests,omitempty"`
+}
+
+type Limit struct {
+	Cpu    string `json:"cpu,omitempty"`
+	Memory string `json:"memory,omitempty"`
+}
+
+type Request struct {
+	Cpu    string `json:"cpu,omitempty"`
+	Memory string `json:"memory,omitempty"`
 }
 
 type Port struct {
@@ -97,7 +125,7 @@ type Volume struct {
 }
 
 type PodStatus struct {
-	Phase string `json:"phase"`
+	Phase string `json:"phase,omitempty""`
 }
 
 func (p *Pod) UnmarshalJSON(data []byte) error {
