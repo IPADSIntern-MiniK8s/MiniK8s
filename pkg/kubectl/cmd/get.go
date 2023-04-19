@@ -11,7 +11,7 @@ import (
 )
 
 var GetCmd = &cobra.Command{
-	Use:   "get <resource> <name>",
+	Use:   "get <resource> <name>/ get <resource>s",
 	Short: "Display one or many resources",
 	Long:  "Display one or many resources",
 	Args:  cobra.RangeArgs(1, 2),

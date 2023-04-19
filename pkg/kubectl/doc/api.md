@@ -1,12 +1,18 @@
 # Mini-K8s kubectl指令手册
-
+Mini-K8s支持的命令如下：
 #### kubectl apply
 
-`kubectl apply -f [filename]`
+`kubectl apply -f <filename>`
 
 #### kubectl get
 
+`kubectl get <resource> <name> [-n <namespace>]`
+
+`kubectl get <resource>+s [-n <namespace>]`
+
 #### kubectl delete
+
+`kubectl delete <resource> <name> [-n <namespace>]`
 
 由于k8s的Api是基于REST的设计思想，因此，不同种类的HTTP请求也就对应了不同的操作。比较常用的对应关系是：
 
