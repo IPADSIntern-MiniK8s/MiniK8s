@@ -9,23 +9,24 @@ import (
 )
 
 type ContainerSpec struct {
-	Image      string
-	Name       string
-	Mounts     map[string]string
-	CPU        CPUSpec
-	Memory     uint64
-	CmdLine    string
-	Envs       []string
-	Namespaces map[string]string
+	Image              string
+	Name               string
+	ContainerNamespace string
+	Mounts             map[string]string
+	CPU                CPUSpec
+	Memory             uint64
+	CmdLine            []string
+	Envs               []string
+	LinuxNamespaces    map[string]string
 }
 
 func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Container {
 	//must add tag and host
-	client, err := NewClient()
+	client, err := NewClient(spec.ContainerNamespace)
 	if err != nil {
 		return nil
 	}
-	image, err := client.Pull(ctx, spec.Image, containerd.WithPullUnpack)
+	image, err := client.Pull(ctx, PadImageName(spec.Image), containerd.WithPullUnpack)
 	if err != nil {
 		return nil
 	}
@@ -36,7 +37,7 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	if spec.CPU.Type != CPUNone {
 		opts = append(opts, GenerateCPUSpec(spec.CPU))
 	}
-	if spec.CmdLine != "" {
+	if spec.CmdLine != nil {
 		opts = append(opts, GenerateCMDSpec(spec.CmdLine))
 	}
 	if spec.Memory != 0 {
@@ -45,8 +46,8 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	if spec.Envs != nil && len(spec.Envs) > 0 {
 		opts = append(opts, GenerateEnvSpec(spec.Envs))
 	}
-	if spec.Namespaces != nil {
-		for nsType, path := range spec.Namespaces {
+	if spec.LinuxNamespaces != nil {
+		for nsType, path := range spec.LinuxNamespaces {
 			opts = append(opts, GenerateNamespaceSpec(nsType, path))
 		}
 	}
@@ -57,7 +58,6 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 		containerd.WithNewSpec(opts...),
 	)
 	if err != nil {
-		fmt.Println(err)
 		return nil
 	}
 	return newContainer

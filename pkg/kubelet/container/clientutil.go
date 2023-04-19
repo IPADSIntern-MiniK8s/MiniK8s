@@ -4,6 +4,6 @@ import (
 	"github.com/containerd/containerd"
 )
 
-func NewClient() (*containerd.Client, error) {
-	return containerd.New("/run/containerd/containerd.sock", containerd.WithDefaultNamespace("minik8s"))
+func NewClient(namespace string) (*containerd.Client, error) {
+	return containerd.New("/run/containerd/containerd.sock", containerd.WithDefaultNamespace(namespace))
 }

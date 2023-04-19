@@ -7,12 +7,13 @@ import (
 
 var runtimePath, _ = exec.LookPath("nerdctl")
 
-func Ctl(args ...string) (string, error) {
-	res, err := exec.Command(runtimePath, append([]string{"-n", "minik8s"}, args...)...).CombinedOutput()
+func Ctl(namespace string, args ...string) (string, error) {
+	//fmt.Println(append([]string{"-n", namespace}, args...))
+	res, err := exec.Command(runtimePath, append([]string{"-n", namespace}, args...)...).CombinedOutput()
 	return string(res), err
 }
 
-func CheckCmd(containerName string, args []string, answer string) bool {
-	output, _ := Ctl(append([]string{"exec", containerName}, args...)...)
+func CheckCmd(namespace string, containerName string, args []string, answer string) bool {
+	output, _ := Ctl(namespace, append([]string{"exec", containerName}, args...)...)
 	return strings.Index(output, answer) > -1
 }

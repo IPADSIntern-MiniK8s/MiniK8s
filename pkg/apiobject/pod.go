@@ -71,7 +71,7 @@ type Container struct {
 	Env             []Env          `json:"env,omitempty"`
 	Resources       Resources      `json:"resources,omitempty"`
 	Ports           []Port         `json:"ports,omitempty"`
-	VolumeMounts    []volumeMounts `json:"volumeMounts,omitempty"`
+	VolumeMounts    []VolumeMounts `json:"volumeMounts,omitempty"`
 }
 
 type Env struct {
@@ -100,7 +100,7 @@ type Port struct {
 	Protocol      string `json:"protocol,omitempty"`
 }
 
-type volumeMounts struct {
+type VolumeMounts struct {
 	Name      string `json:"name"`
 	MountPath string `json:"mountPath"`
 }

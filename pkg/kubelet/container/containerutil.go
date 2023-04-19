@@ -26,9 +26,8 @@ func GenerateHostnameSpec(hostname string) oci.SpecOpts {
 	return oci.WithHostname(hostname)
 }
 
-func GenerateCMDSpec(CmdLine string) oci.SpecOpts {
-	//TODO split by space;
-	return oci.WithProcessArgs(CmdLine)
+func GenerateCMDSpec(CmdLine []string) oci.SpecOpts {
+	return oci.WithProcessArgs(CmdLine...)
 }
 
 type CPUSpecType int
@@ -72,8 +71,8 @@ func GenerateEnvSpec(envs []string) oci.SpecOpts {
 	return oci.WithEnv(envs)
 }
 
-func GenerateNamespaceSpec(nsType,path string) oci.SpecOpts{
-	return oci.WithLinuxNamespace(specs.LinuxNamespace{Type:specs.LinuxNamespaceType(nsType),Path: path})
+func GenerateNamespaceSpec(nsType, path string) oci.SpecOpts {
+	return oci.WithLinuxNamespace(specs.LinuxNamespace{Type: specs.LinuxNamespaceType(nsType), Path: path})
 }
 
 func PadImageName(image string) string {
