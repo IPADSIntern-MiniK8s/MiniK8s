@@ -1,3 +1,13 @@
+# Mini-K8s kubectl指令手册
+
+#### kubectl apply
+
+`kubectl apply -f [filename]`
+
+#### kubectl get
+
+#### kubectl delete
+
 由于k8s的Api是基于REST的设计思想，因此，不同种类的HTTP请求也就对应了不同的操作。比较常用的对应关系是：
 
 **GET（SELECT）**：从服务器取出资源（一项或多项）。GET请求对应k8s api的获取信息功能。因此，如果是获取信息的命令都要使用GET方式发起HTTP请求。

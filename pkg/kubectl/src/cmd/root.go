@@ -6,16 +6,25 @@ import (
 )
 
 func init() {
-	ApplyCmd.Flags().StringVarP(&filePath, "filePath", "f", "", "kubectl apply (-f FILENAME)")
+	/* flag options that can be inherited by child commands */
+	RootCmd.Flags().StringVarP(&nameSpace, "nameSpace", "n", "default", "kubectl (-n NAMESPACE)")
+
+	/* apply cmd: eg: kubectl apply -f <FILENAME> */
+	ApplyCmd.Flags().StringVarP(&filePath, "filePath", "f", "", "kubectl apply -f <FILENAME>")
+	ApplyCmd.MarkFlagRequired("filePath")
 	RootCmd.AddCommand(ApplyCmd)
+
+	RootCmd.AddCommand(GetCmd)
+
 }
 
 var filePath string
+var nameSpace string
 
 var RootCmd = &cobra.Command{
 	Use:   "kubectl",
-	Short: "Kubectl is for interactive control of minik8s",
-	Long:  `Kubectl is for interactive control of minik8s`,
+	Short: "kubectl controls the minik8s cluster manager.",
+	Long:  "kubectl controls the minik8s cluster manager.",
 	Run:   runRoot,
 }
 

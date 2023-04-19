@@ -9,7 +9,7 @@ import (
 
 func SendJsonObject(method string, jsonObject []byte, url string) {
 	request, err := http.NewRequest(method, url, bytes.NewBuffer(jsonObject))
-	
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,4 +31,29 @@ func SendJsonObject(method string, jsonObject []byte, url string) {
 		resp.Body.Close()
 		fmt.Println(resp.StatusCode)
 	}
+}
+
+func SendRequest(method string, str []byte, url string) (string, error) {
+	request, err := http.NewRequest(method, url, bytes.NewBuffer(str))
+	if err != nil {
+		log.Fatal(err)
+	}
+	request.Header.Set("content-type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(request)
+
+	body := &bytes.Buffer{}
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		_, err := body.ReadFrom(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		resp.Body.Close()
+		fmt.Println(resp.StatusCode)
+	}
+	return body.String(), err
+
 }
