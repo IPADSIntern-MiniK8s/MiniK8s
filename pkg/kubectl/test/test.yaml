@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Pod
+metadata:
+  name: pod
+  namespace: default
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: testcase
+          image: 10.119.11.101:5000/autoscaler-test:1.0
+          ports:
+            - containerPort: 8080

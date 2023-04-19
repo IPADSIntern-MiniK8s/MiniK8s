@@ -132,6 +132,7 @@ node启动`./flanneld-amd64 -etcd-endpoints=http://192.168.1.12:2379 -iface=ens3
 `nerdctl run -d --net flannel mcastelino/nettools  sleep 3600` 测试网络可行
 
 nerdctl对于网络的解析太复杂了，对于pause并没有很多乱七八糟的配置，所以直接用ctl启动pause
+容器g虽然
 
 ### 原理
 
