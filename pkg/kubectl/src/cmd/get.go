@@ -27,7 +27,7 @@ func get(cmd *cobra.Command, args []string) {
 		kind = kind[0 : len(kind)-1]
 		/* validate if `kind` is in the resource list */
 		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx == -1 {
-			fmt.Printf("error: the server doesn't have a resource type %s", kind)
+			fmt.Printf("error: the server doesn't have a resource type \"%s\"", kind)
 		}
 
 		_url = ctlutils.ParseUrlMany(kind, nameSpace)
@@ -39,7 +39,7 @@ func get(cmd *cobra.Command, args []string) {
 		name := strings.ToLower(args[1])
 		/* validate if `kind` is in the resource list */
 		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx == -1 {
-			fmt.Printf("error: the server doesn't have a resource type %s", kind)
+			fmt.Printf("error: the server doesn't have a resource type \"%s\"", kind)
 		}
 
 		_url = ctlutils.ParseUrlOne(kind, name, nameSpace)
@@ -54,4 +54,5 @@ func get(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 	fmt.Print(info)
+	/* TODO 解析info，错误判断pod名字是否存在 */
 }
