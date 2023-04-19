@@ -52,13 +52,8 @@ spec:
 type Node struct {
 	APIVersion string   `json:"apiVersion,omitempty"`
 	Kind       string   `json:"kind,omitempty"`
-	Metadata   Metadata `json:"metadata,omitempty"`
+	Data       MetaData `json:"metadata,omitempty"`
 	Spec       NodeSpec `json:"spec,omitempty"`
-}
-
-type Metadata struct {
-	Name  string `json:"name,omitempty"`
-	Label Label  `json:"labels,omitempty"`
 }
 
 type NodeSpec struct {

@@ -35,7 +35,7 @@ func NewWatchServer(c *gin.Context) (*WatchServer, error) {
 }
 
 // Read websocket message
-func (s *WatchServer) Read() ([]byte, error) {
+func (s *WatchServer) read() ([]byte, error) {
 	_, message, err := s.Conn.ReadMessage()
 	if err != nil {
 		return nil, err
@@ -44,8 +44,8 @@ func (s *WatchServer) Read() ([]byte, error) {
 	return message, nil
 }
 
-// Write websocket message
-func (s *WatchServer) Write(message []byte) error {
+// write websocket message
+func (s *WatchServer) write(message []byte) error {
 	err := s.Conn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		return err
@@ -59,11 +59,11 @@ func (s *WatchServer) Close() error {
 	return s.Conn.Close()
 }
 
-// Watch a etcd key
-func (s *WatchServer) Watch(key string) error {
-	// TODO: concorrency problem?
+// Watch an etcd key
+func (s *WatchServer) innerWatch(key string) error {
+	// TODO: concurrent problem
 	err := Storage.Watch(context.Background(), key, func(key string, value []byte) error {
-		innerErr := s.Write(value)
+		innerErr := s.write(value)
 		if innerErr != nil {
 			log.Error("[Watch] write message error: ", innerErr)
 			return innerErr
@@ -71,4 +71,8 @@ func (s *WatchServer) Watch(key string) error {
 		return nil
 	})
 	return err
+}
+
+func (s *WatchServer) Watch(key string) {
+	go s.innerWatch(key)
 }

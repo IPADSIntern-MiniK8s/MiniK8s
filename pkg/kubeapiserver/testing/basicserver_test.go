@@ -2,11 +2,11 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"minik8s/pkg/kubeapiserver"
+	"minik8s/pkg/kubeapiserver/apimachinery"
 )
 
 func main() {
-	myAPI := kubeapiserver.NewAPI()
+	myAPI := apimachinery.NewAPI()
 	myAPI.RegisterHandler("GET", "/hello", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "Hello, World!"})
 	})

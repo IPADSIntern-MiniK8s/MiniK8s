@@ -69,6 +69,7 @@ func CreatePodHandler(c *gin.Context) {
 }
 
 // GetPodHandler the url format is GET /api/v1/namespaces/:namespace/pods/:name
+// if the request is a watch request and is a legal request, return false, nil
 func GetPodHandler(c *gin.Context) {
 	// 1. parse the request get the pod from the request
 	rawUrl := c.Request.URL.Path
@@ -78,6 +79,12 @@ func GetPodHandler(c *gin.Context) {
 		return
 	}
 
+	// 1.1 check whether it is a watch request
+	if c.Query("watch") == "true" {
+		log.Debug("[GetPodHandler] it is a watch request")
+		c.Status(http.StatusSeeOther)
+		return
+	}
 	namespace := r.FindStringSubmatch(rawUrl)[1]
 	name := r.FindStringSubmatch(rawUrl)[2]
 	log.Debug("[GetPodHandler] namespace: ", namespace)
@@ -103,6 +110,7 @@ func GetPodHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, pod)
+	return
 }
 
 func DeletePodHandler(c *gin.Context) {

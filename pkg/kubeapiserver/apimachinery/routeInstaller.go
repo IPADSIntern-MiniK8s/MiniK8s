@@ -1,4 +1,4 @@
-package handlers
+package apimachinery
 
 import "github.com/gin-gonic/gin"
 
@@ -37,5 +37,14 @@ func (r *Route) register(engine *gin.Engine) {
 func (serv *ServiceRoutes) registerRoutes(engine *gin.Engine) {
 	for i := range serv.Routes {
 		serv.Routes[i].register(engine)
+	}
+}
+
+// WatchFilter route filter for "watch=true" query parameter
+func WatchFilter(c *gin.Context) bool {
+	if c.Query("watch") == "true" {
+		return true
+	} else {
+		return false
 	}
 }
