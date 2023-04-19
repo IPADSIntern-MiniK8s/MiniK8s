@@ -5,7 +5,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	"github.com/tidwall/gjson"
-	ctlutils "minik8s/pkg/kubectl/src/utils"
+	"minik8s/pkg/kubectl/utils"
 	"minik8s/utils"
 	"os"
 	"strings"

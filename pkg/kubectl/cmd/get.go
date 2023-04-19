@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/wxnacy/wgo/arrays"
 	"log"
-	ctlutils "minik8s/pkg/kubectl/src/utils"
+	"minik8s/pkg/kubectl/utils"
 	"minik8s/utils"
 	"strings"
 )
