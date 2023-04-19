@@ -2,31 +2,26 @@ package handlers
 
 import (
 	"context"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
+	"minik8s/pkg/kubeapiserver/apimachinery"
 	"minik8s/pkg/kubeapiserver/storage"
 	"net/http"
 	"regexp"
 )
 
-type PodHandler struct {
-	StorageTool *storage.EtcdStorage
-}
+var podStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
 
-func NewPodHandler(client *clientv3.Client) *PodHandler {
-	return &PodHandler{
-		StorageTool: storage.NewEtcdStorage(client),
+func changePodStatus(pod *apiobject.Pod, status string) error {
+	pod.Status.Phase = status
+	key := "registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
+	err := podStorageTool.GuaranteedUpdate(context.Background(), key, pod)
+	if err != nil {
+		return err
 	}
+	return nil
 }
-
-var client, _ = clientv3.New(clientv3.Config{
-	Endpoints: []string{"localhost:2380"},
-})
-
-// use global variable p to store the for handle pod
-var p = NewPodHandler(client)
 
 // CreatePodHandler the url format is POST /api/v1/namespaces/:namespace/pods
 // TODO: bind the pod in runtime
@@ -50,6 +45,8 @@ func CreatePodHandler(c *gin.Context) {
 	}
 
 	// 2. save the pod's information in the storage
+	// set the pod status
+	pod.Status.Phase = "Pending"
 	jsonBytes, err := pod.MarshalJSON()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -58,13 +55,49 @@ func CreatePodHandler(c *gin.Context) {
 	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
 	log.Debug("[CreatePodHandler] key: ", key)
 
-	err = p.StorageTool.Create(context.Background(), key, jsonBytes)
+	err = podStorageTool.Create(context.Background(), key, jsonBytes)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 3. return the pod to the client
+	// 3. check the node information and get the node's ip
+	nodeKey := "/registry/nodes/"
+	nodeList := &apiobject.NodeList{}
+	err = podStorageTool.GetList(context.Background(), nodeKey, &nodeList)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// TODO: this task should be executed by scheduler
+	scheduled := false
+	for _, node := range nodeList.Items {
+		if (node.Status.Conditions[0].Type == "Ready") && (node.Status.Conditions[0].Status == "True") {
+			nodeKey = "/registry/nodes/" + node.Data.Name
+			watcher, ok := apimachinery.WatchTable[nodeKey]
+			if ok {
+				// TODO: the message format should be defined later
+				err = watcher.Write(jsonBytes)
+				if err != nil {
+					log.Debug("[CreatePodHandler] send to the node failed")
+					continue
+				}
+				scheduled = true
+				changePodStatus(pod, "Running")
+				break
+			} else {
+				continue
+			}
+		}
+	}
+
+	if !scheduled {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "no available node"})
+		return
+	}
+
+	// 4. return the pod to the client
 	c.JSON(http.StatusOK, pod)
 }
 
@@ -96,7 +129,7 @@ func GetPodHandler(c *gin.Context) {
 	log.Debug("[GetPodHandler] key: ", key)
 
 	var jsonBytes []byte
-	err = p.StorageTool.Get(context.Background(), key, &jsonBytes)
+	err = podStorageTool.Get(context.Background(), key, &jsonBytes)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -132,7 +165,7 @@ func DeletePodHandler(c *gin.Context) {
 	key := "/registry/pods/" + namespace + "/" + name
 	log.Debug("[DeletePodHandler] key: ", key)
 
-	err = p.StorageTool.Delete(context.Background(), key)
+	err = podStorageTool.Delete(context.Background(), key)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -140,4 +173,32 @@ func DeletePodHandler(c *gin.Context) {
 
 	// 3. return the pod to the client
 	c.JSON(http.StatusOK, gin.H{"message": "delete pod successfully"})
+}
+
+// UpdatePodStatusHandler the url format is PUT /api/v1/nodes/{name}/status
+// update the node's status in etcd
+func UpdatePodStatusHandler(c *gin.Context) {
+	// 1. parse the request get the pod from the request
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+	log.Debug("[UpdatePodStatusHandler] namespace: ", namespace)
+	log.Debug("[UpdatePodStatusHandler] name: ", name)
+
+	var pod *apiobject.Pod
+	if err := c.Bind(&pod); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. update the node information in etcd
+	key := "/registry/pods/" + namespace + "/" + name
+	log.Debug("[UpdatePodStatusHandler] key: ", key)
+	err := podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. return the result to the client
+	c.JSON(http.StatusOK, pod)
 }

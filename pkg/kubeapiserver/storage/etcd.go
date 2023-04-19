@@ -50,6 +50,21 @@ func (e *EtcdStorage) Get(ctx context.Context, key string, out interface{}) erro
 	return nil
 }
 
+// GetList retrieves the list of items specified by 'key' prefix.
+func (e *EtcdStorage) GetList(ctx context.Context, key string, out interface{}) error {
+	resp, err := e.client.Get(ctx, key, clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	if resp.Kvs == nil || len(resp.Kvs) == 0 {
+		return fmt.Errorf("key not found: %s", key)
+	}
+	if err := json.Unmarshal(resp.Kvs[0].Value, out); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Create creates a new key with the given value.
 // TODO：need to consider TTL ?
 // the interface description in k8s.io/apiserver/pkg/storage/interfaces.go

@@ -23,7 +23,7 @@ func TestStorage(t *testing.T) {
 	// test create
 	myStruct := &MyStruct{Field1: "Hello", Field2: 42}
 	etcdStorage := NewEtcdStorage(client)
-	err = etcdStorage.Create(context.Background(), "myStruct", myStruct)
+	err = etcdStorage.Create(context.Background(), "myStruct", &myStruct)
 	var expectedErr error = nil
 
 	if err != expectedErr {
@@ -45,7 +45,7 @@ func TestStorage(t *testing.T) {
 
 	// test update
 	myStruct.Field1 = "World"
-	err = etcdStorage.GuaranteedUpdate(context.Background(), "myStruct", myStruct)
+	err = etcdStorage.GuaranteedUpdate(context.Background(), "myStruct", &myStruct)
 	if err != expectedErr {
 		t.Errorf("Expected error %v, got %v", expectedErr, err)
 	}

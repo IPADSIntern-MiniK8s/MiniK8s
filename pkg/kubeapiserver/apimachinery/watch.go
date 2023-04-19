@@ -44,8 +44,8 @@ func (s *WatchServer) read() ([]byte, error) {
 	return message, nil
 }
 
-// write websocket message
-func (s *WatchServer) write(message []byte) error {
+// Write websocket message
+func (s *WatchServer) Write(message []byte) error {
 	err := s.Conn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		return err
@@ -63,9 +63,9 @@ func (s *WatchServer) Close() error {
 func (s *WatchServer) innerWatch(key string) error {
 	// TODO: concurrent problem
 	err := Storage.Watch(context.Background(), key, func(key string, value []byte) error {
-		innerErr := s.write(value)
+		innerErr := s.Write(value)
 		if innerErr != nil {
-			log.Error("[Watch] write message error: ", innerErr)
+			log.Error("[Watch] Write message error: ", innerErr)
 			return innerErr
 		}
 		return nil
