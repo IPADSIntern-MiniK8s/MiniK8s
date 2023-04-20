@@ -1,6 +1,7 @@
 package kubelet
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -16,4 +17,13 @@ func Ctl(namespace string, args ...string) (string, error) {
 func CheckCmd(namespace string, containerName string, args []string, answer string) bool {
 	output, _ := Ctl(namespace, append([]string{"exec", containerName}, args...)...)
 	return strings.Index(output, answer) > -1
+}
+
+func GetInfo(namespace, containerName, fields string) (string, error) {
+	output, err := Ctl(namespace, "inspect", "-f", fmt.Sprintf("{{%s}}", fields), containerName)
+	if err != nil {
+		return "", err
+	}
+	//remove the last \n
+	return output[:len(output)-1], nil
 }

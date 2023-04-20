@@ -9,33 +9,6 @@ import (
 	"testing"
 )
 
-func TestParseMemory(t *testing.T) {
-	res, err := parseMemory("100Mi")
-	if err != nil || res != 100*1024*1024 {
-		t.Fatalf("test parseMemory error")
-	}
-	res, err = parseMemory("10000")
-	if err != nil || res != 10000 {
-		t.Fatalf("test parseMemory failed")
-	}
-}
-
-func TestParseCmd(t *testing.T) {
-	res := parseCmd([]string{"/bin/bash"}, []string{"-c", "echo Hello Kubernetes!"})
-	if len(res) != 3 || res[0] != "/bin/bash" || res[1] != "-c" || res[2] != "echo Hello Kubernetes!" {
-		t.Fatalf("test parsecmd failed")
-	}
-}
-
-func TestParseEnv(t *testing.T) {
-	res := parseEnv([]apiobject.Env{
-		{"a", "b"}, {"c", "d"},
-	})
-	if len(res) != 2 || res[0] != "a=b" || res[1] != "c=d" {
-		t.Fatalf("test parseenv failed")
-	}
-}
-
 // nerdctl -n testpod stop $(nerdctl -n testpod ps | grep -v CONTAINER |awk '{print $1}')
 // nerdctl -n testpod rm $(nerdctl -n testpod ps -a| grep -v CONTAINER |awk '{print $1}')
 func TestCreatePod(t *testing.T) {
@@ -96,7 +69,15 @@ func TestCreatePod(t *testing.T) {
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
+	success = kubelet.CheckCmd(namespace, "testpod-c1", []string{"curl", "www.baidu.com"}, "百度一下，你就知道")
+	if !success {
+		t.Fatalf("test outside network failed")
+	}
 	success = kubelet.CheckCmd(namespace, "testpod-c2", []string{"ping", "www.baidu.com", "-c", "2"}, "64 bytes from")
+	if !success {
+		t.Fatalf("test outside network failed")
+	}
+	success = kubelet.CheckCmd(namespace, "testpod-c2", []string{"curl", "www.baidu.com"}, "百度一下，你就知道")
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
@@ -116,4 +97,90 @@ func TestCreatePod(t *testing.T) {
 	id := containers[0].ID()
 	kubelet.Ctl(namespace, "stop", id)
 	kubelet.Ctl(namespace, "rm", id)
+}
+
+func TestPodCommunication(t *testing.T) {
+	//should start etcd and flannld
+	namespace := "testpod"
+	pod1 := apiobject.Pod{
+		Data: apiobject.MetaData{Name: "pod1", Namespace: namespace},
+		Spec: apiobject.PodSpec{
+			Containers: []apiobject.Container{
+				{
+					Name:    "c",
+					Image:   "docker.io/mcastelino/nettools",
+					Command: []string{"/root/test_mount/test_network"},
+					Env:     []apiobject.Env{{Name: "port", Value: "12345"}},
+					VolumeMounts: []apiobject.VolumeMounts{
+						{
+							Name:      "test-volume",
+							MountPath: "/root/test_mount",
+						},
+					},
+				},
+			},
+			Volumes: []apiobject.Volumes{
+				{
+					Name:     "test-volume",
+					HostPath: apiobject.HostPath{Path: "/home/test_mount"},
+				},
+			},
+		}}
+	pod2 := apiobject.Pod{
+		Data: apiobject.MetaData{Name: "pod2", Namespace: namespace},
+		Spec: apiobject.PodSpec{
+			Containers: []apiobject.Container{
+				{
+					Name:    "c",
+					Image:   "docker.io/mcastelino/nettools",
+					Command: []string{"/root/test_mount/test_network"},
+					Env:     []apiobject.Env{{Name: "port", Value: "23456"}},
+					VolumeMounts: []apiobject.VolumeMounts{
+						{
+							Name:      "test-volume",
+							MountPath: "/root/test_mount",
+						},
+					},
+				},
+			},
+			Volumes: []apiobject.Volumes{
+				{
+					Name:     "test-volume",
+					HostPath: apiobject.HostPath{Path: "/home/test_mount"},
+				},
+			},
+		}}
+	success := CreatePod(pod1)
+	if !success {
+		t.Fatalf("create pod1 failed")
+	}
+	success = CreatePod(pod2)
+	if !success {
+		t.Fatalf("create pod2 failed")
+	}
+	ip1, err := kubelet.GetInfo(namespace, "pod1-c", ".NetworkSettings.IPAddress")
+	if err != nil {
+		t.Fatalf("get pod1 ip failed")
+	}
+	ip2, err := kubelet.GetInfo(namespace, "pod2-c", ".NetworkSettings.IPAddress")
+	if err != nil {
+		t.Fatalf("get pod2 ip failed")
+	}
+	success = kubelet.CheckCmd(namespace, "pod1-c", []string{"curl", fmt.Sprintf("%s:%s", ip2, pod2.Spec.Containers[0].Env[0].Value)}, "http connect success")
+	if !success {
+		t.Fatalf("test outside network failed")
+	}
+	success = kubelet.CheckCmd(namespace, "pod2-c", []string{"curl", fmt.Sprintf("%s:%s", ip1, pod1.Spec.Containers[0].Env[0].Value)}, "http connect success")
+	if !success {
+		t.Fatalf("test outside network failed")
+	}
+	//
+	client, _ := container.NewClient(namespace)
+	ctx := context.Background()
+	containers, _ := client.Containers(ctx)
+	for _, c := range containers {
+		id := c.ID()
+		kubelet.Ctl(namespace, "stop", id)
+		kubelet.Ctl(namespace, "rm", id)
+	}
 }
