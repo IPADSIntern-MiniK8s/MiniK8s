@@ -71,11 +71,11 @@ func TestContainer(t *testing.T) {
 	if GetContainerStatus(ctx, c) != "stopped" {
 		t.Fatalf("container status wrong")
 	}
-	//kubelet.Ctl(spec.ContainerNamespace, "rm", spec.Name)
-	//containers, _ = client.Containers(ctx)
-	//if len(containers) > 0 {
-	//	t.Fatalf("rm container failed")
-	//}
+	kubelet.Ctl(spec.ContainerNamespace, "rm", spec.Name)
+	containers, _ = client.Containers(ctx)
+	if len(containers) > 0 {
+		t.Fatalf("rm container failed")
+	}
 }
 
 func TestPadImageName(t *testing.T) {
