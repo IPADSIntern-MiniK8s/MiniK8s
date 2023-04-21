@@ -4,7 +4,7 @@ import (
 	"minik8s/pkg/kubeapiserver/apimachinery"
 )
 
-func main() {
+func Run() {
 	myAPI := apimachinery.NewAPI()
 	err := myAPI.Run(":8080")
 	if err != nil {
