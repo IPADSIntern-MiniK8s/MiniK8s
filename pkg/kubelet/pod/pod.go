@@ -28,11 +28,11 @@ func CreatePod(pod apiobject.Pod) bool {
 		return false
 	}
 	defer os.Remove("./hosts")
-	pausePid, err := kubelet.Ctl(pod.Data.Namespace, "inspect", "-f", "{{.State.Pid}}", pauseContainerID)
+	pausePid, err := kubelet.GetInfo(pod.Data.Namespace, pauseContainerID, ".State.Pid")
 	if err != nil {
 		return false
 	}
-	pid, err := strconv.Atoi(pausePid[:len(pausePid)-1]) //last is \n
+	pid, err := strconv.Atoi(pausePid)
 	if err != nil {
 		return false
 	}
@@ -88,8 +88,12 @@ func apiContainer2Container(metaData apiobject.MetaData, volumes []apiobject.Vol
 		Memory:  memory,
 		CmdLine: parseCmd(apicontainer.Command, apicontainer.Args),
 		Envs:    parseEnv(apicontainer.Env),
+		//github.com/opencontainers/runtime-spec/specs-go/config.go/LinuxNamespaceType
 		LinuxNamespaces: map[string]string{
+			"pid":     namespacePathPrefix + "pid",
 			"network": namespacePathPrefix + "net",
+			"ipc":     namespacePathPrefix + "ipc",
+			"uts":     namespacePathPrefix + "uts",
 		},
 	}
 	return c

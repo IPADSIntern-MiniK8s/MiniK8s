@@ -29,8 +29,14 @@ func TestContainer(t *testing.T) {
 	kubelet.Ctl(spec.ContainerNamespace, "stop", spec.Name)
 	kubelet.Ctl(spec.ContainerNamespace, "rm", spec.Name)
 	time.Sleep(time.Second * 2)
-	client, _ := NewClient(spec.ContainerNamespace)
-	containers, _ := client.Containers(ctx)
+	client, err := NewClient(spec.ContainerNamespace)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	containers, err := client.Containers(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	if len(containers) > 0 {
 		fmt.Println(GetContainerStatus(ctx, containers[0]))
 		t.Fatalf("make sure there is no container created before test")
@@ -55,7 +61,10 @@ func TestContainer(t *testing.T) {
 	if !envExist {
 		t.Fatalf("env set failed")
 	}
-	containers, _ = client.Containers(ctx)
+	containers, err = client.Containers(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	if len(containers) != 1 {
 		t.Fatalf("container status wrong")
 	}
@@ -67,15 +76,21 @@ func TestContainer(t *testing.T) {
 		t.Fatalf("container status wrong")
 	}
 
-	kubelet.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	_, err = kubelet.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	if GetContainerStatus(ctx, c) != "stopped" {
 		t.Fatalf("container status wrong")
 	}
-	//kubelet.Ctl(spec.ContainerNamespace, "rm", spec.Name)
-	//containers, _ = client.Containers(ctx)
-	//if len(containers) > 0 {
-	//	t.Fatalf("rm container failed")
-	//}
+	_, err = kubelet.Ctl(spec.ContainerNamespace, "rm", spec.Name)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	containers, _ = client.Containers(ctx)
+	if len(containers) > 0 {
+		t.Fatalf("rm container failed")
+	}
 }
 
 func TestPadImageName(t *testing.T) {
@@ -95,9 +110,15 @@ func TestPadImageName(t *testing.T) {
 }
 
 func TestGetContainerStatus(t *testing.T) {
-	client, _ := NewClient("test")
+	client, err := NewClient("test")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	ctx := context.Background()
-	containers, _ := client.Containers(ctx)
+	containers, err := client.Containers(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	for _, c := range containers {
 		fmt.Println(c.ID())
 		fmt.Println(GetContainerStatus(ctx, c))
