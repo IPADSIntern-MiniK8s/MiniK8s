@@ -1,6 +1,4 @@
-package config
-
-import "minik8s/pkg/kubeapiserver/apimachinery"
+package watch
 
 // WatchTable map the attribute name to the watch server
-var WatchTable map[string]*apimachinery.WatchServer
+var WatchTable map[string]*WatchServer

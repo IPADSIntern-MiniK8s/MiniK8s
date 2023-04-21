@@ -5,7 +5,7 @@ import (
 )
 
 // Node
-// a node struct for k8s node config file
+// a node struct for k8s node watch file
 /*
 {
   "kind": "Node",
@@ -115,13 +115,13 @@ type Node struct {
 }
 
 type NodeSpec struct {
-	PodCIDR       string            `json:"podCIDR,omitempty"`
-	PodCIDRs      []string          `json:"podCIDRs,omitempty"`
-	Unschedulable bool              `json:"unschedulable,omitempty"`
-	Taints        []Taint           `json:"taints,omitempty"`
-	ProviderID    string            `json:"providerID,omitempty"`
-	NodeSelector  map[string]string `json:"nodeSelector,omitempty"`
-	PodResources  PodResources      `json:"podResources,omitempty"`
+	PodCIDR       string   `json:"podCIDR,omitempty"`
+	PodCIDRs      []string `json:"podCIDRs,omitempty"`
+	Unschedulable bool     `json:"unschedulable,omitempty"`
+	Taints        []Taint  `json:"taints,omitempty"`
+	ProviderID    string   `json:"providerID,omitempty"`
+	//NodeSelector  map[string]string `json:"nodeSelector,omitempty"`
+	//PodResources  PodResources      `json:"podResources,omitempty"`
 }
 
 type Taint struct {
@@ -140,9 +140,9 @@ type NodeStatus struct {
 	Allocatable map[string]string `json:"allocatable,omitempty"`
 	Conditions  []Condition       `json:"conditions,omitempty"`
 	Addresses   []Address         `json:"addresses,omitempty"`
-	DaemonEnd   DaemonEnd         `json:"daemonEndpoints,omitempty"`
-	NodeInfo    NodeInfo          `json:"nodeInfo,omitempty"`
-	Images      []Image           `json:"images,omitempty"`
+	//DaemonEnd   DaemonEnd         `json:"daemonEndpoints,omitempty"`
+	//NodeInfo    NodeInfo          `json:"nodeInfo,omitempty"`
+	Images []Image `json:"images,omitempty"`
 }
 
 type Condition struct {
@@ -214,12 +214,11 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// UnMarshalJSON json and store in current object
 func (n *Node) UnMarshalJSON(data []byte) error {
-	type Alias Node
-	aux := &struct {
-		*Alias
-	}{
-		Alias: (*Alias)(n),
+	err := json.Unmarshal(data, &n)
+	if err != nil {
+		return err
 	}
-	return json.Unmarshal(data, aux)
+	return nil
 }

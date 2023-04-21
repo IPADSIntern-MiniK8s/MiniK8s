@@ -53,10 +53,6 @@ type Pod struct {
 	Status     PodStatus `json:"status,omitempty"`
 }
 
-type Label struct {
-	Labels map[string]string `json:"labels,omitempty"`
-}
-
 type PodSpec struct {
 	Containers []Container `json:"containers"`
 	Volumes    []Volumes   `json:"volumes,omitempty"`
