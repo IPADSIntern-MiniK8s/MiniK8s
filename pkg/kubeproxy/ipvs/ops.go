@@ -5,6 +5,7 @@ import (
 	"github.com/mqliang/libipvs"
 	"net"
 	"os/exec"
+	"strconv"
 	"syscall"
 )
 
@@ -53,8 +54,8 @@ func addService(ip string, port uint16) *libipvs.Service {
 	}
 
 	// Configure the iptable: add SNAT rule
-	// Equal to the cmd: iptables -t nat -A POSTROUTING -m ipvs  --vaddr 10.10.0.1 --vport 8410 -j MASQUERADE
-	args = []string{"-t", "nat", "-A", "POSTROUTING", "-m", "ipvs", "--vaddr", ip, "--vport", string(port), "-j", "MASQUERADE"}
+	// Equal to the cmd: iptables -t nat -A POSTROUTING -m ipvs  --vaddr 10.9.0.1 --vport 12 -j MASQUERADE
+	args = []string{"-t", "nat", "-A", "POSTROUTING", "-m", "ipvs", "--vaddr", ip, "--vport", strconv.Itoa(int(svc.Port)), "-j", "MASQUERADE"}
 	_, err = exec.Command("iptables", args...).CombinedOutput()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -70,9 +71,17 @@ func bindEndpoint(svc *libipvs.Service, ip string, port uint16) *libipvs.Destina
 		Port:          port,
 	}
 
-	if err := handler.NewDestination(svc, &dst); err != nil {
+	print(svc.Address.String() + ":" + strconv.Itoa(int(svc.Port)))
+
+	args := []string{"-a", "-t", svc.Address.String() + ":" + strconv.Itoa(int(svc.Port)), "-r", ip + ":" + strconv.Itoa(int(port)), "-m"}
+	res, err := exec.Command("ipvsadm", args...).CombinedOutput()
+	if err != nil {
 		fmt.Println(err.Error())
 	}
+	println(string(res))
+	//if err := handler.NewDestination(svc, &dst); err != nil {
+	//	fmt.Println(err.Error())
+	//}
 
 	return &dst
 }
