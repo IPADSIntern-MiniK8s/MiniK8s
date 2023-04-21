@@ -81,22 +81,40 @@ func TestCreatePod(t *testing.T) {
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
-	//
+	var err error
 	for _, c := range pod.Spec.Containers {
 		n := fmt.Sprintf("%s-%s", pod.Data.Name, c.Name)
-		kubelet.Ctl(namespace, "stop", n)
-		kubelet.Ctl(namespace, "rm", n)
+		_, err = kubelet.Ctl(namespace, "stop", n)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		_, err = kubelet.Ctl(namespace, "rm", n)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
 	}
 	// may get "Shutting down, got signal: Terminated" from pause container, it is a normal behavior
-	client, _ := container.NewClient(namespace)
+	client, err := container.NewClient(namespace)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	ctx := context.Background()
-	containers, _ := client.Containers(ctx)
+	containers, err := client.Containers(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	if len(containers) != 1 { //left pause
 		t.Fatalf("rm containers failed")
 	}
 	id := containers[0].ID()
-	kubelet.Ctl(namespace, "stop", id)
-	kubelet.Ctl(namespace, "rm", id)
+	_, err = kubelet.Ctl(namespace, "stop", id)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	_, err = kubelet.Ctl(namespace, "rm", id)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 }
 
 func TestPodCommunication(t *testing.T) {
@@ -174,13 +192,22 @@ func TestPodCommunication(t *testing.T) {
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
-	//
-	client, _ := container.NewClient(namespace)
+
+	client, err := container.NewClient(namespace)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	ctx := context.Background()
 	containers, _ := client.Containers(ctx)
 	for _, c := range containers {
 		id := c.ID()
-		kubelet.Ctl(namespace, "stop", id)
-		kubelet.Ctl(namespace, "rm", id)
+		_, err = kubelet.Ctl(namespace, "stop", id)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		_, err = kubelet.Ctl(namespace, "rm", id)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
 	}
 }
