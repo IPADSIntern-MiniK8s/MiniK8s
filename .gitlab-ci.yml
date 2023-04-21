@@ -1,0 +1,22 @@
+stages:
+  - test
+  - build
+
+
+test-job1:
+  stage: test
+  script:
+    #- go test ./...
+    - go test minik8s/pkg/kubelet/container -cover 
+    - go test minik8s/pkg/kubelet/pod -cover 
+  tags:
+    - shell
+
+build-job:
+  stage: build
+  script:
+    - cd build
+    - make all 
+  tags:
+    - shell
+
