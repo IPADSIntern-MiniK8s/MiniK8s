@@ -4,9 +4,10 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"minik8s/pkg/apiobject"
-	"minik8s/pkg/kubeapiserver/apimachinery"
 	"minik8s/pkg/kubeapiserver/storage"
+	"minik8s/pkg/kubeapiserver/watch"
 	"net/http"
 )
 
@@ -17,19 +18,28 @@ var nodeStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
 // convert the connection to websocket connection
 func RegisterNodeHandler(c *gin.Context) {
 	// 1. get the node information from the request
-	var node *apiobject.Node
-	if err := c.Bind(&node); err != nil {
+	var node *apiobject.Node = &apiobject.Node{}
+	log.Debug("[RegisterNodeHandler] node: get the node information from the request")
+	reqBody, err := io.ReadAll(c.Request.Body)
+	log.Debug("[RegisterNodeHandler] node info:", string(reqBody))
+	err = node.UnMarshalJSON(reqBody)
+	if err != nil {
+		log.Error("get node information failed: ", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// 2. record it in etcd
+	log.Debug("[RegisterNodeHandler] node: record it in etcd")
 	jsonBytes, err := node.MarshalJSON()
+	log.Debug("[RegisterNodeHandler] the node data:", node)
 	if err != nil {
+		log.Error("record node information failed: ", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	key := "/registry/nodes/" + node.Data.Name
+	log.Debug("[RegisterNodeHandler] node name: ", node.Data.Name)
 	log.Debug("[RegisterNodeHandler] key: ", key)
 
 	err = nodeStorageTool.Create(context.Background(), key, string(jsonBytes))
@@ -40,12 +50,12 @@ func RegisterNodeHandler(c *gin.Context) {
 
 	// 3. convert the connection to websocket connection
 	// and store it in the watchTable
-	watcher, err := apimachinery.NewWatchServer(c)
+	watcher, err := watch.NewWatchServer(c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	apimachinery.WatchTable[key] = watcher
+	watch.WatchTable[key] = watcher
 
 	c.JSON(http.StatusOK, node)
 }

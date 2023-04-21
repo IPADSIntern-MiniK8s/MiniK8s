@@ -5,8 +5,8 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
-	"minik8s/pkg/kubeapiserver/apimachinery"
 	"minik8s/pkg/kubeapiserver/storage"
+	"minik8s/pkg/kubeapiserver/watch"
 	"net/http"
 	"regexp"
 )
@@ -75,7 +75,7 @@ func CreatePodHandler(c *gin.Context) {
 	for _, node := range nodeList.Items {
 		if (node.Status.Conditions[0].Type == "Ready") && (node.Status.Conditions[0].Status == "True") {
 			nodeKey = "/registry/nodes/" + node.Data.Name
-			watcher, ok := apimachinery.WatchTable[nodeKey]
+			watcher, ok := watch.WatchTable[nodeKey]
 			if ok {
 				// TODO: the message format should be defined later
 				err = watcher.Write(jsonBytes)
