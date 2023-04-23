@@ -48,7 +48,25 @@ func RegisterNodeHandler(c *gin.Context) {
 		return
 	}
 
-	// 3. convert the connection to websocket connection
+	c.JSON(http.StatusOK, node)
+}
+
+// NodeWatchHandler the url format is GET /api/v1/nodes/{name}/watch
+// watch the node information
+func NodeWatchHandler(c *gin.Context) {
+	// 1. get the node information from etcd
+	name := c.Param("name")
+	key := "/registry/nodes/" + name
+	log.Debug("[NodeWatchHandler] key: ", key)
+
+	node := &apiobject.Node{}
+	err := nodeStorageTool.Get(context.Background(), key, node)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. convert the connection to websocket connection
 	// and store it in the watchTable
 	watcher, err := watch.NewWatchServer(c)
 	if err != nil {
