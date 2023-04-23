@@ -29,6 +29,10 @@ go get github.com/coreos/etcd/clientv3
 ## 实现思路
 1. 原始的版本watch初步使用简单的websocket实现
 
+## 测试命令
+```shell
+wscat -c ws://localhost:8080/api/v1/nodes/node-1/watch
+```
 ## 参考资料
 
 Gin安装入门: https://gin-gonic.com/zh-cn/docs/quickstart/

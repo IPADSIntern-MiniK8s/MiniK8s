@@ -63,7 +63,7 @@ func CreatePodHandler(c *gin.Context) {
 
 	// 3. check the node information and get the node's ip
 	nodeKey := "/registry/nodes/"
-	nodeList := &apiobject.NodeList{}
+	var nodeList []apiobject.Node
 	err = podStorageTool.GetList(context.Background(), nodeKey, &nodeList)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -72,7 +72,7 @@ func CreatePodHandler(c *gin.Context) {
 
 	// TODO: this task should be executed by scheduler
 	scheduled := false
-	for _, node := range nodeList.Items {
+	for _, node := range nodeList {
 		if (node.Status.Conditions[0].Type == "Ready") && (node.Status.Conditions[0].Status == "True") {
 			nodeKey = "/registry/nodes/" + node.Data.Name
 			watcher, ok := watch.WatchTable[nodeKey]

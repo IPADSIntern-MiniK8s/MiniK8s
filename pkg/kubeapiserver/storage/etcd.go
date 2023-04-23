@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/coreos/etcd/clientv3"
+	"reflect"
 )
 
 type EtcdStorage struct {
@@ -59,9 +60,32 @@ func (e *EtcdStorage) GetList(ctx context.Context, key string, out interface{}) 
 	if resp.Kvs == nil || len(resp.Kvs) == 0 {
 		return fmt.Errorf("key not found: %s", key)
 	}
-	if err := json.Unmarshal(resp.Kvs[0].Value, out); err != nil {
-		return err
+
+	// unmarshal a list of items
+	//items := make([]interface{}, len(resp.Kvs))
+	//for i, kv := range resp.Kvs {
+	//	if err := json.Unmarshal(kv.Value, &items[i]); err != nil {
+	//		return err
+	//	}
+	//}
+	//reflect.ValueOf(out).Elem().Set(reflect.ValueOf(items))
+	outType := reflect.TypeOf(out).Elem().Elem()
+
+	// make a slice to hold the items
+	items := reflect.MakeSlice(reflect.SliceOf(outType), len(resp.Kvs), len(resp.Kvs))
+
+	// unmarshal each item in the response into a new instance of the struct
+	for i, kv := range resp.Kvs {
+		item := reflect.New(outType).Interface()
+		if err := json.Unmarshal(kv.Value, item); err != nil {
+			return err
+		}
+		items.Index(i).Set(reflect.ValueOf(item).Elem())
 	}
+
+	// set the output slice to the items slice
+	reflect.ValueOf(out).Elem().Set(items)
+
 	return nil
 }
 

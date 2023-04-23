@@ -52,7 +52,7 @@ func (a *APIServer) UpgradeToWebSocket() gin.HandlerFunc {
 			// Setup a new websocket connection
 			newWatcher, err := watch.NewWatchServer(c)
 			if err != nil {
-				log.Error("[UpgradeToWebSocket] fail to establish a new websocket connection")
+				log.Error("[UpgradeToWebSocket] fail to establish a new websocket connection, err: ", err)
 				return
 			}
 

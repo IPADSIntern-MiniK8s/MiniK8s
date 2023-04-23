@@ -75,6 +75,7 @@ func NodeWatchHandler(c *gin.Context) {
 	}
 	watch.WatchTable[key] = watcher
 
+	watcher.Write([]byte("websocket connection is established"))
 	c.JSON(http.StatusOK, node)
 }
 

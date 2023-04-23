@@ -30,6 +30,12 @@ func TestStorage(t *testing.T) {
 		t.Errorf("Expected error %v, got %v", expectedErr, err)
 	}
 
+	myStruct5 := &MyStruct{Field1: "Hello2", Field2: 43}
+	err = etcdStorage.Create(context.Background(), "myStruct2", &myStruct5)
+	if err != expectedErr {
+		t.Errorf("Expected error %v, got %v", expectedErr, err)
+	}
+
 	// test get
 	var myStruct2 MyStruct
 	err = etcdStorage.Get(context.Background(), "myStruct", &myStruct2)
@@ -41,6 +47,13 @@ func TestStorage(t *testing.T) {
 	}
 	if myStruct2.Field2 != myStruct.Field2 {
 		t.Errorf("Expected %v, got %v", myStruct.Field2, myStruct2.Field2)
+	}
+
+	// test getList
+	var myStructList []MyStruct
+	err = etcdStorage.GetList(context.Background(), "myStruct", &myStructList)
+	if err != expectedErr {
+		t.Errorf("Expected error %v, got %v", expectedErr, err)
 	}
 
 	// test update
