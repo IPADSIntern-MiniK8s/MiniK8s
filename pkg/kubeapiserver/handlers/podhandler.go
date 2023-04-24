@@ -47,7 +47,6 @@ func CreatePodHandler(c *gin.Context) {
 	// 2. save the pod's information in the storage
 	// set the pod status
 	pod.Status.Phase = "Pending"
-	jsonBytes, err := pod.MarshalJSON()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -55,7 +54,7 @@ func CreatePodHandler(c *gin.Context) {
 	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
 	log.Debug("[CreatePodHandler] key: ", key)
 
-	err = podStorageTool.Create(context.Background(), key, jsonBytes)
+	err = podStorageTool.Create(context.Background(), key, &pod)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -72,6 +71,7 @@ func CreatePodHandler(c *gin.Context) {
 
 	// TODO: this task should be executed by scheduler
 	scheduled := false
+	jsonBytes, err := pod.MarshalJSON()
 	for _, node := range nodeList {
 		if (node.Status.Conditions[0].Type == "Ready") && (node.Status.Conditions[0].Status == "True") {
 			nodeKey = "/registry/nodes/" + node.Data.Name

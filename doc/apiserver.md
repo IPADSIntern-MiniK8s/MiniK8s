@@ -30,9 +30,15 @@ go get github.com/coreos/etcd/clientv3
 1. 原始的版本watch初步使用简单的websocket实现
 
 ## 测试命令
+1. 启动watch
 ```shell
 wscat -c ws://localhost:8080/api/v1/nodes/node-1/watch
 ```
+2. 清除etcd内所有数据
+```shell
+etcdctl del / --prefix
+```
+
 ## 参考资料
 
 Gin安装入门: https://gin-gonic.com/zh-cn/docs/quickstart/

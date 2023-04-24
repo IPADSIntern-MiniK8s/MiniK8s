@@ -1,0 +1,43 @@
+stages:
+  - prepare
+  - test
+  - build
+
+prepare:
+  stage: prepare
+  script:
+    - go env -w GOPROXY=https://goproxy.cn
+  tags:
+    - shell
+
+test-kubelet:
+  stage: test
+  script:
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubelet/container -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubelet/pod -cover
+  tags:
+    - shell
+
+test-kubectl:
+  stage: test
+  script:
+    - echo "testing kubectl"
+  tags:
+    - shell
+
+test-apiserver:
+  stage: test
+  script:
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/storage -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/handlers -cover
+  tags:
+    - shell
+
+build:
+  stage: build
+  script:
+    - cd build
+    - make all
+    - cp -r bin /home/gitlab-runner/bin
+  tags:
+    - shell

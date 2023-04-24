@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/coreos/etcd/clientv3"
+	log "github.com/sirupsen/logrus"
 	"reflect"
 )
 
@@ -129,6 +130,7 @@ func (e *EtcdStorage) Watch(ctx context.Context, key string, callback func(strin
 		select {
 		case wresp := <-ch:
 			for _, ev := range wresp.Events {
+				log.Info("[Watch] the key is ", string(ev.Kv.Key), " and the value is ", string(ev.Kv.Value), " and the type is ", ev.Type)
 				err := callback(string(ev.Kv.Key), ev.Kv.Value)
 				if err != nil {
 					return err
