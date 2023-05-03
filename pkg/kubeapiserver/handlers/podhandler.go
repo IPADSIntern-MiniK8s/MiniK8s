@@ -128,20 +128,14 @@ func GetPodHandler(c *gin.Context) {
 	key := "/registry/pods/" + namespace + "/" + name
 	log.Debug("[GetPodHandler] key: ", key)
 
-	var jsonBytes []byte
-	err = podStorageTool.Get(context.Background(), key, &jsonBytes)
+	var pod apiobject.Pod
+	err = podStorageTool.Get(context.Background(), key, &pod)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	// 3. return the pod to the client
-	var pod apiobject.Pod
-	err = pod.UnmarshalJSON(jsonBytes)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
 	c.JSON(http.StatusOK, pod)
 	return
 }
