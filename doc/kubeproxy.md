@@ -12,7 +12,6 @@ service流程：
 
 - K8s会为Service分配一个“持久化的”集群内的IP
 - kubeproxy维护service ip和转发的实际pod ip的关系
-- 
 
 **Node Port** **Service**
 

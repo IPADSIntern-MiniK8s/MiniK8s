@@ -30,6 +30,15 @@ func TestConfig() {
 	bindEndpoint(svc, "10.2.17.54", 12345)
 }
 
+func AddService(ip string, port uint16) {
+	svc := addService(ip, port)
+	serviceIP := ip + ":" + string(port)
+	Services[serviceIP] = &ServiceNode{
+		Service: svc,
+		Visited: true,
+	}
+}
+
 func addService(ip string, port uint16) *libipvs.Service {
 	// Create a service struct and add it to the ipvs.
 	// Equal to the cmd: ipvsadm -A -t 10.10.0.1:8410 -s rr
@@ -64,6 +73,26 @@ func addService(ip string, port uint16) *libipvs.Service {
 	return &svc
 }
 
+func DeleteService(key string, node *ServiceNode) {
+	delete(Services, key)
+	deleteService(node.Service)
+}
+
+func deleteService(svc *libipvs.Service) {
+	if err := handler.DelService(svc); err != nil {
+		fmt.Println(err.Error())
+	}
+}
+
+func AddEndpoint(svc *ServiceNode, ip string, port uint16) {
+	dst := bindEndpoint(svc.Service, ip, port)
+	podIP := ip + ":" + string(port)
+	svc.Endpoints[podIP] = &EndpointNode{
+		Endpoint: dst,
+		Visited:  true,
+	}
+}
+
 func bindEndpoint(svc *libipvs.Service, ip string, port uint16) *libipvs.Destination {
 	dst := libipvs.Destination{
 		Address:       net.ParseIP(ip),
@@ -79,21 +108,17 @@ func bindEndpoint(svc *libipvs.Service, ip string, port uint16) *libipvs.Destina
 		fmt.Println(err.Error())
 	}
 	println(string(res))
-	//if err := handler.NewDestination(svc, &dst); err != nil {
-	//	fmt.Println(err.Error())
-	//}
-
+	
 	return &dst
+}
+
+func DeleteEndpoint(svc *ServiceNode, dst *libipvs.Destination, key string) {
+	unbindEndpoint(svc.Service, dst)
+	delete(svc.Endpoints, key)
 }
 
 func unbindEndpoint(svc *libipvs.Service, dst *libipvs.Destination) {
 	if err := handler.DelDestination(svc, dst); err != nil {
-		fmt.Println(err.Error())
-	}
-}
-
-func deleteService(svc *libipvs.Service) {
-	if err := handler.DelService(svc); err != nil {
 		fmt.Println(err.Error())
 	}
 }
