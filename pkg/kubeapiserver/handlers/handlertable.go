@@ -1,9 +1,9 @@
 package handlers
 
 var HandlerTable = map[string]Route{
-	"POST ^/api/v1/namespaces/([^/]+)/pods$":        {Path: "/api/v1/namespaces/:namespace/pods", Method: "POST", Handler: CreatePodHandler},   // POST, create a pod
-	"GET ^/api/v1/namespaces/([^/]+)/pods/([^/]+)$": {Path: "/api/v1/namespaces/:namespace/pods/:name", Method: "GET", Handler: GetPodHandler}, // GET, get a pod
-
+	"POST ^/api/v1/namespaces/([^/]+)/pods$":                {Path: "/api/v1/namespaces/:namespace/pods", Method: "POST", Handler: CreatePodHandler},                    // POST, create a pod
+	"GET ^/api/v1/namespaces/([^/]+)/pods/([^/]+)$":         {Path: "/api/v1/namespaces/:namespace/pods/:name", Method: "GET", Handler: GetPodHandler},                  // GET, get a pod
+	"GET ^/api/v1/namespaces/([^/]+)/pods$":                 {Path: "/api/v1/namespaces/:namespace/pods", Method: "GET", Handler: GetPodsHandler},                       // GET, list all pods
 	"DELETE ^/api/v1/namespaces/([^/]+)/pods/([^/]+)$":      {Path: "/api/v1/namespaces/:namespace/pods/:name", Method: "DELETE", Handler: DeletePodHandler},            // DELETE, delete a pod                                                          // DELETE, delete a pod
 	"POST ^/api/v1/namespaces/([^/]+)/pods/([^/]+)/update$": {Path: "/api/v1/namespaces/:namespace/pods/:name/update", Method: "POST", Handler: UpdatePodStatusHandler}, // POST, update a pod
 

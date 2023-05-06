@@ -144,29 +144,52 @@ func GetPodHandler(c *gin.Context) {
 
 	// 3. return the pod to the client
 	c.JSON(http.StatusOK, pod)
-	return
 }
 
-func DeletePodHandler(c *gin.Context) {
+// GetPodsHandler the url format is GET /api/v1/namespaces/:namespace/pods
+func GetPodsHandler(c *gin.Context) {
 	// 1. parse the request get the pod from the request
-	rawUrl := c.Request.URL.Path
-	r, err := regexp.Compile("/api/v1/namespaces/([^/]+)/pods/([^/]+)")
+	namespace := c.Param("namespace")
+	log.Debug("[GetPodsHandler] namespace: ", namespace)
+
+	// 2. query the pods' information from the storage
+	key := "/registry/pods/" + namespace
+	log.Debug("[GetPodsHandler] key: ", key)
+	var podList []apiobject.Pod
+	err := podStorageTool.GetList(context.Background(), key, &podList)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	namespace := r.FindStringSubmatch(rawUrl)[1]
-	name := r.FindStringSubmatch(rawUrl)[2]
+	// 3. return the pods to the client
+	c.JSON(http.StatusOK, podList)
+}
+
+// DeletePodHandler the url format is DELETE /api/v1/namespaces/:namespace/pods/:name
+func DeletePodHandler(c *gin.Context) {
+	// 1. parse the request get the pod from the request
+	namespace := c.Param("namespace")
+	name := c.Param("name")
 	log.Debug("[DeletePodHandler] namespace: ", namespace)
 	log.Debug("[DeletePodHandler] name: ", name)
-	log.Debug("[DeletePodHandler] the raw url is: ", rawUrl)
 
 	// 2. delete the pod's information from the storage
+	// use lazy delete, just change the pod's status
 	key := "/registry/pods/" + namespace + "/" + name
 	log.Debug("[DeletePodHandler] key: ", key)
-
-	err = podStorageTool.Delete(context.Background(), key)
+	var pod apiobject.Pod
+	err := podStorageTool.Get(context.Background(), key, &pod)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if pod.Status.Phase == "Running" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "the pod is running, can not delete"})
+		return
+	}
+	pod.Status.Phase = "Terminating"
+	err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
