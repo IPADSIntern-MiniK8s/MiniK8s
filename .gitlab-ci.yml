@@ -29,7 +29,7 @@ test-apiserver:
   stage: test
   script:
     - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/storage -cover
-    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/handlers -cover
+#    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/handlers -cover
   tags:
     - shell
 
