@@ -29,6 +29,37 @@ go get github.com/coreos/etcd/clientv3
 ## 实现思路
 1. 原始的版本watch初步使用简单的websocket实现
 
+## api object 信息
+### node
+在 Kubernetes 中，每个节点（Node）都有一个 Conditions 字段，用于记录有关节点健康状况的信息。Conditions 字段是 NodeStatus 对象的一部分，由 API Server 维护并提供给其他 Kubernetes 组件和工具使用。
+
+Conditions 字段由一组 Condition 对象组成，每个 Condition 对象都表示节点的一个特定方面的健康状况。每个 Condition 对象包含三个属性：
+
+Status：表示 Condition 类型的字符串。在 Kubernetes 中，已经定义了一组标准的 Condition 类型，例如 Ready、OutOfDisk、MemoryPressure、DiskPressure 和 PIDPressure 等。
+LastHeartbeatTime：表示最后一次收到节点的心跳时间的时间戳。
+以下是一些常见的 Node Condition 类型和它们的含义：
+
+Ready：表示节点是否可用于调度 Pod。如果该值为 True，则说明该节点可用；如果该值为 False，则说明该节点不可用；如果该值为 Unknown，则说明节点状态无法确定。
+OutOfDisk：表示节点磁盘空间是否耗尽。如果该值为 True，则说明该节点的磁盘空间已经用尽；如果该值为 False，则说明该节点磁盘空间充足；如果该值为 Unknown，则说明该节点的磁盘状态无法确定。
+MemoryPressure：表示节点是否出现了内存不足的情况。如果该值为 True，则说明该节点的内存资源已经用尽；如果该值为 False，则说明该节点的内存资源充足；如果该值为 Unknown，则说明该节点的内存状态无法确定。
+DiskPressure：表示节点是否出现了磁盘不足的情况。如果该值为 True，则说明该节点的磁盘资源已经用尽；如果该值为 False，则说明该节点的磁盘资源充足；如果该值为 Unknown，则说明该节点的磁盘状态无法确定。
+Kubernetes 的调度器会根据节点的 Conditions 字段来判断节点是否适合调度 Pod。例如，如果一个节点的 Ready 值为 False，则调度器不会将 Pod 调度到该节点上。同时，Kubernetes 组件和工具也可以根据节点的 Conditions 字段来监控和报警节点状态的变化。
+
+### pod
+在 Kubernetes 中，Pod 的状态（Status）字段包含了关于 Pod 当前状态的各种信息。Pod 的 Status 字段包括以下几个字段：
+
+Phase：表示 Pod 的当前生命周期阶段。常见的 Phase 值包括 Pending、Running、Succeeded、Failed 和 Unknown。其中，Pending 表示 Pod 正在被调度，但是尚未运行任何容器；Running 表示 Pod 正在运行中；Succeeded 表示 Pod 中所有容器已经成功执行完毕；Failed 表示 Pod 中至少有一个容器执行失败；Unknown 表示 Pod 状态无法确定。
+Conditions：表示 Pod 的当前状态条件。Conditions 是一个包含一组 Condition 对象的数组，每个 Condition 对象表示 Pod 的一个状态条件。常见的 Condition 类型包括 PodScheduled、Ready、ContainersReady 和 Initialized。其中，PodScheduled 表示 Pod 是否已经被调度到某个节点；Ready 表示 Pod 是否已经就绪；ContainersReady 表示 Pod 中的所有容器是否已经就绪；Initialized 表示 Pod 的初始化是否已经完成。
+Message：表示 Pod 当前状态的信息。这是一个人类可读的字符串，用于描述 Pod 的当前状态。
+Reason：表示 Pod 进入当前状态的原因。这是一个人类可读的字符串，用于描述为什么 Pod 进入当前状态。
+HostIP：表示运行 Pod 的节点的 IP 地址。
+PodIP：表示 Pod 的 IP 地址。
+StartTime：表示 Pod 开始运行的时间。
+除此之外，Pod 的 Status 字段还包含以下几个容器相关的字段：
+
+Init Container Statuses：表示 Pod 中 Init Container 的状态信息。Init Container 是一种在 Pod 启动之前运行的容器，用于执行初始化操作。
+Container Statuses：表示 Pod 中所有容器的状态信息。这是一个包含一组 ContainerStatus 对象的数组，每个 ContainerStatus 对象表示一个容器的状态。其中，重要的状态字段包括：State、LastState、Ready、RestartCount 和 Image。
+
 ## 测试命令
 1. 启动watch
 ```shell

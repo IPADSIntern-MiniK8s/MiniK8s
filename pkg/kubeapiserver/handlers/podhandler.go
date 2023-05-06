@@ -73,8 +73,14 @@ func CreatePodHandler(c *gin.Context) {
 	scheduled := false
 	jsonBytes, err := pod.MarshalJSON()
 	for _, node := range nodeList {
-		if (node.Status.Conditions[0].Type == "Ready") && (node.Status.Conditions[0].Status == "True") {
-			nodeKey = "/registry/nodes/" + node.Data.Name
+		if node.Status.Conditions[0].Status == "Ready" {
+			nodeKey = node.Data.Name
+			println("the watchTable is: ", watch.WatchTable, "the length is: ", len(watch.WatchTable))
+			log.Debug("[CreatePodHandler] the nodeKey is: ", nodeKey)
+			// print the watchTable keys
+			for k, _ := range watch.WatchTable {
+				println("the key is: ", k)
+			}
 			watcher, ok := watch.WatchTable[nodeKey]
 			if ok {
 				// TODO: the message format should be defined later

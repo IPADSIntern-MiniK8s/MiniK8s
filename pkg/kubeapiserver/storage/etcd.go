@@ -62,14 +62,6 @@ func (e *EtcdStorage) GetList(ctx context.Context, key string, out interface{}) 
 		return fmt.Errorf("key not found: %s", key)
 	}
 
-	// unmarshal a list of items
-	//items := make([]interface{}, len(resp.Kvs))
-	//for i, kv := range resp.Kvs {
-	//	if err := json.Unmarshal(kv.Value, &items[i]); err != nil {
-	//		return err
-	//	}
-	//}
-	//reflect.ValueOf(out).Elem().Set(reflect.ValueOf(items))
 	outType := reflect.TypeOf(out).Elem().Elem()
 
 	// make a slice to hold the items

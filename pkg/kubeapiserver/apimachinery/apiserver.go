@@ -57,8 +57,13 @@ func (a *APIServer) UpgradeToWebSocket() gin.HandlerFunc {
 			}
 
 			// add the watch server to the watch server map
-			watchServerKey := c.ClientIP() + c.Request.RequestURI
-			watch.WatchTable[watchServerKey] = newWatcher
+			// only service and node watch need to add to the watch table, and all of them watch the all pods
+			log.Debug("[UpgradeToWebSocket] watchKey: ", watchKey)
+			if watchKey == "" || watchKey == "/registry/pods/" {
+				watchServerKey := c.Param("source")
+				watch.WatchTable[watchServerKey] = newWatcher
+				log.Debug("[NodeWatchHandler] watchTable size: ", len(watch.WatchTable))
+			}
 
 			newWatcher.Watch(watchKey)
 		} else {
@@ -81,23 +86,6 @@ func (a *APIServer) RegisterHandler(route handlers.Route) {
 		a.HttpServer.DELETE(route.Path, route.Handler)
 	}
 }
-
-//func (a *APIServer) RegisterHandler(method string, path string, handler gin.HandlerFunc) {
-//	// use middleware to upgrade http request to websocket request
-//	a.HttpServer.Use(a.UpgradeToWebSocket())
-//	switch method {
-//	case "GET":
-//		a.HttpServer.GET(path, handler)
-//	case "POST":
-//		a.HttpServer.POST(path, handler)
-//	case "PUT":
-//		a.HttpServer.PUT(path, handler)
-//	case "DELETE":
-//		a.HttpServer.DELETE(path, handler)
-//	default:
-//		panic("invalid HTTP method")
-//	}
-//}
 
 func (a *APIServer) Run(addr string) error {
 	for _, route := range handlers.HandlerTable {

@@ -146,7 +146,6 @@ type NodeStatus struct {
 }
 
 type Condition struct {
-	Type               string `json:"type,omitempty"`
 	Status             string `json:"status,omitempty"`
 	LastHeartbeatTime  string `json:"lastHeartbeatTime,omitempty"`
 	LastTransitionTime string `json:"lastTransitionTime,omitempty"`

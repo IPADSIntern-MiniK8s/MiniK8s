@@ -21,7 +21,4 @@ func TestPod(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	//if string(b) != expected {
-	//	t.Errorf("got %s, want %s", string(b), expected)
-	//}
 }

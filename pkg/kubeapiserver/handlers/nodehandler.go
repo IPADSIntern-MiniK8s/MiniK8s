@@ -28,26 +28,23 @@ func RegisterNodeHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	// change the node status to "Ready"
+	node.Status = apiobject.NodeStatus{}
+	node.Status.Conditions = make([]apiobject.Condition, 1)
+	node.Status.Conditions[0].Status = "Ready"
 
 	// 2. record it in etcd
-	log.Debug("[RegisterNodeHandler] node: record it in etcd")
-	jsonBytes, err := node.MarshalJSON()
-	log.Debug("[RegisterNodeHandler] the node data:", node)
-	if err != nil {
-		log.Error("record node information failed: ", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
 	key := "/registry/nodes/" + node.Data.Name
 	log.Debug("[RegisterNodeHandler] node name: ", node.Data.Name)
 	log.Debug("[RegisterNodeHandler] key: ", key)
 
-	err = nodeStorageTool.Create(context.Background(), key, string(jsonBytes))
+	err = nodeStorageTool.Create(context.Background(), key, &node)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	// put the node information in the response json
 	c.JSON(http.StatusOK, node)
 }
 
