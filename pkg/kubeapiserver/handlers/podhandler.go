@@ -71,7 +71,7 @@ func CreatePodHandler(c *gin.Context) {
 
 	// TODO: this task should be executed by scheduler
 	scheduled := false
-	jsonBytes, err := pod.MarshalJSON()
+
 	for _, node := range nodeList {
 		if node.Status.Conditions[0].Status == "Ready" {
 			nodeKey = node.Data.Name
@@ -84,13 +84,14 @@ func CreatePodHandler(c *gin.Context) {
 			watcher, ok := watch.WatchTable[nodeKey]
 			if ok {
 				// TODO: the message format should be defined later
+				pod.Status.Phase = "Running"
+				jsonBytes, err := pod.MarshalJSON()
 				err = watcher.Write(jsonBytes)
 				if err != nil {
 					log.Debug("[CreatePodHandler] send to the node failed")
 					continue
 				}
 				scheduled = true
-				changePodStatus(pod, "Running")
 				break
 			} else {
 				continue
@@ -175,7 +176,7 @@ func DeletePodHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "delete pod successfully"})
 }
 
-// UpdatePodStatusHandler the url format is PUT /api/v1/nodes/{name}/status
+// UpdatePodStatusHandler the url format is POST /api/v1/nodes/{name}/update
 // update the node's status in etcd
 func UpdatePodStatusHandler(c *gin.Context) {
 	// 1. parse the request get the pod from the request

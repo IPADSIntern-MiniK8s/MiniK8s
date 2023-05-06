@@ -1,6 +1,8 @@
 package apiobject
 
 type Object interface {
+	MarshalJSON() ([]byte, error)
+	UnMarshalJSON(data []byte) error
 }
 
 type MetaData struct {

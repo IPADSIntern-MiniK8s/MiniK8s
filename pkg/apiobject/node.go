@@ -102,10 +102,6 @@ import (
 
 */
 
-type NodeList struct {
-	Items []*Node `json:"items,omitempty"`
-}
-
 type Node struct {
 	APIVersion string     `json:"apiVersion,omitempty"`
 	Kind       string     `json:"kind,omitempty"`
@@ -179,25 +175,6 @@ type KubeletEndpoint struct {
 type Image struct {
 	Names     []string `json:"names,omitempty"`
 	SizeBytes int      `json:"sizeBytes,omitempty"`
-}
-
-func (ns *NodeList) MarshalJSON() ([]byte, error) {
-	type Alias NodeList
-	return json.Marshal(&struct {
-		*Alias
-	}{
-		Alias: (*Alias)(ns),
-	})
-}
-
-func (ns *NodeList) UnMarshalJSON(data []byte) error {
-	type Alias NodeList
-	aux := &struct {
-		*Alias
-	}{
-		Alias: (*Alias)(ns),
-	}
-	return json.Unmarshal(data, aux)
 }
 
 func (n *Node) GetNode() *Node {

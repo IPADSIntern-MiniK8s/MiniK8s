@@ -48,7 +48,13 @@ Kubernetes 的调度器会根据节点的 Conditions 字段来判断节点是否
 ### pod
 在 Kubernetes 中，Pod 的状态（Status）字段包含了关于 Pod 当前状态的各种信息。Pod 的 Status 字段包括以下几个字段：
 
-Phase：表示 Pod 的当前生命周期阶段。常见的 Phase 值包括 Pending、Running、Succeeded、Failed 和 Unknown。其中，Pending 表示 Pod 正在被调度，但是尚未运行任何容器；Running 表示 Pod 正在运行中；Succeeded 表示 Pod 中所有容器已经成功执行完毕；Failed 表示 Pod 中至少有一个容器执行失败；Unknown 表示 Pod 状态无法确定。
+Phase：表示 Pod 的当前生命周期阶段。常见的 Phase 值包括 Pending、Running、Succeeded、Failed 和 Unknown。其中，
+- Pending 表示 Pod 正在被调度，但是尚未运行任何容器；
+- Running 表示 Pod 正在运行中；
+- Succeeded 表示 Pod 中所有容器已经成功执行完毕；
+- Failed 表示 Pod 中至少有一个容器执行失败；
+- Unknown 表示 Pod 状态无法确定。
+
 Conditions：表示 Pod 的当前状态条件。Conditions 是一个包含一组 Condition 对象的数组，每个 Condition 对象表示 Pod 的一个状态条件。常见的 Condition 类型包括 PodScheduled、Ready、ContainersReady 和 Initialized。其中，PodScheduled 表示 Pod 是否已经被调度到某个节点；Ready 表示 Pod 是否已经就绪；ContainersReady 表示 Pod 中的所有容器是否已经就绪；Initialized 表示 Pod 的初始化是否已经完成。
 Message：表示 Pod 当前状态的信息。这是一个人类可读的字符串，用于描述 Pod 的当前状态。
 Reason：表示 Pod 进入当前状态的原因。这是一个人类可读的字符串，用于描述为什么 Pod 进入当前状态。

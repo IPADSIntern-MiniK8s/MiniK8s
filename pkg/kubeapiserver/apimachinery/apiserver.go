@@ -59,7 +59,7 @@ func (a *APIServer) UpgradeToWebSocket() gin.HandlerFunc {
 			// add the watch server to the watch server map
 			// only service and node watch need to add to the watch table, and all of them watch the all pods
 			log.Debug("[UpgradeToWebSocket] watchKey: ", watchKey)
-			if watchKey == "" || watchKey == "/registry/pods/" {
+			if (watchKey == "" || watchKey == "/registry/pods/") && c.Param("source") != "" {
 				watchServerKey := c.Param("source")
 				watch.WatchTable[watchServerKey] = newWatcher
 				log.Debug("[NodeWatchHandler] watchTable size: ", len(watch.WatchTable))

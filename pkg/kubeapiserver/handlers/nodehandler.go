@@ -83,7 +83,7 @@ func GetNodesHandler(c *gin.Context) {
 	key := "/registry/nodes"
 	log.Debug("[GetNodesHandler] key: ", key)
 
-	var nodeList []apiobject.NodeList
+	var nodeList []apiobject.Node
 	err := nodeStorageTool.GetList(context.Background(), key, &nodeList)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
