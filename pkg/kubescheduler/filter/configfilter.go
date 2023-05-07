@@ -44,8 +44,8 @@ func (f *ConfigFilter) checkNodeSelector(pod *apiobject.Pod, node *apiobject.Nod
 	return true
 }
 
-// getResourceRequest gets the resource that the pod needs
-func (f *ConfigFilter) getResourceRequest(pod *apiobject.Pod) (float64, float64) {
+// GetResourceRequest gets the resource that the pod needs
+func (f *ConfigFilter) GetResourceRequest(pod *apiobject.Pod) (float64, float64) {
 	// check whether the pod has resource request
 	if pod.Spec.Containers == nil || len(pod.Spec.Containers) == 0 ||
 		(pod.Spec.Containers[0].Resources.Requests.Cpu == "" && pod.Spec.Containers[0].Resources.Requests.Memory == "") {
@@ -76,13 +76,41 @@ func (f *ConfigFilter) checkResource(cpuRequest float64, memoryRequest float64, 
 	// check whether the node has enough resource
 	result := make([]*apiobject.Node, 0)
 	for _, node := range nodes {
-		// if the
-		if node.Data.Status.Allocatable.Cpu >= cpuRequest && node.Data.Status.Allocatable.Memory >= memoryRequest {
+		// if the according field is empty, it means that the node may has enough resource
+		if node.Status.Allocatable == nil {
 			result = append(result, node)
+			continue
 		}
+
+		// check whether the node has enough CPU
+		cpu, ok := node.Status.Allocatable["cpu"]
+		if !ok {
+			result = append(result, node)
+			continue
+		}
+		cpuAvailable, _ := strconv.ParseFloat(cpu, 64)
+		if cpuAvailable < cpuRequest {
+			continue
+		}
+
+		// check whether the node has enough memory
+		memory, ok := node.Status.Allocatable["memory"]
+		if !ok {
+			result = append(result, node)
+			continue
+		}
+		memoryAvailable, _ := strconv.ParseFloat(memory, 64)
+		if memoryAvailable < memoryRequest {
+			continue
+		}
+
+		result = append(result, node)
 	}
+
+	return result
 }
 
 func (f *ConfigFilter) Filter(pod *apiobject.Pod, nodes []*apiobject.Node) []*apiobject.Node {
 	//
+	return nil
 }
