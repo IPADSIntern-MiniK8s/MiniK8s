@@ -13,7 +13,7 @@ import (
 
 var serviceStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
 
-// / changeServiceResourceVersion to change service resource version
+// changeServiceResourceVersion to change service resource version
 func changeServiceResourceVersion(service *apiobject.Service, c *gin.Context) error {
 	method := c.Request.Method
 	uri := c.Request.RequestURI
