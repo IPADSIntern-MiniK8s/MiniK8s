@@ -120,7 +120,7 @@ type PodStatus struct {
 	PodIp  string `json:"podIP,omitempty"`
 }
 
-func (p *Pod) UnmarshalJSON(data []byte) error {
+func (p *Pod) UnMarshalJSON(data []byte) error {
 	type Alias Pod
 	aux := &struct {
 		*Alias

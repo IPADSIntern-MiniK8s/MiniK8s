@@ -66,6 +66,23 @@ StartTime：表示 Pod 开始运行的时间。
 Init Container Statuses：表示 Pod 中 Init Container 的状态信息。Init Container 是一种在 Pod 启动之前运行的容器，用于执行初始化操作。
 Container Statuses：表示 Pod 中所有容器的状态信息。这是一个包含一组 ContainerStatus 对象的数组，每个 ContainerStatus 对象表示一个容器的状态。其中，重要的状态字段包括：State、LastState、Ready、RestartCount 和 Image。
 
+## heartbeat
+当 Kubernetes API Server 接收到 Worker Node 的心跳信息后，它会根据这些信息更新节点（Node）的状态（Status）。具体来说，Kubernetes API Server 会更新节点对象（Node Object）的 status 字段，该字段包含了节点的各种状态信息，例如节点的 IP 地址、健康状态、容器状态等。
+
+在更新节点状态时，Kubernetes API Server 会根据 kubelet 发送的信息更新以下字段：
+
+node.status.addresses：这个字段包含了节点的 IP 地址信息，包括内部 IP 和外部 IP。Kubernetes API Server 会根据 kubelet 发送的信息更新这个字段的值。
+
+node.status.conditions：这个字段包含了节点的健康状态信息，包括节点是否处于 Ready 状态等。Kubernetes API Server 会根据 kubelet 发送的信息更新这个字段的值。
+
+node.status.capacity：这个字段包含了节点的资源容量信息，例如 CPU、内存等。Kubernetes API Server 不会根据 kubelet 发送的信息更新这个字段的值，而是通过 kubelet 的启动参数或者节点标签来设置这个字段的值。
+
+node.status.allocatable：这个字段包含了节点可用的资源容量信息。Kubernetes API Server 会根据 kubelet 发送的信息更新这个字段的值。
+
+node.status.images：这个字段包含了节点上的镜像信息。Kubernetes API Server 会根据 kubelet 发送的信息更新这个字段的值。
+
+除了上述字段之外，节点状态还包括了其他一些信息，例如节点的标签、节点的名称等。Kubernetes API Server 会根据 kubelet 发送的信息更新这些字段的值。更新节点状态后，其他 Kubernetes 组件（例如调度器、控制器等）可以根据节点状态来进行调度和管理
+
 ## 测试命令
 1. 启动watch
 ```shell

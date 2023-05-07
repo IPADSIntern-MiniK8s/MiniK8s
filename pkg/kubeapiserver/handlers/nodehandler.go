@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -9,9 +10,30 @@ import (
 	"minik8s/pkg/kubeapiserver/storage"
 	"minik8s/pkg/kubeapiserver/watch"
 	"net/http"
+	"strings"
 )
 
 var nodeStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
+
+func changeNodeResourceVersion(node *apiobject.Node, c *gin.Context) error {
+	method := c.Request.Method
+	uri := c.Request.RequestURI
+	isUpdate := strings.Contains(uri, "update")
+	if method == "POST" {
+		// update
+		if isUpdate {
+			node.Data.ResourcesVersion = apiobject.UPDATE
+		} else {
+			node.Data.ResourcesVersion = apiobject.CREATE
+		}
+	} else if method == "DELETE" {
+		node.Data.ResourcesVersion = apiobject.DELETE
+	} else if method != "GET" {
+		// unsupported method
+		return errors.New("unsupported un idempotent method")
+	}
+	return nil
+}
 
 // RegisterNodeHandler the url format is POST /api/v1/nodes
 // record the node information in etcd and
@@ -32,6 +54,13 @@ func RegisterNodeHandler(c *gin.Context) {
 	node.Status = apiobject.NodeStatus{}
 	node.Status.Conditions = make([]apiobject.Condition, 1)
 	node.Status.Conditions[0].Status = "Ready"
+	// change the node's resource version
+	err = changeNodeResourceVersion(node, c)
+	if err != nil {
+		log.Error("change node resource version failed: ", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	// 2. record it in etcd
 	key := "/registry/nodes/" + node.Data.Name
@@ -50,6 +79,7 @@ func RegisterNodeHandler(c *gin.Context) {
 
 // NodeWatchHandler the url format is GET /api/v1/nodes/{name}/watch
 // watch the node information
+// actually, we don't use it now
 func NodeWatchHandler(c *gin.Context) {
 	// 1. get the node information from etcd
 	name := c.Param("name")
@@ -85,11 +115,6 @@ func GetNodesHandler(c *gin.Context) {
 
 	var nodeList []apiobject.Node
 	err := nodeStorageTool.GetList(context.Background(), key, &nodeList)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

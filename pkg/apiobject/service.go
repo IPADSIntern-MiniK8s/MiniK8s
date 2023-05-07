@@ -1,5 +1,9 @@
 package apiobject
 
+import (
+	"encoding/json"
+)
+
 // Service
 // a sevice struct for k8s service config file
 /*
@@ -128,6 +132,27 @@ const (
 )
 
 type IntOrString interface{}
+
+// Marshal marshals a Service object into a JSON byte array.
+func (s *Service) Marshal() ([]byte, error) {
+	type Alias Service
+	return json.Marshal(&struct {
+		Alias
+	}{
+		Alias: (Alias)(*s),
+	})
+}
+
+// UnMarshal a JSON byte array into a Service object.
+func (s *Service) UnMarshal(b []byte) error {
+	type Alias Service
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	}
+	return json.Unmarshal(b, &aux)
+}
 
 //type ServiceStatus struct {
 //	// Current service condition

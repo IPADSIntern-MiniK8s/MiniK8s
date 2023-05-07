@@ -2,23 +2,35 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
 	"minik8s/pkg/kubeapiserver/watch"
 	"net/http"
-	"regexp"
+	"strings"
 )
 
 var podStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
 
-func changePodStatus(pod *apiobject.Pod, status string) error {
-	pod.Status.Phase = status
-	key := "registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
-	err := podStorageTool.GuaranteedUpdate(context.Background(), key, pod)
-	if err != nil {
-		return err
+// change the pod's resourceVersion to different value
+func changePodResourceVersion(pod *apiobject.Pod, c *gin.Context) error {
+	method := c.Request.Method
+	uri := c.Request.RequestURI
+	isUpdate := strings.Contains(uri, "update")
+	if method == "POST" {
+		// update
+		if isUpdate {
+			pod.Data.ResourcesVersion = apiobject.UPDATE
+		} else {
+			pod.Data.ResourcesVersion = apiobject.CREATE
+		}
+	} else if method == "DELETE" {
+		pod.Data.ResourcesVersion = apiobject.DELETE
+	} else if method != "GET" {
+		// unsupported method
+		return errors.New("unsupported un idempotent method")
 	}
 	return nil
 }
@@ -27,33 +39,27 @@ func changePodStatus(pod *apiobject.Pod, status string) error {
 // TODO: bind the pod in runtime
 func CreatePodHandler(c *gin.Context) {
 	// 1. parse the request get the pod from the request
-	rawUrl := c.Request.URL.Path
-	r, err := regexp.Compile("/api/v1/namespaces/([^/]+)/pods")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	namespace := r.FindStringSubmatch(rawUrl)[1]
+	namespace := c.Param("namespace")
 	log.Debug("[CreatePodHandler] namespace: ", namespace)
-	log.Debug("[CreatePodHandler] the raw url is: ", rawUrl)
 
 	var pod *apiobject.Pod
-	if err = c.Bind(&pod); err != nil {
+	if err := c.Bind(&pod); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// 2. save the pod's information in the storage
-	// set the pod status
+	// 2.1 set the pod status
 	pod.Status.Phase = "Pending"
+	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
+	log.Debug("[CreatePodHandler] key: ", key)
+
+	// 2.2 change the pod's resourceVersion
+	err := changePodResourceVersion(pod, c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
-	log.Debug("[CreatePodHandler] key: ", key)
-
 	err = podStorageTool.Create(context.Background(), key, &pod)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -112,31 +118,17 @@ func CreatePodHandler(c *gin.Context) {
 // if the request is a watch request and is a legal request, return false, nil
 func GetPodHandler(c *gin.Context) {
 	// 1. parse the request get the pod from the request
-	rawUrl := c.Request.URL.Path
-	r, err := regexp.Compile("/api/v1/namespaces/([^/]+)/pods/([^/]+)")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 1.1 check whether it is a watch request
-	if c.Query("watch") == "true" {
-		log.Debug("[GetPodHandler] it is a watch request")
-		c.Status(http.StatusSeeOther)
-		return
-	}
-	namespace := r.FindStringSubmatch(rawUrl)[1]
-	name := r.FindStringSubmatch(rawUrl)[2]
+	namespace := c.Param("namespace")
+	name := c.Param("name")
 	log.Debug("[GetPodHandler] namespace: ", namespace)
 	log.Debug("[GetPodHandler] name: ", name)
-	log.Debug("[GetPodHandler] the raw url is: ", rawUrl)
 
 	// 2. get the pod's information from the storage
 	key := "/registry/pods/" + namespace + "/" + name
 	log.Debug("[GetPodHandler] key: ", key)
 
 	var pod apiobject.Pod
-	err = podStorageTool.Get(context.Background(), key, &pod)
+	err := podStorageTool.Get(context.Background(), key, &pod)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -184,8 +176,16 @@ func DeletePodHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
 	if pod.Status.Phase == "Running" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "the pod is running, can not delete"})
+		return
+	}
+
+	// 2.2 change the pod's status
+	err = changePodResourceVersion(&pod, c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	pod.Status.Phase = "Terminating"
@@ -214,10 +214,17 @@ func UpdatePodStatusHandler(c *gin.Context) {
 		return
 	}
 
-	// 2. update the node information in etcd
+	// 2. update the pod information in etcd
 	key := "/registry/pods/" + namespace + "/" + name
 	log.Debug("[UpdatePodStatusHandler] key: ", key)
-	err := podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
+
+	// 2.2 change the pod's status
+	err := changePodResourceVersion(pod, c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
