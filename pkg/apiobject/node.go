@@ -133,7 +133,7 @@ type PodResources struct {
 
 type NodeStatus struct {
 	Capability  map[string]string `json:"capacity,omitempty"`
-	Allocatable map[string]string `json:"allocatable,omitempty"`
+	Allocatable map[string]string `json:"allocatable,omitempty"` // can be used to calculate the available resources, for scheduling
 	Conditions  []Condition       `json:"conditions,omitempty"`
 	Addresses   []Address         `json:"addresses,omitempty"`
 	//DaemonEnd   DaemonEnd         `json:"daemonEndpoints,omitempty"`

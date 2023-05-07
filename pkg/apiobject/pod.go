@@ -54,8 +54,9 @@ type Pod struct {
 }
 
 type PodSpec struct {
-	Containers []Container `json:"containers"`
-	Volumes    []Volumes   `json:"volumes,omitempty"`
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	Containers   []Container       `json:"containers"`
+	Volumes      []Volumes         `json:"volumes,omitempty"`
 }
 
 type Container struct {
@@ -126,6 +127,7 @@ const (
 	Pending   PhaseLabel = "Pending"
 	Running   PhaseLabel = "Running"
 	Succeeded PhaseLabel = "Succeeded"
+	Finished  PhaseLabel = "Finished"
 	Failed    PhaseLabel = "Failed"
 	Unknown   PhaseLabel = "Unknown"
 )

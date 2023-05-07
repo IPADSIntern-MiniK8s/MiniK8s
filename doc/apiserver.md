@@ -57,9 +57,10 @@ Kubernetes 的调度器会根据节点的 Conditions 字段来判断节点是否
 
 Phase：表示 Pod 的当前生命周期阶段。常见的 Phase 值包括 Pending、Running、Succeeded、Failed 和 Unknown。其中，
 
-- Pending 表示 Pod 正在被调度，但是尚未运行任何容器；
-- Running 表示 Pod 正在运行中；
-- Succeeded 表示 Pod 中所有容器已经成功执行完毕；
+- Pending 表示 Pod 正在被等待调度，但是尚未运行任何容器；
+- Running 表示 Pod 正在被调度；
+- Succeeded 表示 Pod 中所有容器已经成功启动；
+- Finished 表示 Pod 中所有容器已经成功执行完毕；
 - Failed 表示 Pod 中至少有一个容器执行失败；
 - Unknown 表示 Pod 状态无法确定。
 
