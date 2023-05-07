@@ -53,10 +53,6 @@ type Pod struct {
 	Status     PodStatus `json:"status,omitempty"`
 }
 
-type Label struct {
-	Labels map[string]string `json:"labels,omitempty"`
-}
-
 type PodSpec struct {
 	Containers []Container `json:"containers"`
 	Volumes    []Volumes   `json:"volumes,omitempty"`
@@ -71,7 +67,7 @@ type Container struct {
 	Env             []Env          `json:"env,omitempty"`
 	Resources       Resources      `json:"resources,omitempty"`
 	Ports           []Port         `json:"ports,omitempty"`
-	VolumeMounts    []volumeMounts `json:"volumeMounts,omitempty"`
+	VolumeMounts    []VolumeMounts `json:"volumeMounts,omitempty"`
 }
 
 type Env struct {
@@ -100,7 +96,7 @@ type Port struct {
 	Protocol      string `json:"protocol,omitempty"`
 }
 
-type volumeMounts struct {
+type VolumeMounts struct {
 	Name      string `json:"name"`
 	MountPath string `json:"mountPath"`
 }
@@ -119,12 +115,22 @@ type Volume struct {
 }
 
 type PodStatus struct {
-	Phase string `json:"phase,omitempty""`
-	IP    string `json:"IP,omitempty"`
-	Node  Node   `json:"node,omitempty"`
+	Phase  PhaseLabel `json:"phase,omitempty""`
+	HostIp string     `json:"hostIP,omitempty"`
+	PodIp  string     `json:"podIP,omitempty"`
 }
 
-func (p *Pod) UnmarshalJSON(data []byte) error {
+type PhaseLabel string
+
+const (
+	Pending   PhaseLabel = "Pending"
+	Running   PhaseLabel = "Running"
+	Succeeded PhaseLabel = "Succeeded"
+	Failed    PhaseLabel = "Failed"
+	Unknown   PhaseLabel = "Unknown"
+)
+
+func (p *Pod) UnMarshalJSON(data []byte) error {
 	type Alias Pod
 	aux := &struct {
 		*Alias

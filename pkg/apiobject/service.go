@@ -120,7 +120,7 @@ type ServiceStatus struct {
 	Phase string `json:"phase,omitempty"`
 }
 
-func (s *Service) UnmarshalJSON(data []byte) error {
+func (s *Service) UnMarshalJSON(data []byte) error {
 	type Alias Service
 	aux := &struct {
 		*Alias

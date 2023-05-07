@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/coreos/etcd/clientv3"
+	log "github.com/sirupsen/logrus"
+	"reflect"
 )
 
 type EtcdStorage struct {
@@ -50,6 +52,36 @@ func (e *EtcdStorage) Get(ctx context.Context, key string, out interface{}) erro
 	return nil
 }
 
+// GetList retrieves the list of items specified by 'key' prefix.
+func (e *EtcdStorage) GetList(ctx context.Context, key string, out interface{}) error {
+	resp, err := e.client.Get(ctx, key, clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	if resp.Kvs == nil || len(resp.Kvs) == 0 {
+		return fmt.Errorf("key not found: %s", key)
+	}
+
+	outType := reflect.TypeOf(out).Elem().Elem()
+
+	// make a slice to hold the items
+	items := reflect.MakeSlice(reflect.SliceOf(outType), len(resp.Kvs), len(resp.Kvs))
+
+	// unmarshal each item in the response into a new instance of the struct
+	for i, kv := range resp.Kvs {
+		item := reflect.New(outType).Interface()
+		if err := json.Unmarshal(kv.Value, item); err != nil {
+			return err
+		}
+		items.Index(i).Set(reflect.ValueOf(item).Elem())
+	}
+
+	// set the output slice to the items slice
+	reflect.ValueOf(out).Elem().Set(items)
+
+	return nil
+}
+
 // Create creates a new key with the given value.
 // TODO：need to consider TTL ?
 // the interface description in k8s.io/apiserver/pkg/storage/interfaces.go
@@ -90,6 +122,7 @@ func (e *EtcdStorage) Watch(ctx context.Context, key string, callback func(strin
 		select {
 		case wresp := <-ch:
 			for _, ev := range wresp.Events {
+				log.Info("[Watch] the key is ", string(ev.Kv.Key), " and the value is ", string(ev.Kv.Value), " and the type is ", ev.Type)
 				err := callback(string(ev.Kv.Key), ev.Kv.Value)
 				if err != nil {
 					return err

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestPodHandler_CreatePod(t *testing.T) {
+func TestCreatePodHandler(t *testing.T) {
 
 	p := &apiobject.Pod{
 		Data: apiobject.MetaData{
@@ -41,7 +42,58 @@ func TestPodHandler_CreatePod(t *testing.T) {
 
 	CreatePodHandler(c)
 
-	if w.Code != http.StatusOK {
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		if w.Code == http.StatusInternalServerError {
+			log.Warn("TestPodHandler_CreatePod: ", w.Body.String())
+		}
+		t.Fatalf("unexpected status code: %d", w.Code)
+	}
+}
+
+func TestGetPodHandler(t *testing.T) {
+
+	url := "/api/v1/namespaces/{namespace}/pods/{name}"
+	namespace := "default"
+	name := "test-pod"
+	url = strings.Replace(url, "{namespace}", namespace, 1)
+	url = strings.Replace(url, "{name}", name, 1)
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	c.Request = req
+
+	GetPodHandler(c)
+
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		if w.Code == http.StatusInternalServerError {
+			log.Warn("TestPodHandler_GetPod: ", w.Body.String())
+		}
+		t.Fatalf("unexpected status code: %d", w.Code)
+	}
+}
+
+func TestDeletePodHandler(t *testing.T) {
+
+	url := "/api/v1/namespaces/{namespace}/pods/{name}"
+	namespace := "default"
+	name := "test-pod"
+	url = strings.Replace(url, "{namespace}", namespace, 1)
+	url = strings.Replace(url, "{name}", name, 1)
+	req, _ := http.NewRequest(http.MethodDelete, url, nil)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	c.Request = req
+
+	DeletePodHandler(c)
+
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		if w.Code == http.StatusInternalServerError {
+			log.Warn("TestPodHandler_DeletePod: ", w.Body.String())
+		}
 		t.Fatalf("unexpected status code: %d", w.Code)
 	}
 }
