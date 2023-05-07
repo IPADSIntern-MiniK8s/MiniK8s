@@ -115,10 +115,20 @@ type Volume struct {
 }
 
 type PodStatus struct {
-	Phase  string `json:"phase,omitempty""`
-	HostIp string `json:"hostIP,omitempty"`
-	PodIp  string `json:"podIP,omitempty"`
+	Phase  PhaseLabel `json:"phase,omitempty""`
+	HostIp string     `json:"hostIP,omitempty"`
+	PodIp  string     `json:"podIP,omitempty"`
 }
+
+type PhaseLabel string
+
+const (
+	Pending   PhaseLabel = "Pending"
+	Running   PhaseLabel = "Running"
+	Succeeded PhaseLabel = "Succeeded"
+	Failed    PhaseLabel = "Failed"
+	Unknown   PhaseLabel = "Unknown"
+)
 
 func (p *Pod) UnMarshalJSON(data []byte) error {
 	type Alias Pod

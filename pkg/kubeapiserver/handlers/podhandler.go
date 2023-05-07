@@ -50,7 +50,7 @@ func CreatePodHandler(c *gin.Context) {
 
 	// 2. save the pod's information in the storage
 	// 2.1 set the pod status
-	pod.Status.Phase = "Pending"
+	pod.Status.Phase = apiobject.Pending
 	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
 	log.Debug("[CreatePodHandler] key: ", key)
 
@@ -90,7 +90,7 @@ func CreatePodHandler(c *gin.Context) {
 			watcher, ok := watch.WatchTable[nodeKey]
 			if ok {
 				// TODO: the message format should be defined later
-				pod.Status.Phase = "Running"
+				pod.Status.Phase = apiobject.Running
 				jsonBytes, err := pod.MarshalJSON()
 				err = watcher.Write(jsonBytes)
 				if err != nil {
