@@ -109,7 +109,7 @@ func bindEndpoint(svc *libipvs.Service, ip string, port uint16) *libipvs.Destina
 	print(svc.Address.String() + ":" + strconv.Itoa(int(svc.Port)))
 
 	args := []string{"-a", "-t", svc.Address.String() + ":" + strconv.Itoa(int(svc.Port)), "-r", ip + ":" + strconv.Itoa(int(port)), "-m"}
-	res, err := exec.Command("ipvsadm", args...).CombinedOutput()
+	_, err := exec.Command("ipvsadm", args...).CombinedOutput()
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -119,9 +119,9 @@ func bindEndpoint(svc *libipvs.Service, ip string, port uint16) *libipvs.Destina
 
 func DeleteEndpoint(svcKey string, dstKey string) {
 	if svc, ok := Services[svcKey]; ok {
-		dst := svc
+		dst := svc.Endpoints[dstKey].Endpoint
 		unbindEndpoint(svc.Service, dst)
-		delete(svc.Endpoints, key)
+		delete(svc.Endpoints, dstKey)
 	}
 
 }

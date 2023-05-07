@@ -70,11 +70,15 @@ func (e proxyEndpointHandler) HandleCreate(message []byte) {
 
 	key := edpt.Spec.SvcIP + ":" + string(edpt.Spec.SvcPort)
 	ipvs.AddEndpoint(key, edpt.Spec.DestIP, uint16(edpt.Spec.DestPort))
-
 }
 
 func (e proxyEndpointHandler) HandleDelete(message []byte) {
+	edpt := &apiobject.Endpoint{}
+	edpt.UnmarshalJSON(message)
 
+	svcKey := edpt.Spec.SvcIP + ":" + string(edpt.Spec.SvcPort)
+	dstKey := edpt.Spec.DestIP + ":" + string(edpt.Spec.DestPort)
+	ipvs.DeleteEndpoint(svcKey, dstKey)
 }
 
 func (e proxyEndpointHandler) HandleUpdate(message []byte) {
