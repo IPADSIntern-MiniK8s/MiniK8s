@@ -120,6 +120,8 @@ type Volume struct {
 
 type PodStatus struct {
 	Phase string `json:"phase,omitempty""`
+	IP    string `json:"IP,omitempty"`
+	Node  Node   `json:"node,omitempty"`
 }
 
 func (p *Pod) UnmarshalJSON(data []byte) error {

@@ -3,6 +3,7 @@ package ipvs
 import (
 	"fmt"
 	"github.com/mqliang/libipvs"
+	"log"
 	"net"
 	"os/exec"
 	"strconv"
@@ -73,9 +74,10 @@ func addService(ip string, port uint16) *libipvs.Service {
 	return &svc
 }
 
-func DeleteService(key string, node *ServiceNode) {
-	delete(Services, key)
+func DeleteService(key string) {
+	node := Services[key]
 	deleteService(node.Service)
+	delete(Services, key)
 }
 
 func deleteService(svc *libipvs.Service) {
@@ -84,7 +86,11 @@ func deleteService(svc *libipvs.Service) {
 	}
 }
 
-func AddEndpoint(svc *ServiceNode, ip string, port uint16) {
+func AddEndpoint(key string, ip string, port uint16) {
+	svc, exist := Services[key]
+	if !exist {
+		log.Fatal("[proxy] Add Endpoint: service doesn't exist!")
+	}
 	dst := bindEndpoint(svc.Service, ip, port)
 	podIP := ip + ":" + string(port)
 	svc.Endpoints[podIP] = &EndpointNode{
@@ -107,14 +113,17 @@ func bindEndpoint(svc *libipvs.Service, ip string, port uint16) *libipvs.Destina
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	println(string(res))
-	
+
 	return &dst
 }
 
-func DeleteEndpoint(svc *ServiceNode, dst *libipvs.Destination, key string) {
-	unbindEndpoint(svc.Service, dst)
-	delete(svc.Endpoints, key)
+func DeleteEndpoint(svcKey string, dstKey string) {
+	if svc, ok := Services[svcKey]; ok {
+		dst := svc
+		unbindEndpoint(svc.Service, dst)
+		delete(svc.Endpoints, key)
+	}
+
 }
 
 func unbindEndpoint(svc *libipvs.Service, dst *libipvs.Destination) {
