@@ -11,6 +11,7 @@ import (
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeproxy/ipvs"
 	"minik8s/utils"
+	"strconv"
 )
 
 func Run() {
@@ -39,7 +40,7 @@ func (p proxyServiceHandler) HandleDelete(message []byte) {
 	svc.UnmarshalJSON(message)
 
 	for _, p := range svc.Spec.Ports {
-		key := svc.Spec.ClusterIP + ":" + string(p.Port)
+		key := svc.Spec.ClusterIP + ":" + strconv.Itoa(int(p.Port))
 		ipvs.DeleteService(key)
 	}
 
@@ -68,7 +69,7 @@ func (e proxyEndpointHandler) HandleCreate(message []byte) {
 	edpt := &apiobject.Endpoint{}
 	edpt.UnmarshalJSON(message)
 
-	key := edpt.Spec.SvcIP + ":" + string(edpt.Spec.SvcPort)
+	key := edpt.Spec.SvcIP + ":" + strconv.Itoa(int(edpt.Spec.SvcPort))
 	ipvs.AddEndpoint(key, edpt.Spec.DestIP, uint16(edpt.Spec.DestPort))
 }
 
@@ -76,8 +77,8 @@ func (e proxyEndpointHandler) HandleDelete(message []byte) {
 	edpt := &apiobject.Endpoint{}
 	edpt.UnmarshalJSON(message)
 
-	svcKey := edpt.Spec.SvcIP + ":" + string(edpt.Spec.SvcPort)
-	dstKey := edpt.Spec.DestIP + ":" + string(edpt.Spec.DestPort)
+	svcKey := edpt.Spec.SvcIP + ":" + strconv.Itoa(int(edpt.Spec.SvcPort))
+	dstKey := edpt.Spec.DestIP + ":" + strconv.Itoa(int(edpt.Spec.DestPort))
 	ipvs.DeleteEndpoint(svcKey, dstKey)
 }
 

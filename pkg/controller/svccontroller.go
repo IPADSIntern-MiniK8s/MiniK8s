@@ -1,8 +1,9 @@
 package controller
 
 import (
+	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
-	"log"
 	"minik8s/pkg/apiobject"
 	"minik8s/utils"
 )
@@ -18,7 +19,7 @@ var IPMap = [1 << 8]bool{false}
 var IPStart = "10.10.0."
 
 var svcToEndpoints = map[string]*[]*apiobject.Endpoint{}
-var svcList map[string]*apiobject.Service
+var svcList = map[string]*apiobject.Service{}
 
 type svcServiceHandler struct {
 }
@@ -54,6 +55,8 @@ func (s svcServiceHandler) HandleCreate(message []byte) {
 		}
 	}
 	svcToEndpoints[svc.Spec.ClusterIP] = &edptList
+
+	log.Info("[svc controller] Create service. Cluster IP:", svc.Spec.ClusterIP)
 }
 
 func (s svcServiceHandler) HandleDelete(message []byte) {
@@ -66,10 +69,14 @@ func (s svcServiceHandler) HandleDelete(message []byte) {
 		utils.DeleteObject(utils.ENDPOINT, edpt.Data.Namespace, edpt.Data.Name)
 	}
 
+	log.Info("[svc controller] Delete service. Cluster IP:", svc.Spec.ClusterIP)
 }
 
 func (s svcServiceHandler) HandleUpdate(message []byte) {
+	svc := &apiobject.Service{}
+	svc.UnmarshalJSON(message)
 
+	log.Info("[svc controller] Update service. Cluster IP:", svc.Spec.ClusterIP)
 }
 
 func (s svcServiceHandler) GetType() utils.ObjType {
@@ -91,6 +98,8 @@ func (s svcPodHandler) HandleCreate(message []byte) {
 }
 
 func (s svcPodHandler) HandleDelete(message []byte) {
+	logInfo := "[svc controller] Delete endpoints.\n"
+
 	pod := &apiobject.Pod{}
 	pod.UnmarshalJSON(message)
 	// delete corresponding endpoints
@@ -101,6 +110,7 @@ func (s svcPodHandler) HandleDelete(message []byte) {
 			if edpt.Spec.DestIP == pod.Status.IP {
 				edpt := (*edptList)[key]
 				utils.DeleteObject(utils.ENDPOINT, edpt.Data.Namespace, edpt.Data.Name)
+				logInfo += fmt.Sprintf("srcIP:%s:%d, dstIP:%s:%d\n", edpt.Spec.SvcIP, edpt.Spec.SvcPort, edpt.Spec.DestIP, edpt.Spec.DestPort)
 			} else {
 				newEdptList = append(newEdptList, edpt)
 			}
@@ -108,6 +118,7 @@ func (s svcPodHandler) HandleDelete(message []byte) {
 		svcToEndpoints[svc.Spec.ClusterIP] = &newEdptList
 	}
 
+	log.Info(logInfo)
 }
 
 func (s svcPodHandler) HandleUpdate(message []byte) {
@@ -144,6 +155,8 @@ func findDstPort(targetPort string, containers []apiobject.Container) int32 {
 }
 
 func createEndpoints(edptList *[]*apiobject.Endpoint, svc *apiobject.Service, pod *apiobject.Pod) {
+	logInfo := "[svc controller] Create endpoints.\n"
+
 	for _, port := range svc.Spec.Ports {
 		dstPort := findDstPort(port.TargetPort, pod.Spec.Containers)
 		spec := apiobject.EndpointSpec{
@@ -162,5 +175,8 @@ func createEndpoints(edptList *[]*apiobject.Endpoint, svc *apiobject.Service, po
 		}
 		utils.CreateObject(edpt, utils.ENDPOINT, svc.Data.Namespace)
 		*edptList = append(*edptList, edpt)
+		logInfo += fmt.Sprintf("srcIP:%s:%d, dstIP:%s:%d\n", svc.Spec.ClusterIP, port.Port, pod.Status.IP, dstPort)
 	}
+
+	log.Info(logInfo)
 }

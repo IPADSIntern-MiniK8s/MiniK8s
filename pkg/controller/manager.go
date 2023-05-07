@@ -2,7 +2,7 @@ package controller
 
 import "minik8s/utils"
 
-func run() {
+func Run() {
 	var sp svcPodHandler
 	var ss svcServiceHandler
 	go utils.Sync(ss)

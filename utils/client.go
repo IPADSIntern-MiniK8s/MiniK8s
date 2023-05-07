@@ -2,8 +2,8 @@ package utils
 
 import (
 	"fmt"
-	"github.com/coreos/etcd/Godeps/_workspace/src/github.com/golang/glog"
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"minik8s/pkg/apiobject"
 )
@@ -59,7 +59,7 @@ func CreateObject(obj apiobject.Object, ty ObjType, ns string) {
 	//POST /api/v1/namespaces/{namespace}/{resource}"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s", ApiServerIp, ns, ty)
 	if info, err := SendRequest("POST", res, url); err != nil {
-		glog.Error("create object ", info)
+		log.Error("create object ", info)
 	}
 }
 
@@ -68,7 +68,7 @@ func UpdateObject(obj apiobject.Object, ty ObjType, ns string, name string) {
 	//POST /api/v1/namespaces/{namespace}/{resource}/{name}/update"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s/update", ApiServerIp, ns, ty, name)
 	if info, err := SendRequest("POST", res, url); err != nil {
-		glog.Error("create object ", info)
+		log.Error("create object ", info)
 	}
 }
 
@@ -76,7 +76,7 @@ func DeleteObject(ty ObjType, ns string, name string) {
 	//DELETE /api/v1/namespaces/{namespace}/{resource}"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s", ApiServerIp, ns, ty, name)
 	if info, err := SendRequest("DELETE", nil, url); err != nil {
-		glog.Error("delete object ", info)
+		log.Error("delete object ", info)
 	}
 }
 
@@ -85,7 +85,7 @@ func GetObjects(ty ObjType) string {
 	url := fmt.Sprintf("http://%s/api/v1/%s", ApiServerIp, ty)
 	var str []byte
 	if info, err := SendRequest("GET", str, url); err != nil {
-		glog.Error("get object ", info)
+		log.Error("get object ", info)
 		return info
 	} else {
 		return info
