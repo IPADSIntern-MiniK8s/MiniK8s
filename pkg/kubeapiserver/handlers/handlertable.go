@@ -17,4 +17,10 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/services", Method: "GET", Handler: GetServicesHandler},                // GET, list all services
 	{Path: "/api/v1/namespaces/:namespace/services/:name", Method: "DELETE", Handler: DeleteServiceHandler},     // DELETE, delete a service
 	{Path: "api/v1/namespaces/:namespace/services/:name/update", Method: "POST", Handler: UpdateServiceHandler}, // POST, update a service
+
+	{Path: "/api/v1/namespaces/:namespace/endpoints", Method: "POST", Handler: CreateEndpointHandler},             // POST, create a endpoint
+	{Path: "/api/v1/namespaces/:namespace/endpoints/:name", Method: "GET", Handler: GetEndpointHandler},           // GET, get a endpoint
+	{Path: "/api/v1/namespaces/:namespace/endpoints", Method: "GET", Handler: GetEndpointsHandler},                // GET, list all endpoints in this namespace
+	{Path: "/api/v1/namespaces/:namespace/endpoints/:name", Method: "DELETE", Handler: DeleteEndpointHandler},     // DELETE, delete a endpoint
+	{Path: "api/v1/namespaces/:namespace/endpoints/:name/update", Method: "POST", Handler: UpdateEndpointHandler}, // POST, update a endpoint
 }

@@ -1,32 +1,39 @@
 package apiobject
 
-// Endpoints is a collection of endpoints that implement the actual service.  Example:
-//
-//	 Name: "mysvc",
-//	 Subsets: [
-//	   {
-//	     Addresses: [{"ip": "10.10.1.1"}, {"ip": "10.10.2.2"}],
-//	     Ports: [{"name": "a", "port": 8675}, {"name": "b", "port": 309}]
-//	   },
-//	   {
-//	     Addresses: [{"ip": "10.10.3.3"}],
-//	     Ports: [{"name": "a", "port": 93}, {"name": "b", "port": 76}]
-//	   },
-//	]
+import (
+	"encoding/json"
+)
+
 type Endpoint struct {
-	IP   string `json:"ip"`
-	Port int32  `json:"port"`
+	Data MetaData     `json:"metadata"`
+	Spec EndpointSpec `json:"spec"`
 }
 
-// service中一个port对一个endpoints对象
-type Endpoints struct {
-	Name    string     `json:"name"` //same as the name of service
-	IP      string     `json:"clusterIP"`
-	Port    int32      `json:"port"`
-	Subsets []Endpoint `json:"subsets"`
+type EndpointSpec struct {
+	SvcIP    string `json:"svcIP"`
+	SvcPort  int32  `json:"svcPort"`
+	DestIP   string `json:"dstIP"`
+	DestPort int32  `json:"dstPort"`
 }
 
-//type EndpointSubset struct {
-//	Addresses []string
-//	Ports     []EndpointPort
-//}
+func (e *Endpoint) MarshalJSON() ([]byte, error) {
+	type Alias Endpoint
+	return json.Marshal(&struct {
+		*Alias
+	}{
+		Alias: (*Alias)(e),
+	})
+}
+
+func (e *Endpoint) UnmarshalJSON(data []byte) error {
+	type Alias Endpoint
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(e),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	return nil
+}

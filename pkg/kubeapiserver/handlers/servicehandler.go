@@ -213,6 +213,13 @@ func DeleteServiceHandler(c *gin.Context) {
 		return
 	}
 
+	err = serviceStorageTool.GuaranteedUpdate(context.Background(), key, &service)
+	if err != nil {
+		log.Error("[DeleteServiceHandler] delete service information error, ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	// 3. return the service information
 	// TODO: maybe can't use pointer?
 	c.JSON(http.StatusOK, service)
