@@ -1,9 +1,7 @@
 package main
 
+import "minik8s/pkg/kubeapiserver"
 
-//import "k8s-test/pkg/apiserver"
-
-
-func main(){
-	//apiserver.Apiserver()
+func main() {
+	kubeapiserver.Run()
 }
