@@ -14,26 +14,31 @@ func CreatePod(pod apiobject.Pod) bool {
 	//ctx := context.Background()
 	output, err := kubelet.Ctl(pod.Data.Namespace, "run", "-d", "--net", "flannel", "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6")
 	if err != nil {
+		fmt.Println(output)
 		return false
 	}
 	pauseContainerID := output[:12]
 	//although in one network namespace, other containers do not have the same network config files as pause, like dns server
 	_, err = kubelet.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/resolv.conf", "./resolv.conf")
 	if err != nil {
+		fmt.Println(output)
 		return false
 	}
 	defer os.Remove("./resolv.conf")
 	_, err = kubelet.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/hosts", "./hosts")
 	if err != nil {
+		fmt.Println(output)
 		return false
 	}
 	defer os.Remove("./hosts")
 	pausePid, err := kubelet.GetInfo(pod.Data.Namespace, pauseContainerID, ".State.Pid")
 	if err != nil {
+		fmt.Println(err)
 		return false
 	}
 	pid, err := strconv.Atoi(pausePid)
 	if err != nil {
+		fmt.Println(err)
 		return false
 	}
 	namespacePathPrefix := fmt.Sprintf("/proc/%d/ns/", pid)
@@ -50,10 +55,12 @@ func CreatePod(pod apiobject.Pod) bool {
 		}
 		_, err = kubelet.Ctl(pod.Data.Namespace, "cp", "./resolv.conf", cSpec.Name+":/etc/resolv.conf")
 		if err != nil {
+			fmt.Println(err)
 			return false
 		}
 		_, err = kubelet.Ctl(pod.Data.Namespace, "cp", "./hosts", cSpec.Name+":/etc/hosts")
 		if err != nil {
+			fmt.Println(err)
 			return false
 		}
 	}
