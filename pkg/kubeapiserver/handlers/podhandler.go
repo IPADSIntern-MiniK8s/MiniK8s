@@ -196,7 +196,7 @@ func DeletePodHandler(c *gin.Context) {
 	}
 
 	// 3. return the pod to the client
-	c.JSON(http.StatusOK, gin.H{"message": "delete pod successfully"})
+	c.JSON(http.StatusOK, pod)
 }
 
 // UpdatePodStatusHandler the url format is POST /api/v1/nodes/{name}/update

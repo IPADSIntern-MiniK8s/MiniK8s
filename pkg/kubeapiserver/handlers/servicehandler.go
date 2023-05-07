@@ -200,7 +200,7 @@ func DeleteServiceHandler(c *gin.Context) {
 	// actually, we just need to change the resource version
 	key := "/registry/services/" + namespace + "/" + name
 	log.Debug("[DeleteServiceHandler] key is ", key)
-	var service *apiobject.Service
+	service := &apiobject.Service{}
 	err := serviceStorageTool.Get(context.Background(), key, service)
 	if err != nil {
 		log.Error("[DeleteServiceHandler] get service information error, ", err)
