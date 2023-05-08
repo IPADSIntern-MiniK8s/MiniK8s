@@ -137,3 +137,15 @@ spec:
 ### Bind
 在 Kubernetes 的 node config 中，节点的 IP 地址记录在 status.addresses 数组中的 type 字段为 InternalIP 的元素的 address 字段中。
 在Bind的时候，会将node的status.addresses.InternalIP对应的Address 记录在pod的HostIp 中
+
+## 测试
+### 准备工作
+1. register对应的node
+2. 对于这些node进行watch
+如果是使用postman里面的demo的话，命令如下：
+```shell
+wscat -H "X-Source: test-node1" -c ws://localhost:8080/api/v1/watch/pods
+wscat -H "X-Source: test-node2" -c ws://localhost:8080/api/v1/watch/pods
+wscat -H "X-Source: test-node3" -c ws://localhost:8080/api/v1/watch/pods
+wscat -H "X-Source: test-node4" -c ws://localhost:8080/api/v1/watch/pods
+```

@@ -159,3 +159,12 @@ func (p *Pod) MarshalJSON() ([]byte, error) {
 func (p *Pod) String() string {
 	return fmt.Sprintf("Pod: %s", p.Data.Name)
 }
+
+func (p *Pod) UnMarshalJsonList(data []byte) ([]Pod, error) {
+	var pods []Pod
+	err := json.Unmarshal(data, &pods)
+	if err != nil {
+		return nil, err
+	}
+	return pods, nil
+}

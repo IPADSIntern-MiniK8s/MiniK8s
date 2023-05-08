@@ -64,13 +64,9 @@ Phase：表示 Pod 的当前生命周期阶段。常见的 Phase 值包括 Pendi
 - Pending 表示 Pod 正在被调度，但是尚未运行任何容器；
 - Running 表示 Pod 正在启动容器；
 - Succeeded 表示 Pod 中所有容器已经成功被启动；
-- Pending 表示 Pod 正在被等待调度，但是尚未运行任何容器；
-- Running 表示 Pod 正在被调度；
-- Succeeded 表示 Pod 中所有容器已经成功启动；
 - Finished 表示 Pod 中所有容器已经成功执行完毕；
 - Failed 表示 Pod 中至少有一个容器执行失败；
 - Terminating 表示 Pod 已经被删除；
-- Finished 表示 Pod 已经执行完成
 - Unknown 表示 Pod 状态无法确定。
 
 Conditions：表示 Pod 的当前状态条件。Conditions 是一个包含一组 Condition 对象的数组，每个 Condition 对象表示 Pod 的一个状态条件。常见的 Condition 类型包括 PodScheduled、Ready、ContainersReady 和 Initialized。其中，PodScheduled 表示 Pod 是否已经被调度到某个节点；Ready 表示 Pod 是否已经就绪；ContainersReady 表示 Pod 中的所有容器是否已经就绪；Initialized 表示 Pod 的初始化是否已经完成。

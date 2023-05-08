@@ -142,12 +142,22 @@ type NodeStatus struct {
 }
 
 type Condition struct {
-	Status             string `json:"status,omitempty"`
-	LastHeartbeatTime  string `json:"lastHeartbeatTime,omitempty"`
-	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
-	Reason             string `json:"reason,omitempty"`
-	Message            string `json:"message,omitempty"`
+	Status             NodeStatusTag `json:"status,omitempty"`
+	LastHeartbeatTime  string        `json:"lastHeartbeatTime,omitempty"`
+	LastTransitionTime string        `json:"lastTransitionTime,omitempty"`
+	Reason             string        `json:"reason,omitempty"`
+	Message            string        `json:"message,omitempty"`
 }
+
+type NodeStatusTag string
+
+const (
+	Ready              NodeStatusTag = "Ready"
+	OutoFSpace         NodeStatusTag = "OutOfDisk"
+	MemoryPressure     NodeStatusTag = "MemoryPressure"
+	DiskPressure       NodeStatusTag = "DiskPressure"
+	NetworkUnavailable NodeStatusTag = "NetworkUnavailable"
+)
 
 type NodeInfo struct {
 	Architecture            string `json:"architecture,omitempty"`
@@ -207,4 +217,13 @@ func (n *Node) UnMarshalJSON(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (n *Node) UnMarshalJSONList(data []byte) ([]Node, error) {
+	var nodes []Node
+	err := json.Unmarshal(data, &nodes)
+	if err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
