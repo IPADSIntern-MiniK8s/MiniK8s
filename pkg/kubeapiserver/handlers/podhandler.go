@@ -177,7 +177,7 @@ func DeletePodHandler(c *gin.Context) {
 		return
 	}
 
-	if pod.Status.Phase == "Running" {
+	if pod.Status.Phase == apiobject.Running {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "the pod is running, can not delete"})
 		return
 	}
@@ -188,7 +188,7 @@ func DeletePodHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	pod.Status.Phase = "Terminating"
+	pod.Status.Phase = apiobject.Terminating
 	err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
