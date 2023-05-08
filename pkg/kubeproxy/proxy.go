@@ -37,7 +37,7 @@ func (p proxyServiceHandler) HandleCreate(message []byte) {
 
 func (p proxyServiceHandler) HandleDelete(message []byte) {
 	svc := &apiobject.Service{}
-	svc.UnmarshalJSON(message)
+	svc.UnMarshalJSON(message)
 
 	for _, p := range svc.Spec.Ports {
 		key := svc.Spec.ClusterIP + ":" + strconv.Itoa(int(p.Port))
@@ -48,7 +48,7 @@ func (p proxyServiceHandler) HandleDelete(message []byte) {
 
 func (p proxyServiceHandler) HandleUpdate(message []byte) {
 	svc := &apiobject.Service{}
-	svc.UnmarshalJSON(message)
+	svc.UnMarshalJSON(message)
 
 	for _, p := range svc.Spec.Ports {
 		ipvs.AddService(svc.Spec.ClusterIP, uint16(p.Port))
@@ -67,7 +67,7 @@ type proxyEndpointHandler struct {
 
 func (e proxyEndpointHandler) HandleCreate(message []byte) {
 	edpt := &apiobject.Endpoint{}
-	edpt.UnmarshalJSON(message)
+	edpt.UnMarshalJSON(message)
 
 	key := edpt.Spec.SvcIP + ":" + strconv.Itoa(int(edpt.Spec.SvcPort))
 	ipvs.AddEndpoint(key, edpt.Spec.DestIP, uint16(edpt.Spec.DestPort))
@@ -75,7 +75,7 @@ func (e proxyEndpointHandler) HandleCreate(message []byte) {
 
 func (e proxyEndpointHandler) HandleDelete(message []byte) {
 	edpt := &apiobject.Endpoint{}
-	edpt.UnmarshalJSON(message)
+	edpt.UnMarshalJSON(message)
 
 	svcKey := edpt.Spec.SvcIP + ":" + strconv.Itoa(int(edpt.Spec.SvcPort))
 	dstKey := edpt.Spec.DestIP + ":" + strconv.Itoa(int(edpt.Spec.DestPort))
