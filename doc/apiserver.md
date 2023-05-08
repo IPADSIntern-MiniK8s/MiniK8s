@@ -36,7 +36,6 @@ go get github.com/coreos/etcd/clientv3
 ## api object 信息
 
 ### node
-
 在 Kubernetes 中，每个节点（Node）都有一个 Conditions 字段，用于记录有关节点健康状况的信息。Conditions 字段是 NodeStatus 对象的一部分，由 API Server 维护并提供给其他 Kubernetes 组件和工具使用。
 
 Conditions 字段由一组 Condition 对象组成，每个 Condition 对象都表示节点的一个特定方面的健康状况。每个 Condition 对象包含三个属性：
@@ -58,17 +57,20 @@ InternalIP：节点的内部 IP 地址。
 ExternalDNS：节点的外部 DNS 名称。
 InternalDNS：节点的内部 DNS 名称。
 ### pod
-
 在 Kubernetes 中，Pod 的状态（Status）字段包含了关于 Pod 当前状态的各种信息。Pod 的 Status 字段包括以下几个字段：
 
 Phase：表示 Pod 的当前生命周期阶段。常见的 Phase 值包括 Pending、Running、Succeeded、Failed 和 Unknown。其中，
 
+- Pending 表示 Pod 正在被调度，但是尚未运行任何容器；
+- Running 表示 Pod 正在启动容器；
+- Succeeded 表示 Pod 中所有容器已经成功被启动；
 - Pending 表示 Pod 正在被等待调度，但是尚未运行任何容器；
 - Running 表示 Pod 正在被调度；
 - Succeeded 表示 Pod 中所有容器已经成功启动；
 - Finished 表示 Pod 中所有容器已经成功执行完毕；
 - Failed 表示 Pod 中至少有一个容器执行失败；
-- Terminating 表示 Pod 被删除
+- Terminating 表示 Pod 已经被删除；
+- Finished 表示 Pod 已经执行完成
 - Unknown 表示 Pod 状态无法确定。
 
 Conditions：表示 Pod 的当前状态条件。Conditions 是一个包含一组 Condition 对象的数组，每个 Condition 对象表示 Pod 的一个状态条件。常见的 Condition 类型包括 PodScheduled、Ready、ContainersReady 和 Initialized。其中，PodScheduled 表示 Pod 是否已经被调度到某个节点；Ready 表示 Pod 是否已经就绪；ContainersReady 表示 Pod 中的所有容器是否已经就绪；Initialized 表示 Pod 的初始化是否已经完成。
@@ -83,7 +85,6 @@ Init Container Statuses：表示 Pod 中 Init Container 的状态信息。Init C
 Container Statuses：表示 Pod 中所有容器的状态信息。这是一个包含一组 ContainerStatus 对象的数组，每个 ContainerStatus 对象表示一个容器的状态。其中，重要的状态字段包括：State、LastState、Ready、RestartCount 和 Image。
 
 ## heartbeat
-
 当 Kubernetes API Server 接收到 Worker Node 的心跳信息后，它会根据这些信息更新节点（Node）的状态（Status）。具体来说，Kubernetes API Server 会更新节点对象（Node Object）的 status 字段，该字段包含了节点的各种状态信息，例如节点的 IP 地址、健康状态、容器状态等。
 
 在更新节点状态时，Kubernetes API Server 会根据 kubelet 发送的信息更新以下字段：

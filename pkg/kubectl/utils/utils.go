@@ -16,7 +16,7 @@ func ParseUrlFromJson(_json []byte) string {
 	kind := strings.ToLower(gjson.Get(string(_json), "kind").String())
 	namespace := gjson.Get(string(_json), "metadata.namespace")
 
-	url := fmt.Sprintf("%s/api/v1/namespaces/%s/%ss", utils.ApiServerIp, namespace, kind)
+	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss", utils.ApiServerIp, namespace, kind)
 	return url
 }
 
@@ -24,7 +24,7 @@ func ParseUrlMany(kind string, ns string) string {
 	// operation: get. eg: GET "/api/v1/namespaces/{namespace}/pods"
 	// operation: create/apply. eg: POST "/api/v1/namespaces/{namespace}/pods"
 	namespace := ns
-	url := fmt.Sprintf("%s/api/v1/namespaces/%s/%ss", utils.ApiServerIp, namespace, kind)
+	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss", utils.ApiServerIp, namespace, kind)
 	return url
 }
 

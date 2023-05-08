@@ -7,11 +7,12 @@ import (
 	"minik8s/pkg/kubelet"
 	"minik8s/pkg/kubelet/container"
 	"testing"
+	"time"
 )
 
 // nerdctl -n testpod stop $(nerdctl -n testpod ps | grep -v CONTAINER |awk '{print $1}')
 // nerdctl -n testpod rm $(nerdctl -n testpod ps -a| grep -v CONTAINER |awk '{print $1}')
-func TestCreatePod(t *testing.T) {
+func TestPod(t *testing.T) {
 	//should start etcd and flannld
 	namespace := "testpod"
 	pod := apiobject.Pod{
@@ -52,7 +53,7 @@ func TestCreatePod(t *testing.T) {
 				},
 			},
 		}}
-	success := CreatePod(pod)
+	success, _ := CreatePod(pod)
 	if !success {
 		t.Fatalf("create pod failed")
 	}
@@ -81,19 +82,13 @@ func TestCreatePod(t *testing.T) {
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
-	var err error
-	for _, c := range pod.Spec.Containers {
-		n := fmt.Sprintf("%s-%s", pod.Data.Name, c.Name)
-		_, err = kubelet.Ctl(namespace, "stop", n)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-		_, err = kubelet.Ctl(namespace, "rm", n)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-	}
+
 	// may get "Shutting down, got signal: Terminated" from pause container, it is a normal behavior
+	success = DeletePod(pod)
+	if !success {
+		t.Fatalf("delete pod failed")
+	}
+	time.Sleep(time.Second)
 	client, err := container.NewClient(namespace)
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -103,17 +98,9 @@ func TestCreatePod(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if len(containers) != 1 { //left pause
+
+	if len(containers) != 0 {
 		t.Fatalf("rm containers failed")
-	}
-	id := containers[0].ID()
-	_, err = kubelet.Ctl(namespace, "stop", id)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	_, err = kubelet.Ctl(namespace, "rm", id)
-	if err != nil {
-		t.Fatalf("%v", err)
 	}
 }
 
@@ -168,22 +155,22 @@ func TestPodCommunication(t *testing.T) {
 				},
 			},
 		}}
-	success := CreatePod(pod1)
+	success, ip1 := CreatePod(pod1)
 	if !success {
 		t.Fatalf("create pod1 failed")
 	}
-	success = CreatePod(pod2)
+	success, ip2 := CreatePod(pod2)
 	if !success {
 		t.Fatalf("create pod2 failed")
 	}
-	ip1, err := kubelet.GetInfo(namespace, "pod1-c", ".NetworkSettings.IPAddress")
-	if err != nil {
-		t.Fatalf("get pod1 ip failed")
-	}
-	ip2, err := kubelet.GetInfo(namespace, "pod2-c", ".NetworkSettings.IPAddress")
-	if err != nil {
-		t.Fatalf("get pod2 ip failed")
-	}
+	//ip1, err := kubelet.GetInfo(namespace, "pod1-c", ".NetworkSettings.IPAddress")
+	//if err != nil {
+	//	t.Fatalf("get pod1 ip failed")
+	//}
+	//ip2, err := kubelet.GetInfo(namespace, "pod2-c", ".NetworkSettings.IPAddress")
+	//if err != nil {
+	//	t.Fatalf("get pod2 ip failed")
+	//}
 	success = kubelet.CheckCmd(namespace, "pod1-c", []string{"curl", fmt.Sprintf("%s:%s", ip2, pod2.Spec.Containers[0].Env[0].Value)}, "http connect success")
 	if !success {
 		t.Fatalf("test outside network failed")
@@ -193,21 +180,26 @@ func TestPodCommunication(t *testing.T) {
 		t.Fatalf("test outside network failed")
 	}
 
+	success = DeletePod(pod1)
+	if !success {
+		t.Fatalf("delete pod failed")
+	}
+	success = DeletePod(pod2)
+	if !success {
+		t.Fatalf("delete pod failed")
+	}
+	time.Sleep(time.Second)
 	client, err := container.NewClient(namespace)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	ctx := context.Background()
-	containers, _ := client.Containers(ctx)
-	for _, c := range containers {
-		id := c.ID()
-		_, err = kubelet.Ctl(namespace, "stop", id)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-		_, err = kubelet.Ctl(namespace, "rm", id)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
+	containers, err := client.Containers(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	if len(containers) != 0 {
+		t.Fatalf("rm containers failed")
 	}
 }
