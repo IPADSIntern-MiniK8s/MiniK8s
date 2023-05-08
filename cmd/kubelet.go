@@ -61,23 +61,26 @@ func watchPod() {
 				pod.Status.Phase = apiobject.Succeeded
 				break
 			}
-		//case apiobject.Terminating:{
-		//		success:= kubeletPod.DeletePod(pod)
-		//		if !success{
-		//			continue
-		//		}
-		//		pod.Status.Phase = apiobject.Terminated
-		//		break
-		//	}
+		case apiobject.Terminating:
+			{
+				success := kubeletPod.DeletePod(pod)
+				if !success {
+					continue
+				}
+				pod.Status.Phase = apiobject.Deleted
+				break
+			}
 		default:
 			continue
 		}
-		podjson, err := pod.MarshalJSON()
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", utils.ApiServerIp, pod.Data.Namespace, pod.Data.Name))
+		utils.UpdateObject(&pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
+		time.Sleep(time.Millisecond * 200)
+		//podjson, err := pod.MarshalJSON()
+		//if err != nil {
+		//	fmt.Println(err)
+		//	continue
+		//}
+		//utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", utils.ApiServerIp, pod.Data.Namespace, pod.Data.Name))
 	}
 }
 
