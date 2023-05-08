@@ -51,7 +51,6 @@ func RegisterNodeHandler(c *gin.Context) {
 		return
 	}
 	// change the node status to "Ready"
-	node.Status = apiobject.NodeStatus{}
 	if node.Status.Conditions == nil || len(node.Status.Conditions) == 0 {
 		node.Status.Conditions = make([]apiobject.Condition, 1)
 	}
