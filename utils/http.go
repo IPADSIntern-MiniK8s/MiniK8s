@@ -30,6 +30,9 @@ func SendJsonObject(method string, jsonObject []byte, url string) {
 		}
 		resp.Body.Close()
 		fmt.Println(resp.StatusCode)
+		if resp.StatusCode != http.StatusOK {
+			fmt.Println(body)
+		}
 	}
 }
 

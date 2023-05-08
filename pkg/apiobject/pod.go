@@ -129,6 +129,7 @@ const (
 	Failed      PhaseLabel = "Failed"
 	Finished    PhaseLabel = "Finished"
 	Terminating PhaseLabel = "Terminating"
+	Deleted     PhaseLabel = "Deleted"
 	Unknown     PhaseLabel = "Unknown"
 )
 
