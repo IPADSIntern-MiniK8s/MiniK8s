@@ -25,23 +25,53 @@ func (f *ConfigFilter) PreFilter(pod *apiobject.Pod) bool {
 	return true
 }
 
-// checkNodeSelector checks whether the node has the label that the pod needs
-func (f *ConfigFilter) checkNodeSelector(pod *apiobject.Pod, node *apiobject.Node) bool {
-	// check whether the pod has node selector
-	//if pod.Spec.NodeSelector == nil {
-	//	return true
-	//}
-
-	// check whether the node has the label that the pod needs
-	if node.Data.Labels == nil {
-		return false
-	}
-	for key, value := range pod.Spec.NodeSelector {
-		if node.Data.Labels[key] != value {
-			return false
+// checkNodeStatus checks whether the node is ready and can be found
+func (f *ConfigFilter) checkNodeStatus(nodes []*apiobject.Node) []*apiobject.Node {
+	// check whether the node is ready and can be found
+	result := make([]*apiobject.Node, 0)
+	for _, node := range nodes {
+		if node.Status.Conditions[0].Status == "Ready" {
+			// check whether the node has the InternalIp field
+			if node.Status.Addresses == nil || len(node.Status.Addresses) == 0 {
+				continue
+			}
+			hasInternalIp := false
+			for _, address := range node.Status.Addresses {
+				if address.Type == "InternalIP" && address.Address != "" {
+					hasInternalIp = true
+					break
+				}
+			}
+			if hasInternalIp {
+				result = append(result, node)
+			}
 		}
 	}
-	return true
+	return result
+}
+
+// checkNodeSelector checks whether the node has the label that the pod needs
+func (f *ConfigFilter) checkNodeSelector(pod *apiobject.Pod, nodes []*apiobject.Node) []*apiobject.Node {
+	// check whether the pod has node selector
+	if pod.Spec.NodeSelector == nil {
+		return nodes
+	}
+
+	// check whether the node has the label that the pod needs
+	result := make([]*apiobject.Node, 0)
+	for _, node := range nodes {
+		if node.Data.Labels == nil {
+			continue
+		}
+		for key, value := range pod.Spec.NodeSelector {
+			if node.Data.Labels[key] != value {
+				continue
+			}
+		}
+		result = append(result, node)
+	}
+
+	return result
 }
 
 // GetResourceRequest gets the resource that the pod needs
@@ -111,6 +141,12 @@ func (f *ConfigFilter) checkResource(cpuRequest float64, memoryRequest float64, 
 }
 
 func (f *ConfigFilter) Filter(pod *apiobject.Pod, nodes []*apiobject.Node) []*apiobject.Node {
-	//
-	return nil
+	nodesAfterNodeStatus := f.checkNodeStatus(nodes)
+	nodesAfterNodeSelector := f.checkNodeSelector(pod, nodesAfterNodeStatus)
+	if len(nodesAfterNodeSelector) == 0 {
+		return nodesAfterNodeSelector
+	}
+	cpuRequest, memoryRequest := f.GetResourceRequest(pod)
+	nodesAfterResource := f.checkResource(cpuRequest, memoryRequest, nodesAfterNodeSelector)
+	return nodesAfterResource
 }

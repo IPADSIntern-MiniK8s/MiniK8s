@@ -41,7 +41,7 @@ go get github.com/coreos/etcd/clientv3
 
 Conditions 字段由一组 Condition 对象组成，每个 Condition 对象都表示节点的一个特定方面的健康状况。每个 Condition 对象包含三个属性：
 
-Status：表示 Condition 类型的字符串。在 Kubernetes 中，已经定义了一组标准的 Condition 类型，例如 Ready、OutOfDisk、MemoryPressure、DiskPressure 和 PIDPressure 等。
+1. Status：表示 Condition 类型的字符串。在 Kubernetes 中，已经定义了一组标准的 Condition 类型，例如 Ready、OutOfDisk、MemoryPressure、DiskPressure 和 PIDPressure 等。
 LastHeartbeatTime：表示最后一次收到节点的心跳时间的时间戳。
 以下是一些常见的 Node Condition 类型和它们的含义：
 
@@ -51,6 +51,12 @@ MemoryPressure：表示节点是否出现了内存不足的情况。如果该值
 DiskPressure：表示节点是否出现了磁盘不足的情况。如果该值为 True，则说明该节点的磁盘资源已经用尽；如果该值为 False，则说明该节点的磁盘资源充足；如果该值为 Unknown，则说明该节点的磁盘状态无法确定。
 Kubernetes 的调度器会根据节点的 Conditions 字段来判断节点是否适合调度 Pod。例如，如果一个节点的 Ready 值为 False，则调度器不会将 Pod 调度到该节点上。同时，Kubernetes 组件和工具也可以根据节点的 Conditions 字段来监控和报警节点状态的变化。
 
+2. 在 Kubernetes 的 node config 中，status.addresses 数组中的 type 字段用于指定节点的地址类型，可以有以下几种类型
+Hostname：节点的主机名。
+ExternalIP：节点的外部 IP 地址。
+InternalIP：节点的内部 IP 地址。
+ExternalDNS：节点的外部 DNS 名称。
+InternalDNS：节点的内部 DNS 名称。
 ### pod
 
 在 Kubernetes 中，Pod 的状态（Status）字段包含了关于 Pod 当前状态的各种信息。Pod 的 Status 字段包括以下几个字段：

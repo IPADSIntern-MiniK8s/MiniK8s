@@ -132,3 +132,8 @@ spec:
 1. 如果Pod的`NodeSelector`字段不为空，首先用这个字段与Node的`MetaData`的`Label`进行匹配
 2. 如果Pod的`Resources`不为空，用这个字段匹配`NodeStatus`中的`Allocatable`,判断是否满足（注意，如果Node相应的字段为空的话，这里不会过滤掉）
 3. 目前不支持亲和性
+
+## scheduler的具体操作
+### Bind
+在 Kubernetes 的 node config 中，节点的 IP 地址记录在 status.addresses 数组中的 type 字段为 InternalIP 的元素的 address 字段中。
+在Bind的时候，会将node的status.addresses.InternalIP对应的Address 记录在pod的HostIp 中

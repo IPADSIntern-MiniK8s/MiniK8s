@@ -160,9 +160,19 @@ type NodeInfo struct {
 }
 
 type Address struct {
-	Type    string `json:"type,omitempty"`
-	Address string `json:"address,omitempty"`
+	Type    AddressType `json:"type,omitempty"`
+	Address string      `json:"address,omitempty"`
 }
+
+type AddressType string
+
+const (
+	InternalIP  AddressType = "InternalIP"
+	Hostname    AddressType = "Hostname"
+	ExternalIP  AddressType = "ExternalIP"
+	InternalDNS AddressType = "InternalDNS"
+	ExternalDNS AddressType = "ExternalDNS"
+)
 
 type DaemonEnd struct {
 	KubeletEndpoint KubeletEndpoint `json:"kubeletEndpoint,omitempty"`
