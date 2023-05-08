@@ -25,6 +25,14 @@ test-kubectl:
   tags:
     - shell
 
+test-kubeproxy:
+  stage: test
+  script:
+    - echo "testing kubeproxy"
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeproxy -cover
+  tags:
+    - shell
+
 test-apiserver:
   stage: test
   script:
@@ -39,6 +47,6 @@ build:
   script:
     - cd build
     - make all
-    - cp -r bin /home/gitlab-runner/bin
+    - sudo cp -r bin /home/gitlab-runner/$CI_COMMIT_BRANCH/
   tags:
     - shell
