@@ -124,12 +124,13 @@ type PodStatus struct {
 type PhaseLabel string
 
 const (
-	Pending   PhaseLabel = "Pending"
-	Running   PhaseLabel = "Running"
-	Succeeded PhaseLabel = "Succeeded"
-	Finished  PhaseLabel = "Finished"
-	Failed    PhaseLabel = "Failed"
-	Unknown   PhaseLabel = "Unknown"
+	Pending     PhaseLabel = "Pending"
+	Running     PhaseLabel = "Running"
+	Succeeded   PhaseLabel = "Succeeded"
+	Finished    PhaseLabel = "Finished"
+	Terminating PhaseLabel = "Terminating"
+	Failed      PhaseLabel = "Failed"
+	Unknown     PhaseLabel = "Unknown"
 )
 
 func (p *Pod) UnMarshalJSON(data []byte) error {
