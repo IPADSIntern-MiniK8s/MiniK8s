@@ -127,9 +127,10 @@ const (
 	Pending     PhaseLabel = "Pending"
 	Running     PhaseLabel = "Running"
 	Succeeded   PhaseLabel = "Succeeded"
+	Failed      PhaseLabel = "Failed"
 	Finished    PhaseLabel = "Finished"
 	Terminating PhaseLabel = "Terminating"
-	Failed      PhaseLabel = "Failed"
+	Deleted     PhaseLabel = "Deleted"
 	Unknown     PhaseLabel = "Unknown"
 )
 
