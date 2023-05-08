@@ -47,6 +47,6 @@ build:
   script:
     - cd build
     - make all
-    - cp -r bin /home/gitlab-runner/$CI_COMMIT_BRANCH/bin
+    - sudo cp -r bin /home/gitlab-runner/$CI_COMMIT_BRANCH/
   tags:
     - shell
