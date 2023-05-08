@@ -25,7 +25,7 @@ func (e *Endpoint) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (e *Endpoint) UnmarshalJSON(data []byte) error {
+func (e *Endpoint) UnMarshalJSON(data []byte) error {
 	type Alias Endpoint
 	aux := &struct {
 		*Alias
