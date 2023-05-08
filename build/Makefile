@@ -1,5 +1,5 @@
 CMDPATH=../cmd
-OUTPATH=./bin
+OUTPATH=./$(CI_COMMIT_BRANCH)/bin
 kubectl:
 	go build -o $(OUTPATH)/kubectl $(CMDPATH)/kubectl.go
 kubelet:
