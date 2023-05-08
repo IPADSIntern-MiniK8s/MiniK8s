@@ -25,6 +25,14 @@ test-kubectl:
   tags:
     - shell
 
+test-kubeproxy:
+  stage: test
+  script:
+    - echo "testing kubeproxy"
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeproxy -cover
+  tags:
+    - shell
+
 test-apiserver:
   stage: test
   script:

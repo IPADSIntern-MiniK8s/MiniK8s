@@ -13,6 +13,6 @@ type EndpointNode struct {
 	Visited bool
 }
 
-var Services map[string]*ServiceNode
+var Services = make(map[string]*ServiceNode)
 
 //var Endpoints map[string]EndpointNode
