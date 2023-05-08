@@ -94,6 +94,7 @@ node.status.images：这个字段包含了节点上的镜像信息。Kubernetes 
 ## 测试命令
 
 1. 启动watch
+> 注意：在启动之前要先`apt install node-ws`,确保已经安装`node-ws`
 
 ```shell
 wscat -H "X-Source: node-1" -c ws://localhost:8080/api/v1/watch/pods
