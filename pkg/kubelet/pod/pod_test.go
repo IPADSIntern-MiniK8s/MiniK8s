@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"minik8s/pkg/apiobject"
-	"minik8s/pkg/kubelet"
 	"minik8s/pkg/kubelet/container"
+	"minik8s/pkg/kubelet/utils"
 	"testing"
 	"time"
 )
@@ -58,27 +58,27 @@ func TestPod(t *testing.T) {
 		t.Fatalf("create pod failed")
 	}
 
-	success = kubelet.CheckCmd(namespace, "testpod-c1", []string{"curl", "127.0.0.1:23456"}, "http connect success")
+	success = utils.CheckCmd(namespace, "testpod-c1", []string{"curl", "127.0.0.1:23456"}, "http connect success")
 	if !success {
 		t.Fatalf("test localhost network failed")
 	}
-	success = kubelet.CheckCmd(namespace, "testpod-c2", []string{"curl", "127.0.0.1:12345"}, "http connect success")
+	success = utils.CheckCmd(namespace, "testpod-c2", []string{"curl", "127.0.0.1:12345"}, "http connect success")
 	if !success {
 		t.Fatalf("test localhost network failed")
 	}
-	success = kubelet.CheckCmd(namespace, "testpod-c1", []string{"ping", "www.baidu.com", "-c", "2"}, "64 bytes from")
+	success = utils.CheckCmd(namespace, "testpod-c1", []string{"ping", "www.baidu.com", "-c", "2"}, "64 bytes from")
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
-	success = kubelet.CheckCmd(namespace, "testpod-c1", []string{"curl", "www.baidu.com"}, "百度一下，你就知道")
+	success = utils.CheckCmd(namespace, "testpod-c1", []string{"curl", "www.baidu.com"}, "百度一下，你就知道")
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
-	success = kubelet.CheckCmd(namespace, "testpod-c2", []string{"ping", "www.baidu.com", "-c", "2"}, "64 bytes from")
+	success = utils.CheckCmd(namespace, "testpod-c2", []string{"ping", "www.baidu.com", "-c", "2"}, "64 bytes from")
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
-	success = kubelet.CheckCmd(namespace, "testpod-c2", []string{"curl", "www.baidu.com"}, "百度一下，你就知道")
+	success = utils.CheckCmd(namespace, "testpod-c2", []string{"curl", "www.baidu.com"}, "百度一下，你就知道")
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
@@ -171,11 +171,11 @@ func TestPodCommunication(t *testing.T) {
 	//if err != nil {
 	//	t.Fatalf("get pod2 ip failed")
 	//}
-	success = kubelet.CheckCmd(namespace, "pod1-c", []string{"curl", fmt.Sprintf("%s:%s", ip2, pod2.Spec.Containers[0].Env[0].Value)}, "http connect success")
+	success = utils.CheckCmd(namespace, "pod1-c", []string{"curl", fmt.Sprintf("%s:%s", ip2, pod2.Spec.Containers[0].Env[0].Value)}, "http connect success")
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
-	success = kubelet.CheckCmd(namespace, "pod2-c", []string{"curl", fmt.Sprintf("%s:%s", ip1, pod1.Spec.Containers[0].Env[0].Value)}, "http connect success")
+	success = utils.CheckCmd(namespace, "pod2-c", []string{"curl", fmt.Sprintf("%s:%s", ip1, pod1.Spec.Containers[0].Env[0].Value)}, "http connect success")
 	if !success {
 		t.Fatalf("test outside network failed")
 	}
