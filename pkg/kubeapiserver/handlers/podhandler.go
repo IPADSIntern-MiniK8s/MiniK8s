@@ -134,7 +134,6 @@ func CreatePodHandler(c *gin.Context) {
 		return
 	}
 
-	// TODO: this task should be executed by scheduler
 	scheduled := false
 
 	//for _, node := range nodeList {
@@ -164,7 +163,7 @@ func CreatePodHandler(c *gin.Context) {
 	//		}
 	//	}
 	//}
-	
+
 	// send the pod to scheduler by websocket
 	scheduler, ok := watch.WatchTable["scheduler"]
 	if ok {
@@ -329,6 +328,13 @@ func UpdatePodStatusHandler(c *gin.Context) {
 		return
 	}
 	err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2.3 delete the pod information in etcd
+	err = podStorageTool.Delete(context.Background(), key)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
