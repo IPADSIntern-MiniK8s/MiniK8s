@@ -53,6 +53,21 @@ func CreateServiceHandler(c *gin.Context) {
 	}
 
 	// 2. save the service information in the storage
+	key := "/registry/services/" + namespace + "/" + service.Data.Name
+	// check whether it is a real create service request
+	var prevService apiobject.Service
+	err := serviceStorageTool.Get(context.Background(), key, &prevService)
+	if err == nil {
+		// the service already exists
+		err = updateService(service, key)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusOK, service)
+		}
+		return
+	}
+
 	// 2.1 change the service resource version
 	if err := changeServiceResourceVersion(service, c); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -60,10 +75,9 @@ func CreateServiceHandler(c *gin.Context) {
 	}
 
 	// 2.2 save the service information in the etcd
-	key := "/registry/services/" + namespace + "/" + service.Data.Name
 	log.Debug("[CreateServiceHandler] key is ", key)
 
-	err := serviceStorageTool.Create(context.Background(), key, &service)
+	err = serviceStorageTool.Create(context.Background(), key, &service)
 	if err != nil {
 		log.Error("[CreateServiceHandler] save service information error, ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -129,6 +143,16 @@ func GetServicesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, serviceList)
 }
 
+func updateService(service *apiobject.Service, key string) error {
+	service.Data.ResourcesVersion = apiobject.UPDATE
+	err := serviceStorageTool.GuaranteedUpdate(context.Background(), key, service)
+	if err != nil {
+		log.Error("[UpdateServiceHandler] update service information error, ", err)
+		return err
+	}
+	return nil
+}
+
 // UpdateServiceHandler the url format is PUT /api/v1/namespaces/:namespace/services/:name/update
 func UpdateServiceHandler(c *gin.Context) {
 	// 1. parse the request to get the service object
@@ -157,18 +181,23 @@ func UpdateServiceHandler(c *gin.Context) {
 
 	// 2. save the service information in the storage
 	// 2.1 change the service resource version
-	if err := changeServiceResourceVersion(service, c); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+	//if err := changeServiceResourceVersion(service, c); err != nil {
+	//	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	//	return
+	//}
 
 	// 2.2 save the service information in the etcd
 	key := "/registry/services/" + namespace + "/" + service.Data.Name
 	log.Debug("[UpdateServiceHandler] key is ", key)
 
-	err := serviceStorageTool.GuaranteedUpdate(context.Background(), key, &service)
-	if err != nil {
-		log.Error("[UpdateServiceHandler] save service information error, ", err)
+	//err := serviceStorageTool.GuaranteedUpdate(context.Background(), key, &service)
+	//if err != nil {
+	//	log.Error("[UpdateServiceHandler] save service information error, ", err)
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	//	return
+	//}
+
+	if err := updateService(service, key); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
