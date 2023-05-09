@@ -78,12 +78,15 @@ func (f ConfigFilter) checkNodeSelector(pod *apiobject.Pod, nodes []*apiobject.N
 		if node.Data.Labels == nil {
 			continue
 		}
+		matches := len(pod.Spec.NodeSelector)
 		for key, value := range pod.Spec.NodeSelector {
-			if node.Data.Labels[key] != value {
-				continue
+			if node.Data.Labels[key] == value {
+				matches -= 1
 			}
 		}
-		result = append(result, node)
+		if matches == 0 {
+			result = append(result, node)
+		}
 	}
 
 	return result

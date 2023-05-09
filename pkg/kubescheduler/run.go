@@ -10,10 +10,13 @@ import (
 	"net/http"
 )
 
+// generate the new pointer slice
 func toPointerSlice(slice []apiobject.Node) []*apiobject.Node {
 	result := make([]*apiobject.Node, len(slice))
 	for i, v := range slice {
-		result[i] = &v
+		// create a new pointer which pointer to the node
+		node := v
+		result[i] = &node
 	}
 	return result
 }
@@ -91,7 +94,8 @@ func Run() {
 		}
 
 		// schedule pod
-		nodeForCandidates := scheduler.Schedule(pod, toPointerSlice(nodes))
+		nodeList := toPointerSlice(nodes)
+		nodeForCandidates := scheduler.Schedule(pod, nodeList)
 		nodeCandidates := toValueSlice(nodeForCandidates)
 
 		// marshal the nodes that pod will be scheduled to and send to api server
