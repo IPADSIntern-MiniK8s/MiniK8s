@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 	"minik8s/pkg/apiobject"
 )
 
@@ -25,6 +24,7 @@ func Sync(syncFunc SyncFunc) {
 	} else {
 		fmt.Println("WebSocket连接成功")
 	}
+	defer conn.Close()
 
 	// 不断地接收消息并处理
 	for {
@@ -33,24 +33,27 @@ func Sync(syncFunc SyncFunc) {
 			fmt.Println("读取消息失败：", err)
 			return
 		}
-		fmt.Printf("%s\n", message)
-
-		op := gjson.Get("metadata.resourcesVersion", string(message))
-		switch op.String() {
-		case "CREATE":
-			{
-				go syncFunc.HandleCreate(message)
-			}
-		case "DELETE":
-			{
-				go syncFunc.HandleDelete(message)
-			}
-		case "UPDATE":
-			{
-				go syncFunc.HandleUpdate(message)
-			}
+		if len(message) == 0 {
+			continue
 		}
+		fmt.Printf("[client %s] %s\n", syncFunc.GetType(), message)
 
+		//op := gjson.Get(string(message), "metadata.resourcesVersion")
+		//	switch op.String() {
+		//	case "create":
+		//		{
+		//			go syncFunc.HandleCreate(message)
+		//		}
+		//	case "delete":
+		//		{
+		//			go syncFunc.HandleDelete(message)
+		//		}
+		//	case "update":
+		//		{
+		//			go syncFunc.HandleUpdate(message)
+		//		}
+		//	}
+		//
 	}
 }
 
@@ -59,7 +62,7 @@ func CreateObject(obj apiobject.Object, ty ObjType, ns string) {
 		ns = "default"
 	}
 	res, _ := obj.MarshalJSON()
-	fmt.Println("[create obj]", string(res))
+	log.Info("[create obj]", string(res))
 	//POST /api/v1/namespaces/{namespace}/{resource}"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s", ApiServerIp, ns, ty)
 	if info, err := SendRequest("POST", res, url); err != nil {
@@ -72,10 +75,11 @@ func UpdateObject(obj apiobject.Object, ty ObjType, ns string, name string) {
 		ns = "default"
 	}
 	res, _ := obj.MarshalJSON()
+	log.Info("[update obj]", string(res))
 	//POST /api/v1/namespaces/{namespace}/{resource}/{name}/update"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s/update", ApiServerIp, ns, ty, name)
 	if info, err := SendRequest("POST", res, url); err != nil {
-		log.Error("create object ", info)
+		log.Error("uodate object ", info)
 	}
 }
 
@@ -83,6 +87,7 @@ func DeleteObject(ty ObjType, ns string, name string) {
 	if ns == "" {
 		ns = "default"
 	}
+	log.Info("[delete obj]", name)
 	//DELETE /api/v1/namespaces/{namespace}/{resource}"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s", ApiServerIp, ns, ty, name)
 	if info, err := SendRequest("DELETE", nil, url); err != nil {
@@ -94,6 +99,7 @@ func GetObject(ty ObjType, ns string, name string) string {
 	if ns == "" {
 		ns = "default"
 	}
+	log.Info("[get obj]", name)
 	//GET /api/v1/pods
 	var url string
 	if name == "" {

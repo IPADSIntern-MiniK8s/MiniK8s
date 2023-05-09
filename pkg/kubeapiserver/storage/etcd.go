@@ -94,6 +94,9 @@ func (e *EtcdStorage) Create(ctx context.Context, key string, value interface{})
 		return err
 	}
 	_, err = e.client.Put(ctx, key, string(jsonValue))
+	if err == nil {
+		log.Info("[Create] create success")
+	}
 	return err
 }
 
@@ -119,16 +122,19 @@ func (e *EtcdStorage) Watch(ctx context.Context, key string, callback func(strin
 	ch := e.client.Watch(ctx, key, clientv3.WithPrefix())
 
 	for {
+		log.Info("[Watch] get something")
 		select {
 		case wresp := <-ch:
 			for _, ev := range wresp.Events {
 				log.Info("[Watch] the key is ", string(ev.Kv.Key), " and the value is ", string(ev.Kv.Value), " and the type is ", ev.Type)
 				err := callback(string(ev.Kv.Key), ev.Kv.Value)
 				if err != nil {
+					log.Error("watch error")
 					return err
 				}
 			}
 		case <-ctx.Done():
+			log.Error("ctx done")
 			return nil
 		}
 	}

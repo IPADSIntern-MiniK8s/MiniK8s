@@ -77,10 +77,10 @@ func addService(ip string, port uint16) *libipvs.Service {
 }
 
 func DeleteService(key string) {
+	log.Info("[kubeproxy] Delete service ", key)
 	node := Services[key]
 	deleteService(node.Service)
 	delete(Services, key)
-	log.Info("[kubeproxy] Delete service ", key)
 }
 
 func deleteService(svc *libipvs.Service) {

@@ -34,22 +34,18 @@ func (a *APIServer) UpgradeToWebSocket() gin.HandlerFunc {
 			c.Abort()
 
 			// Get the key to watch
-			// TODO: the attributes for watch may need to be supplied
-			fullPath := c.Request.RequestURI
-			// the resources that can be watched: pod, node
-			var watchKey = ""
-			if strings.Contains(fullPath, "pod") {
-				// Check whether specify the namespace
-				// the pod storage format
-				namespace := c.Param("namespace")
-				podName := c.Param("pod")
-
-				if podName != "" && namespace != "" {
-					watchKey = "/registry/pods/" + namespace + "/" + podName
-				} else {
-					watchKey = "/registry/pods/" + namespace
+			// the resources that can be watched: pod, node, service...
+			resource := c.Param("resource")
+			namespace := c.Param("namespace")
+			name := c.Param("name")
+			var watchKey = "registry/" + resource
+			if namespace != "" {
+				watchKey += "/" + namespace
+				if name != "" {
+					watchKey += "/" + name
 				}
 			}
+
 			// set up a new websocket connection
 			newWatcher, err := watch.NewWatchServer(c)
 			if err != nil {
@@ -59,11 +55,11 @@ func (a *APIServer) UpgradeToWebSocket() gin.HandlerFunc {
 
 			// add the watch server to the watch server map
 			// only service and node watch need to add to the watch table, and all of them watch the all pods
-			log.Debug("[UpgradeToWebSocket] watchKey: ", watchKey)
+			log.Info("[UpgradeToWebSocket] watchKey: ", watchKey)
 			println("the source: ", sourceHeader)
 			if sourceHeader != "" {
 				watch.WatchTable[sourceHeader] = newWatcher
-				log.Debug("[NodeWatchHandler] watchTable size: ", len(watch.WatchTable))
+				log.Info("[NodeWatchHandler] watchTable size: ", len(watch.WatchTable))
 			}
 
 			newWatcher.Watch(watchKey)

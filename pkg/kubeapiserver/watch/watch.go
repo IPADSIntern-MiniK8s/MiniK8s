@@ -64,6 +64,7 @@ func (s *WatchServer) innerWatch(key string) error {
 	// TODO: concurrent problem
 	err := Storage.Watch(context.Background(), key, func(key string, value []byte) error {
 		innerErr := s.Write(value)
+		log.Info("[innerWatch] key: ", key, "timestamp: ")
 		if innerErr != nil {
 			log.Error("[Watch] Write message error: ", innerErr)
 			return innerErr
