@@ -147,9 +147,10 @@ func CreatePodHandler(c *gin.Context) {
 	//			println("the key is: ", k)
 	//		}
 	//		watcher, ok := watch.WatchTable[nodeKey]
-	//		if ok {
+	//		if ok && node.Status.Addresses != nil && len(node.Status.Addresses) != 0 {
 	//			// TODO: the message format should be defined later
 	//			pod.Status.Phase = apiobject.Running
+	//			pod.Status.HostIp = node.Status.Addresses[0].Address
 	//			jsonBytes, err := pod.MarshalJSON()
 	//			err = watcher.Write(jsonBytes)
 	//			if err != nil {
@@ -163,6 +164,7 @@ func CreatePodHandler(c *gin.Context) {
 	//		}
 	//	}
 	//}
+	
 	// send the pod to scheduler by websocket
 	scheduler, ok := watch.WatchTable["scheduler"]
 	if ok {
