@@ -191,6 +191,8 @@ func CreatePodHandler(c *gin.Context) {
 
 		// for convenience, api server take the duty of binding the pod to the node
 		err = bind(pod, &selectedNodes[0])
+		// change to running status
+		pod.Status.Phase = apiobject.Running
 		if err != nil {
 			log.Error("[CreatePodHandler] bind the pod to the node failed")
 		}

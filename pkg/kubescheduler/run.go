@@ -29,14 +29,20 @@ func toValueSlice(slice []*apiobject.Node) []apiobject.Node {
 	return result
 }
 
-func Run() {
+func Run(policyName string) {
 	// init scheduler and filter
 	var filter filter2.TemplateFilter
 	concreteFilter := filter2.ConfigFilter{Name: "ConfigFilter"}
 	filter = concreteFilter
 	var scheduler policy.Scheduler
-	concreteScheduler := policy.NewConfigScheduler(filter)
-	scheduler = concreteScheduler
+
+	if policyName == "default" || policyName == "resource" {
+		concreteScheduler := policy.NewResourceScheduler(filter)
+		scheduler = concreteScheduler
+	} else if policyName == "frequency" {
+		concreteScheduler := policy.NewLeastRequestScheduler(filter)
+		scheduler = concreteScheduler
+	}
 
 	// create websocket connection
 	headers := http.Header{}
@@ -57,6 +63,11 @@ func Run() {
 	// keep reading from websocket
 	for {
 		_, message, err := conn.ReadMessage()
+
+		if len(message) == 0 {
+			continue
+		}
+
 		if err != nil {
 			log.Error("[Run] scheduler websocket read message fail")
 			conn.WriteMessage(websocket.TextMessage, []byte{})

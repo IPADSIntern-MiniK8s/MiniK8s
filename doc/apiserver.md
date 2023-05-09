@@ -141,6 +141,13 @@ for {
 etcdctl del / --prefix
 ```
 
+4. etcd查询所有的key
+```shell
+etcdctl get --prefix ""
+```
+
+5. 目前已经加入了scheduler， 如果想要不带scheduler的版本，可以取消`podhandler.go`的`line140-165`的注释，并注释掉`podhandler.go`的`line 167-208`
+
 ## 参考资料
 
 Gin安装入门: https://gin-gonic.com/zh-cn/docs/quickstart/
