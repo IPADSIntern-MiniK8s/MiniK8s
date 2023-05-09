@@ -39,15 +39,15 @@ func Sync(syncFunc SyncFunc) {
 		switch op.String() {
 		case "CREATE":
 			{
-				syncFunc.HandleCreate(message)
+				go syncFunc.HandleCreate(message)
 			}
 		case "DELETE":
 			{
-				syncFunc.HandleDelete(message)
+				go syncFunc.HandleDelete(message)
 			}
 		case "UPDATE":
 			{
-				syncFunc.HandleUpdate(message)
+				go syncFunc.HandleUpdate(message)
 			}
 		}
 
@@ -55,7 +55,11 @@ func Sync(syncFunc SyncFunc) {
 }
 
 func CreateObject(obj apiobject.Object, ty ObjType, ns string) {
+	if ns == "" {
+		ns = "default"
+	}
 	res, _ := obj.MarshalJSON()
+	fmt.Println("[create obj]", string(res))
 	//POST /api/v1/namespaces/{namespace}/{resource}"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s", ApiServerIp, ns, ty)
 	if info, err := SendRequest("POST", res, url); err != nil {
@@ -64,6 +68,9 @@ func CreateObject(obj apiobject.Object, ty ObjType, ns string) {
 }
 
 func UpdateObject(obj apiobject.Object, ty ObjType, ns string, name string) {
+	if ns == "" {
+		ns = "default"
+	}
 	res, _ := obj.MarshalJSON()
 	//POST /api/v1/namespaces/{namespace}/{resource}/{name}/update"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s/update", ApiServerIp, ns, ty, name)
@@ -73,6 +80,9 @@ func UpdateObject(obj apiobject.Object, ty ObjType, ns string, name string) {
 }
 
 func DeleteObject(ty ObjType, ns string, name string) {
+	if ns == "" {
+		ns = "default"
+	}
 	//DELETE /api/v1/namespaces/{namespace}/{resource}"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s", ApiServerIp, ns, ty, name)
 	if info, err := SendRequest("DELETE", nil, url); err != nil {
@@ -80,9 +90,17 @@ func DeleteObject(ty ObjType, ns string, name string) {
 	}
 }
 
-func GetObjects(ty ObjType) string {
+func GetObject(ty ObjType, ns string, name string) string {
+	if ns == "" {
+		ns = "default"
+	}
 	//GET /api/v1/pods
-	url := fmt.Sprintf("http://%s/api/v1/%s", ApiServerIp, ty)
+	var url string
+	if name == "" {
+		url = fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s", ApiServerIp, ns, ty)
+	} else {
+		url = fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s", ApiServerIp, ns, ty, name)
+	}
 	var str []byte
 	if info, err := SendRequest("GET", str, url); err != nil {
 		log.Error("get object ", info)
