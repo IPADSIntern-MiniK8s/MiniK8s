@@ -244,6 +244,15 @@ func DeleteEndpointHandler(c *gin.Context) {
 		return
 	}
 
+	// delete the endpoint from the etcd
+	err = endpointStorageTool.Delete(context.Background(), key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
 	// 3. return the result
 	c.JSON(http.StatusOK, endpoint)
 }
