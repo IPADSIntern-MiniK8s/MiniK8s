@@ -51,9 +51,10 @@ func RegisterNodeHandler(c *gin.Context) {
 		return
 	}
 	// change the node status to "Ready"
-	node.Status = apiobject.NodeStatus{}
-	node.Status.Conditions = make([]apiobject.Condition, 1)
-	node.Status.Conditions[0].Status = "Ready"
+	if node.Status.Conditions == nil || len(node.Status.Conditions) == 0 {
+		node.Status.Conditions = make([]apiobject.Condition, 1)
+	}
+	node.Status.Conditions[0].Status = apiobject.Ready
 	// change the node's resource version
 	err = changeNodeResourceVersion(node, c)
 	if err != nil {

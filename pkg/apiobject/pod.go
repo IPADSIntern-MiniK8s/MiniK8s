@@ -54,8 +54,9 @@ type Pod struct {
 }
 
 type PodSpec struct {
-	Containers []Container `json:"containers"`
-	Volumes    []Volumes   `json:"volumes,omitempty"`
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	Containers   []Container       `json:"containers"`
+	Volumes      []Volumes         `json:"volumes,omitempty"`
 }
 
 type Container struct {
@@ -157,4 +158,13 @@ func (p *Pod) MarshalJSON() ([]byte, error) {
 
 func (p *Pod) String() string {
 	return fmt.Sprintf("Pod: %s", p.Data.Name)
+}
+
+func (p *Pod) UnMarshalJsonList(data []byte) ([]Pod, error) {
+	var pods []Pod
+	err := json.Unmarshal(data, &pods)
+	if err != nil {
+		return nil, err
+	}
+	return pods, nil
 }

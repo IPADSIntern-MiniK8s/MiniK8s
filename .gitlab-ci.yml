@@ -37,8 +37,17 @@ test-apiserver:
   stage: test
   script:
     - echo "testing apiserver"
- #   - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/storage -cover
+#    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/storage -cover
 #    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/handlers -cover
+  tags:
+    - shell
+
+test-scheduler:
+  stage: test
+  script:
+    - echo "testing scheduler"
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubescheduler/policy -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubescheduler/filter -cover
   tags:
     - shell
 
