@@ -61,6 +61,15 @@ containerd的api有一个docker没有的概念task
 
 每个容器创建后，可以开启task，每个task对应一个进程，有对应的api，这时候才会产生新的命名空间
 
+### pause
+用containerd api设置网络特别麻烦，因此直接用nerdctl跑pause容器，并inspect拿到pid
+pause容器管理存在以下问题：
+1. nerdctl只允许设置container name，container id只能是hash
+2. containerd的api只能拿id 而不能拿name
+3. pause容器属于kubelet自身实现的一部分，不应该把pause信息暴露给apiserver或其他组件
+4. pod信息由apiserver持久化在etcd中，kubelet自身不应该保存信息
+因此这里直接使用podname+"pause"为每个pause容器命名，删除时也只能使用nerdctl帮助，因为nerdctl操作的可以是id也可以是name
+
 ## network
 
 containerd相较于docker并没有提供任何网络相关帮助，所以完全依赖CNI插件

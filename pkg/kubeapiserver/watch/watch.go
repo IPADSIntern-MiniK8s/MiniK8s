@@ -35,7 +35,7 @@ func NewWatchServer(c *gin.Context) (*WatchServer, error) {
 }
 
 // Read websocket message
-func (s *WatchServer) read() ([]byte, error) {
+func (s *WatchServer) Read() ([]byte, error) {
 	_, message, err := s.Conn.ReadMessage()
 	if err != nil {
 		return nil, err
