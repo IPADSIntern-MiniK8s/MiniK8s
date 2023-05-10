@@ -20,7 +20,18 @@ func register(apiserverAddr string) {
 		Data: apiobject.MetaData{
 			Name: hostname,
 		},
-		Spec: apiobject.NodeSpec{},
+		Spec: apiobject.NodeSpec{
+			Unschedulable: false,
+			PodCIDR:       "10.2.17.1/24",
+		},
+		Status: apiobject.NodeStatus{
+			Addresses: []apiobject.Address{
+				{
+					Type:    "InternalIP",
+					Address: "192.168.1.12",
+				},
+			},
+		},
 	}
 	nodejson, _ := node.MarshalJSON()
 	utils.SendJsonObject("POST", nodejson, fmt.Sprintf("http://%s/api/v1/nodes", apiserverAddr))
