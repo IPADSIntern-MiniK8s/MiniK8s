@@ -14,6 +14,7 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/tidwall/gjson v1.14.4
 	github.com/wxnacy/wgo v1.0.4
+	go.etcd.io/etcd v2.3.8+incompatible
 )
 
 require (

@@ -38,7 +38,7 @@ func (a *APIServer) UpgradeToWebSocket() gin.HandlerFunc {
 			resource := c.Param("resource")
 			namespace := c.Param("namespace")
 			name := c.Param("name")
-			var watchKey = "registry/" + resource
+			var watchKey = "/registry/" + resource
 			if namespace != "" {
 				watchKey += "/" + namespace
 				if name != "" {
@@ -62,7 +62,25 @@ func (a *APIServer) UpgradeToWebSocket() gin.HandlerFunc {
 				log.Info("[NodeWatchHandler] watchTable size: ", len(watch.WatchTable))
 			}
 
-			newWatcher.Watch(watchKey)
+			// store the connection in the watchStorage
+			list, ok := watch.WatchStorage.Load(watchKey)
+			if ok {
+				if threadList, ok := list.(*watch.ThreadSafeList); !ok {
+					log.Error("[UpgradeToWebSocket] fail to convert the list to ThreadSafeList")
+					return
+				} else {
+					threadList.PushBack(newWatcher)
+					watch.WatchStorage.Store(watchKey, threadList)
+				}
+
+			} else {
+				// create a list
+				newList := watch.NewThreadSafeList()
+				newList.PushBack(newWatcher)
+				watch.WatchStorage.Store(watchKey, newList)
+				// watch.ListWatch(watchKey)
+			}
+			// newWatcher.Watch(watchKey)
 		} else {
 			// Continue with the request processing
 			c.Next()

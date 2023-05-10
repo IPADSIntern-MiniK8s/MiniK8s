@@ -33,6 +33,13 @@ go get github.com/coreos/etcd/clientv3
 1. 原始的版本watch初步使用简单的websocket实现
 2. 为了和service的接口保持一致，node的watch请求的source放在了request header里面
 
+## 这个思路可能存在的问题
+如果每个watch都有一个自己的回调函数和websocket连接，而且它们同时观察同一个键值对，那么可能会出现以下问题：
+
+如果一个键值对发生变化，那么所有的回调函数都会被调用，每个回调函数都会尝试写入自己的websocket连接。这可能会导致写入顺序的不确定性，从而导致某些客户端无法接收到所有变化。
+
+如果一个watch失败并且重试，那么它将重新订阅键值对并重新启动回调函数。这可能会导致一个键值对被多次观察，从而导致重复消息的问题。
+
 ## api object 信息
 
 ### node
@@ -147,6 +154,7 @@ etcdctl get --prefix ""
 ```
 
 5. 目前已经加入了scheduler， 如果想要不带scheduler的版本，可以取消`podhandler.go`的`line140-165`的注释，并注释掉`podhandler.go`的`line 167-208`
+
 
 ## 参考资料
 
