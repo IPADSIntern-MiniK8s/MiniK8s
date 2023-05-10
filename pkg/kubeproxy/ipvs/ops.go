@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strconv"
 	"syscall"
+	"time"
 )
 
 var handler libipvs.IPVSHandle
@@ -32,8 +33,11 @@ func TestConfig() {
 }
 
 func AddService(ip string, port uint16) {
-	svc := addService(ip, port)
 	serviceIP := ip + ":" + strconv.Itoa(int(port))
+	if _, ok := Services[serviceIP]; ok {
+		return
+	}
+	svc := addService(ip, port)
 	Services[serviceIP] = &ServiceNode{
 		Service:   svc,
 		Visited:   true,
@@ -79,7 +83,9 @@ func addService(ip string, port uint16) *libipvs.Service {
 func DeleteService(key string) {
 	log.Info("[kubeproxy] Delete service ", key)
 	node := Services[key]
-	deleteService(node.Service)
+	if node != nil {
+		deleteService(node.Service)
+	}
 	delete(Services, key)
 }
 
@@ -91,8 +97,10 @@ func deleteService(svc *libipvs.Service) {
 
 func AddEndpoint(key string, ip string, port uint16) {
 	svc, exist := Services[key]
-	if !exist {
-		log.Fatal("[proxy] Add Endpoint: service doesn't exist!")
+	for !exist {
+		time.Sleep(1)
+		log.Info("[proxy] Add Endpoint: service doesn't exist!")
+		svc, exist = Services[key]
 	}
 	dst := bindEndpoint(svc.Service, ip, port)
 	podIP := ip + ":" + strconv.Itoa(int(port))

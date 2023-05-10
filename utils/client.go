@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 	"minik8s/pkg/apiobject"
 )
 
@@ -38,22 +39,22 @@ func Sync(syncFunc SyncFunc) {
 		}
 		fmt.Printf("[client %s] %s\n", syncFunc.GetType(), message)
 
-		//op := gjson.Get(string(message), "metadata.resourcesVersion")
-		//	switch op.String() {
-		//	case "create":
-		//		{
-		//			go syncFunc.HandleCreate(message)
-		//		}
-		//	case "delete":
-		//		{
-		//			go syncFunc.HandleDelete(message)
-		//		}
-		//	case "update":
-		//		{
-		//			go syncFunc.HandleUpdate(message)
-		//		}
-		//	}
-		//
+		op := gjson.Get(string(message), "metadata.resourcesVersion")
+		switch op.String() {
+		case "create":
+			{
+				go syncFunc.HandleCreate(message)
+			}
+		case "delete":
+			{
+				go syncFunc.HandleDelete(message)
+			}
+		case "update":
+			{
+				go syncFunc.HandleUpdate(message)
+			}
+		}
+
 	}
 }
 
