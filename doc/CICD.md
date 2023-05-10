@@ -45,7 +45,11 @@
 
    如果测试涉及到的api需要权限，需要加sudo
 
-3. build：`go build` 生成在`/home/gitlab-runner/bin`目录下
+   创建多个tag为shell的runner，使test阶段并行测试 （目前一共3个）
+
+3. build：`go build` 生成可执行文件在`/home/gitlab-runner/$CI_COMMIT_BRANCH/`目录下
+
+   不同分支build出的文件不会互相覆盖
 
 ### 代码同步
 
