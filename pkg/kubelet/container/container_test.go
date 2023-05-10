@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/containerd/containerd"
-	"minik8s/pkg/kubelet"
+	"minik8s/pkg/kubelet/utils"
 	"testing"
 	"time"
 )
@@ -26,8 +26,8 @@ func TestContainer(t *testing.T) {
 		CmdLine: []string{"/root/test_mount/test_cpu"}, //test_cpu test_memory
 		Envs:    []string{"envA=envAvalue", "envB=envBvalue"},
 	}
-	kubelet.Ctl(spec.ContainerNamespace, "stop", spec.Name)
-	kubelet.Ctl(spec.ContainerNamespace, "rm", spec.Name)
+	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
 	time.Sleep(time.Second * 2)
 	client, err := NewClient(spec.ContainerNamespace)
 	if err != nil {
@@ -53,11 +53,11 @@ func TestContainer(t *testing.T) {
 	t.Logf("container started, use htop to see cpu utilization")
 	time.Sleep(time.Second * 10)
 
-	hostnameCorrect := kubelet.CheckCmd(spec.ContainerNamespace, spec.Name, []string{"hostname"}, spec.Name)
+	hostnameCorrect := utils.CheckCmd(spec.ContainerNamespace, spec.Name, []string{"hostname"}, spec.Name)
 	if !hostnameCorrect {
 		t.Fatalf("hostname set failed")
 	}
-	envExist := kubelet.CheckCmd(spec.ContainerNamespace, spec.Name, []string{"printenv"}, spec.Envs[0])
+	envExist := utils.CheckCmd(spec.ContainerNamespace, spec.Name, []string{"printenv"}, spec.Envs[0])
 	if !envExist {
 		t.Fatalf("env set failed")
 	}
@@ -76,14 +76,14 @@ func TestContainer(t *testing.T) {
 		t.Fatalf("container status wrong")
 	}
 
-	_, err = kubelet.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	_, err = utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	if GetContainerStatus(ctx, c) != "stopped" {
 		t.Fatalf("container status wrong")
 	}
-	_, err = kubelet.Ctl(spec.ContainerNamespace, "rm", spec.Name)
+	_, err = utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"minik8s/pkg/apiobject"
-	"minik8s/pkg/kubelet"
 	"minik8s/pkg/kubelet/container"
+	"minik8s/pkg/kubelet/utils"
 	"os"
 	"strconv"
 )
@@ -13,26 +13,26 @@ import (
 // use pointer to add pause container
 func CreatePod(pod apiobject.Pod) (bool, string) {
 	//ctx := context.Background()
-	output, err := kubelet.Ctl(pod.Data.Namespace, "run", "-d", "--net", "flannel", "--name", generateContainerName("", pod.Data.Name, true), "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6")
+	output, err := utils.Ctl(pod.Data.Namespace, "run", "-d", "--net", "flannel", "--name", generateContainerName("", pod.Data.Name, true), "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6")
 	if err != nil {
 		fmt.Println(output)
 		return false, ""
 	}
 	pauseContainerID := output[:12]
 	//although in one network namespace, other containers do not have the same network config files as pause, like dns server
-	_, err = kubelet.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/resolv.conf", "./resolv.conf")
+	_, err = utils.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/resolv.conf", "./resolv.conf")
 	if err != nil {
 		fmt.Println(output)
 		return false, ""
 	}
 	defer os.Remove("./resolv.conf")
-	_, err = kubelet.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/hosts", "./hosts")
+	_, err = utils.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/hosts", "./hosts")
 	if err != nil {
 		fmt.Println(output)
 		return false, ""
 	}
 	defer os.Remove("./hosts")
-	pausePid, err := kubelet.GetInfo(pod.Data.Namespace, pauseContainerID, ".State.Pid")
+	pausePid, err := utils.GetInfo(pod.Data.Namespace, pauseContainerID, ".State.Pid")
 	if err != nil {
 		fmt.Println(err)
 		return false, ""
@@ -54,18 +54,18 @@ func CreatePod(pod apiobject.Pod) (bool, string) {
 		if pid == 0 {
 			return false, ""
 		}
-		_, err = kubelet.Ctl(pod.Data.Namespace, "cp", "./resolv.conf", cSpec.Name+":/etc/resolv.conf")
+		_, err = utils.Ctl(pod.Data.Namespace, "cp", "./resolv.conf", cSpec.Name+":/etc/resolv.conf")
 		if err != nil {
 			fmt.Println(err)
 			return false, ""
 		}
-		_, err = kubelet.Ctl(pod.Data.Namespace, "cp", "./hosts", cSpec.Name+":/etc/hosts")
+		_, err = utils.Ctl(pod.Data.Namespace, "cp", "./hosts", cSpec.Name+":/etc/hosts")
 		if err != nil {
 			fmt.Println(err)
 			return false, ""
 		}
 	}
-	ip, err := kubelet.GetInfo(pod.Data.Namespace, pauseContainerID, ".NetworkSettings.IPAddress")
+	ip, err := utils.GetInfo(pod.Data.Namespace, pauseContainerID, ".NetworkSettings.IPAddress")
 
 	//add pause container to pod,for deleting
 	pod.Spec.Containers = append(pod.Spec.Containers, apiobject.Container{
@@ -127,11 +127,11 @@ func DeletePod(pod apiobject.Pod) bool {
 	var err error
 	for _, c := range pod.Spec.Containers {
 		n := generateContainerName(c.Name, pod.Data.Name, false)
-		_, err = kubelet.Ctl(pod.Data.Namespace, "stop", n)
+		_, err = utils.Ctl(pod.Data.Namespace, "stop", n)
 		if err != nil {
 			return false
 		}
-		_, err = kubelet.Ctl(pod.Data.Namespace, "rm", n)
+		_, err = utils.Ctl(pod.Data.Namespace, "rm", n)
 		if err != nil {
 			return false
 		}
@@ -139,11 +139,11 @@ func DeletePod(pod apiobject.Pod) bool {
 
 	//delete pause
 	name := generateContainerName("", pod.Data.Name, true)
-	_, err = kubelet.Ctl(pod.Data.Namespace, "stop", name)
+	_, err = utils.Ctl(pod.Data.Namespace, "stop", name)
 	if err != nil {
 		return false
 	}
-	_, err = kubelet.Ctl(pod.Data.Namespace, "rm", name)
+	_, err = utils.Ctl(pod.Data.Namespace, "rm", name)
 	if err != nil {
 		return false
 	}
