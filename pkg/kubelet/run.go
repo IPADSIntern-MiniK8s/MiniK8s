@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func register() {
+func register(apiserverAddr string) {
 	hostname, _ := os.Hostname()
 	node := apiobject.Node{
 		APIVersion: "v1",
@@ -23,16 +23,16 @@ func register() {
 		Spec: apiobject.NodeSpec{},
 	}
 	nodejson, _ := node.MarshalJSON()
-	utils.SendJsonObject("POST", nodejson, "http://192.168.1.13:8080/api/v1/nodes")
+	utils.SendJsonObject("POST", nodejson, fmt.Sprintf("http://%s/api/v1/nodes", apiserverAddr))
 }
 
-func watchPod() {
+func watchPod(apiserverAddr string) {
 	hostname, _ := os.Hostname()
 	headers := http.Header{}
 	headers.Set("X-Source", hostname)
 	dialer := websocket.Dialer{}
 	dialer.Jar = nil
-	conn, _, err := dialer.Dial("ws://192.168.1.13:8080/api/v1/watch/pods", headers)
+	conn, _, err := dialer.Dial(fmt.Sprintf("ws://%s/api/v1/watch/pods", apiserverAddr), headers)
 	if err != nil {
 		fmt.Println(err)
 		panic(err)
@@ -73,19 +73,19 @@ func watchPod() {
 		default:
 			continue
 		}
-		utils.UpdateObject(&pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
-		time.Sleep(time.Millisecond * 200)
-		//podjson, err := pod.MarshalJSON()
-		//if err != nil {
-		//	fmt.Println(err)
-		//	continue
-		//}
-		//utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", utils.ApiServerIp, pod.Data.Namespace, pod.Data.Name))
+		//utils.UpdateObject(&pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
+		//time.Sleep(time.Millisecond * 200)
+		podjson, err := pod.MarshalJSON()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", apiserverAddr, pod.Data.Namespace, pod.Data.Name))
 	}
 }
 
-func Run() {
-	register()
+func Run(apiserverAddr string) {
+	register(apiserverAddr)
 	time.Sleep(time.Second * 5)
-	watchPod()
+	watchPod(apiserverAddr)
 }
