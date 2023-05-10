@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"minik8s/pkg/kubelet"
-	"minik8s/utils"
 )
 
 var RootCmd = &cobra.Command{
@@ -14,13 +14,36 @@ var RootCmd = &cobra.Command{
 	Run:   runRoot,
 }
 
-var apiserverAddr string
+var configAddr string
+
+var KubeletConfig = kubelet.Config{
+	ApiserverAddr: "192.168.1.13:8080",
+	FlannelSubnet: "10.2.17.1/24",
+	IP:            "192.168.1.12",
+}
+
+func initConfig() {
+	//fmt.Println(configAddr)
+	viper.SetConfigFile(configAddr)
+	err := viper.ReadInConfig()
+	if err == nil {
+		//panic(err)
+		if err := viper.Unmarshal(&KubeletConfig); err != nil {
+			//panic(err)
+		}
+	}
+	//if err,use default config
+	fmt.Println(KubeletConfig)
+}
 
 func init() {
-	RootCmd.Flags().StringVarP(&apiserverAddr, "apiserver-address", "a", utils.ApiServerIp, "kubelet (-a apiserver-address)")
+	cobra.OnInitialize(initConfig)
+	//RootCmd.Flags().StringVarP(&apiserverAddr, "apiserver-address", "a", utils.ApiServerIp, "kubelet (-a apiserver-address)")
+	RootCmd.PersistentFlags().StringVarP(&configAddr, "config", "c", "./kubelet-config.yaml", "kubelet (-c config)")
 }
+
 func runRoot(cmd *cobra.Command, args []string) {
-	kubelet.Run(apiserverAddr)
+	kubelet.Run(KubeletConfig)
 }
 func main() {
 	if err := RootCmd.Execute(); err != nil {

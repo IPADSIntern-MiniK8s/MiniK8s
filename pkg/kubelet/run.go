@@ -12,7 +12,13 @@ import (
 	"time"
 )
 
-func register(apiserverAddr string) {
+type Config struct {
+	ApiserverAddr string // 192.168.1.13:8080
+	FlannelSubnet string //10.2.17.1/24
+	IP            string //192.168.1.12
+}
+
+func register(config Config) {
 	hostname, _ := os.Hostname()
 	node := apiobject.Node{
 		APIVersion: "v1",
@@ -22,19 +28,19 @@ func register(apiserverAddr string) {
 		},
 		Spec: apiobject.NodeSpec{
 			Unschedulable: false,
-			PodCIDR:       "10.2.17.1/24",
+			PodCIDR:       config.FlannelSubnet,
 		},
 		Status: apiobject.NodeStatus{
 			Addresses: []apiobject.Address{
 				{
 					Type:    "InternalIP",
-					Address: "192.168.1.12",
+					Address: config.IP,
 				},
 			},
 		},
 	}
 	nodejson, _ := node.MarshalJSON()
-	utils.SendJsonObject("POST", nodejson, fmt.Sprintf("http://%s/api/v1/nodes", apiserverAddr))
+	utils.SendJsonObject("POST", nodejson, fmt.Sprintf("http://%s/api/v1/nodes", config.ApiserverAddr))
 }
 
 func watchPod(apiserverAddr string) {
@@ -95,8 +101,8 @@ func watchPod(apiserverAddr string) {
 	}
 }
 
-func Run(apiserverAddr string) {
-	register(apiserverAddr)
+func Run(config Config) {
+	register(config)
 	time.Sleep(time.Second * 5)
-	watchPod(apiserverAddr)
+	watchPod(config.ApiserverAddr)
 }
