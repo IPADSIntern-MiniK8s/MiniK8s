@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/coreos/etcd/clientv3"
 	log "github.com/sirupsen/logrus"
+	"go.etcd.io/etcd/clientv3"
+	"minik8s/pkg/kubeapiserver/watch"
 	"reflect"
+	"strings"
 )
 
 type EtcdStorage struct {
@@ -94,6 +96,17 @@ func (e *EtcdStorage) Create(ctx context.Context, key string, value interface{})
 		return err
 	}
 	_, err = e.client.Put(ctx, key, string(jsonValue))
+	if err == nil {
+		log.Info("[Create] create success")
+	}
+
+	// trigger watch
+	log.Info("[Create] trigger watch")
+	err = triggerWatch(key, jsonValue)
+	if err != nil {
+		log.Error("[Create] trigger watch error")
+		return err
+	}
 	return err
 }
 
@@ -119,16 +132,19 @@ func (e *EtcdStorage) Watch(ctx context.Context, key string, callback func(strin
 	ch := e.client.Watch(ctx, key, clientv3.WithPrefix())
 
 	for {
+		log.Info("[Watch] get something")
 		select {
 		case wresp := <-ch:
 			for _, ev := range wresp.Events {
 				log.Info("[Watch] the key is ", string(ev.Kv.Key), " and the value is ", string(ev.Kv.Value), " and the type is ", ev.Type)
 				err := callback(string(ev.Kv.Key), ev.Kv.Value)
 				if err != nil {
+					log.Error("watch error")
 					return err
 				}
 			}
 		case <-ctx.Done():
+			log.Error("ctx done")
 			return nil
 		}
 	}
@@ -177,6 +193,13 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 			continue
 		}
 
+		log.Info("[GuaranteedUpdate] update success, begin to trigger watch")
+		// trigger watch
+		err = triggerWatch(key, jsonValue)
+		if err != nil {
+			log.Error("[GuaranteedUpdate] trigger watch error")
+			return err
+		}
 		// The update succeeded, so return
 		return nil
 	}
@@ -185,4 +208,25 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 // Close closes the storage client.
 func (e *EtcdStorage) Close() error {
 	return e.client.Close()
+}
+
+func triggerWatch(key string, value []byte) error {
+	log.Info("[triggerWatch] the key is ", key, " and the value is ", string(value))
+	// get the watchkey
+	parts := strings.Split(key, "/")
+	watchKey := ""
+	i := 0
+	for _, part := range parts {
+		if len(part) == 0 {
+			continue
+		}
+		log.Info("triggerWatch part is ", part, " and i is ", i)
+		watchKey += "/" + part
+		i += 1
+		if i == 2 {
+			break
+		}
+	}
+	err := watch.ListWatch(watchKey, value)
+	return err
 }
