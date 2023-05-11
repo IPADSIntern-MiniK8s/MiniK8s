@@ -30,15 +30,14 @@
 
 - `WithMounts` 挂载 需要将type和options同时设为bind，否则会报`no such device`的错
 
-- `WIthDomainname` `WIthHostname`
+- `WithDomainname` `WithHostname`
 
-- `WIthLinuxNamespace` 默认pid UTS(hostname) mount network ipc 可以手动取消
+- `WithLinuxNamespace`可以加入其他进程的namespace 但是需要先起task 拿到pid`proc/pid/ns/uts`
 
-  可以加入其他进程的namespace 但是需要先起task 拿到pid 
-
-  `proc/pid/ns/uts`
-
-  启动pause容器后，将此pod内的所有其他容器加入到pause容器的network namespace
+  启动pause容器后，将此pod内的所有其他容器加入到pause容器的namespace    
+  观察containerd的源码可知，就算什么都不配置，默认也是使用了ipc、uts、network、mount、pid这五个命名空间隔离的    
+  [k8s之pause容器](https://blog.csdn.net/weixin_40579389/article/details/125941366)按这篇文章的意思 除了mount其他都不需要和pause隔离  
+  需要修改的话 一种是自己写配置函数，另一种是使用这个api但只能一个个单独设 
 
 - `WithProcessArgs` 启动命令 只有windows支持`ProcessCmdLine` 不过简单的命令使用起来效果差不多，具体可能涉及到entrypoint 和cmd的区别
 
@@ -61,6 +60,15 @@
 containerd的api有一个docker没有的概念task
 
 每个容器创建后，可以开启task，每个task对应一个进程，有对应的api，这时候才会产生新的命名空间
+
+### pause
+用containerd api设置网络特别麻烦，因此直接用nerdctl跑pause容器，并inspect拿到pid
+pause容器管理存在以下问题：
+1. nerdctl只允许设置container name，container id只能是hash
+2. containerd的api只能拿id 而不能拿name
+3. pause容器属于kubelet自身实现的一部分，不应该把pause信息暴露给apiserver或其他组件
+4. pod信息由apiserver持久化在etcd中，kubelet自身不应该保存信息
+因此这里直接使用podname+"pause"为每个pause容器命名，删除时也只能使用nerdctl帮助，因为nerdctl操作的可以是id也可以是name
 
 ## network
 
@@ -129,10 +137,10 @@ node启动`./flanneld-amd64 -etcd-endpoints=http://192.168.1.12:2379 -iface=ens3
 }
 ```
 
-`nerdctl run -d --net flannel mcastelino/nettools  sleep 3600` 测试网络可行
-
-nerdctl对于网络的解析太复杂了，对于pause并没有很多乱七八糟的配置，所以直接用ctl启动pause
-容器g虽然
+`nerdctl run -d -v /home/test_mount:/root/test_mount --net flannel -e port=12345 mcastelino/nettools /root/test_mount/test_network` 测试网络可行
+nerdctl对于网络的解析太复杂了，对于pause并没有很多乱七八糟的配置，所以直接用ctl启动pause    
+在加入pause的namespace后发现，虽然其他容器有通过虚拟网卡向外找到合适的转发接口的能力，但是并没有DNS server。这里解决方法是使用外部的`nerdctl cp`命令将首个容器(pause)的`/etc/resolv.conf` `/etc/hosts`文件复制给每个该pod下的容器  
+容器内部部署的服务 可在主机上通过容器ip+容器内端口的方式直接访问到，至此实现pod间通信、主机与pod通信，后续交给kube-proxy
 
 ### 原理
 

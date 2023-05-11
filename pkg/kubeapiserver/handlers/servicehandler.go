@@ -220,7 +220,12 @@ func DeleteServiceHandler(c *gin.Context) {
 		return
 	}
 
+	// truly delete from etcd
+	err = serviceStorageTool.Delete(context.Background(), key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
 	// 3. return the service information
-	// TODO: maybe can't use pointer?
 	c.JSON(http.StatusOK, service)
 }

@@ -133,7 +133,7 @@ type PodResources struct {
 
 type NodeStatus struct {
 	Capability  map[string]string `json:"capacity,omitempty"`
-	Allocatable map[string]string `json:"allocatable,omitempty"`
+	Allocatable map[string]string `json:"allocatable,omitempty"` // can be used to calculate the available resources, for scheduling
 	Conditions  []Condition       `json:"conditions,omitempty"`
 	Addresses   []Address         `json:"addresses,omitempty"`
 	//DaemonEnd   DaemonEnd         `json:"daemonEndpoints,omitempty"`
@@ -142,12 +142,22 @@ type NodeStatus struct {
 }
 
 type Condition struct {
-	Status             string `json:"status,omitempty"`
-	LastHeartbeatTime  string `json:"lastHeartbeatTime,omitempty"`
-	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
-	Reason             string `json:"reason,omitempty"`
-	Message            string `json:"message,omitempty"`
+	Status             NodeStatusTag `json:"status,omitempty"`
+	LastHeartbeatTime  string        `json:"lastHeartbeatTime,omitempty"`
+	LastTransitionTime string        `json:"lastTransitionTime,omitempty"`
+	Reason             string        `json:"reason,omitempty"`
+	Message            string        `json:"message,omitempty"`
 }
+
+type NodeStatusTag string
+
+const (
+	Ready              NodeStatusTag = "Ready"
+	OutoFSpace         NodeStatusTag = "OutOfDisk"
+	MemoryPressure     NodeStatusTag = "MemoryPressure"
+	DiskPressure       NodeStatusTag = "DiskPressure"
+	NetworkUnavailable NodeStatusTag = "NetworkUnavailable"
+)
 
 type NodeInfo struct {
 	Architecture            string `json:"architecture,omitempty"`
@@ -160,9 +170,19 @@ type NodeInfo struct {
 }
 
 type Address struct {
-	Type    string `json:"type,omitempty"`
-	Address string `json:"address,omitempty"`
+	Type    AddressType `json:"type,omitempty"`
+	Address string      `json:"address,omitempty"`
 }
+
+type AddressType string
+
+const (
+	InternalIP  AddressType = "InternalIP"
+	Hostname    AddressType = "Hostname"
+	ExternalIP  AddressType = "ExternalIP"
+	InternalDNS AddressType = "InternalDNS"
+	ExternalDNS AddressType = "ExternalDNS"
+)
 
 type DaemonEnd struct {
 	KubeletEndpoint KubeletEndpoint `json:"kubeletEndpoint,omitempty"`
@@ -197,4 +217,13 @@ func (n *Node) UnMarshalJSON(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (n *Node) UnMarshalJSONList(data []byte) ([]Node, error) {
+	var nodes []Node
+	err := json.Unmarshal(data, &nodes)
+	if err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }

@@ -33,6 +33,13 @@ go get github.com/coreos/etcd/clientv3
 1. 原始的版本watch初步使用简单的websocket实现
 2. 为了和service的接口保持一致，node的watch请求的source放在了request header里面
 
+## 这个思路可能存在的问题
+如果每个watch都有一个自己的回调函数和websocket连接，而且它们同时观察同一个键值对，那么可能会出现以下问题：
+
+如果一个键值对发生变化，那么所有的回调函数都会被调用，每个回调函数都会尝试写入自己的websocket连接。这可能会导致写入顺序的不确定性，从而导致某些客户端无法接收到所有变化。
+
+如果一个watch失败并且重试，那么它将重新订阅键值对并重新启动回调函数。这可能会导致一个键值对被多次观察，从而导致重复消息的问题。
+
 ## api object 信息
 
 ### node
@@ -40,7 +47,7 @@ go get github.com/coreos/etcd/clientv3
 
 Conditions 字段由一组 Condition 对象组成，每个 Condition 对象都表示节点的一个特定方面的健康状况。每个 Condition 对象包含三个属性：
 
-Status：表示 Condition 类型的字符串。在 Kubernetes 中，已经定义了一组标准的 Condition 类型，例如 Ready、OutOfDisk、MemoryPressure、DiskPressure 和 PIDPressure 等。
+1. Status：表示 Condition 类型的字符串。在 Kubernetes 中，已经定义了一组标准的 Condition 类型，例如 Ready、OutOfDisk、MemoryPressure、DiskPressure 和 PIDPressure 等。
 LastHeartbeatTime：表示最后一次收到节点的心跳时间的时间戳。
 以下是一些常见的 Node Condition 类型和它们的含义：
 
@@ -50,6 +57,12 @@ MemoryPressure：表示节点是否出现了内存不足的情况。如果该值
 DiskPressure：表示节点是否出现了磁盘不足的情况。如果该值为 True，则说明该节点的磁盘资源已经用尽；如果该值为 False，则说明该节点的磁盘资源充足；如果该值为 Unknown，则说明该节点的磁盘状态无法确定。
 Kubernetes 的调度器会根据节点的 Conditions 字段来判断节点是否适合调度 Pod。例如，如果一个节点的 Ready 值为 False，则调度器不会将 Pod 调度到该节点上。同时，Kubernetes 组件和工具也可以根据节点的 Conditions 字段来监控和报警节点状态的变化。
 
+2. 在 Kubernetes 的 node config 中，status.addresses 数组中的 type 字段用于指定节点的地址类型，可以有以下几种类型
+Hostname：节点的主机名。
+ExternalIP：节点的外部 IP 地址。
+InternalIP：节点的内部 IP 地址。
+ExternalDNS：节点的外部 DNS 名称。
+InternalDNS：节点的内部 DNS 名称。
 ### pod
 在 Kubernetes 中，Pod 的状态（Status）字段包含了关于 Pod 当前状态的各种信息。Pod 的 Status 字段包括以下几个字段：
 
@@ -58,9 +71,9 @@ Phase：表示 Pod 的当前生命周期阶段。常见的 Phase 值包括 Pendi
 - Pending 表示 Pod 正在被调度，但是尚未运行任何容器；
 - Running 表示 Pod 正在启动容器；
 - Succeeded 表示 Pod 中所有容器已经成功被启动；
+- Finished 表示 Pod 中所有容器已经成功执行完毕；
 - Failed 表示 Pod 中至少有一个容器执行失败；
 - Terminating 表示 Pod 已经被删除；
-- Finished 表示 Pod 已经执行完成
 - Unknown 表示 Pod 状态无法确定。
 
 Conditions：表示 Pod 的当前状态条件。Conditions 是一个包含一组 Condition 对象的数组，每个 Condition 对象表示 Pod 的一个状态条件。常见的 Condition 类型包括 PodScheduled、Ready、ContainersReady 和 Initialized。其中，PodScheduled 表示 Pod 是否已经被调度到某个节点；Ready 表示 Pod 是否已经就绪；ContainersReady 表示 Pod 中的所有容器是否已经就绪；Initialized 表示 Pod 的初始化是否已经完成。
@@ -135,6 +148,14 @@ for {
 ```shell
 etcdctl del / --prefix
 ```
+
+4. etcd查询所有的key
+```shell
+etcdctl get --prefix ""
+```
+
+5. 目前已经加入了scheduler， 如果想要不带scheduler的版本，可以取消`podhandler.go`的`line140-165`的注释，并注释掉`podhandler.go`的`line 167-208`
+
 
 ## 参考资料
 
