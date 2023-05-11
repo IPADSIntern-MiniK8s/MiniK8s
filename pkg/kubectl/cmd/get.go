@@ -55,6 +55,7 @@ func get(cmd *cobra.Command, args []string) {
 		fmt.Print(info)
 	}
 	fmt.Print(info)
+	fmt.Print("\n")
 
 	/* {"error":"key not found: /registry/pods/default/test"} */
 	/* {"metadata":{"name":"test-pod"},"spec":{"containers":[{"name":"test-container","resources":{"limits":{},"requests":{}}}]},"status":{"phase":"Pending"}}root@minik8s-2:~/mini-k8s/pkg/kubectl/test# */
