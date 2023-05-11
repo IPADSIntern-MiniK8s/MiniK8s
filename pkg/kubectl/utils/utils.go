@@ -8,7 +8,7 @@ import (
 
 var apiServerIp = "http://127.0.0.1:8080"
 
-var Resources = []string{"pod"}
+var Resources = []string{"pod", "service", "endpoint"}
 
 func ParseUrlFromJson(_json []byte) string {
 	// operation: create/apply. eg: POST "/api/v1/namespaces/{namespace}/pods"
