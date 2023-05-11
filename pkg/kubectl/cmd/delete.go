@@ -38,6 +38,6 @@ func delete(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Print(info)
+	fmt.Print(info, "\n")
 	/* TODO 解析info，错误判断pod名字是否存在 */
 }
