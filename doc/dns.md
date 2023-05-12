@@ -144,49 +144,86 @@ coredns --version
 
 - 运行
   在home目录下
+
 ```shell
 ./coredns -dns.port=1053 -conf /home/mini-k8s/pkg/kubedns/config/Corefile
 ```
+
 - 测试
+
   - 插入一条信息
+
   ```shell
   etcdctl put /dns/com/example/sub '{"host":"1.2.3.4"}'
   ```
+
   - 测试效果
-  在本机上测试
+    在本机上测试
+
   ```shell
    dig @localhost +short -p 1053 www.service.com
   ```
+
   在其他机器上访问
   ```shell
   dig @192.168.1.13 +short -p 1053 sub.example.com
   dig @192.168.1.13 +short  -p 1053 www.baidu.com
   ```
-  
+
 #### 如何将coreDNS作为DNS服务运行
+
 Flannel可以通过在其配置中指定DNS选项来使用CoreDNS作为DNS服务器。具体来说，可以在Flannel的配置文件中添加以下内容：
+
 ```shell
 {
-  "Network": "10.244.0.0/16",
+  "Network": "10.2.17.1/24",
   "Backend": {
     "Type": "udp",
     "Port": 7890
   },
+  "BackendType":"vxlan",
+  "BackendData":{
+    "VNI":1,
+    "VtepMAC":"0a:6a:c6:8d:cf:89"
+  }
   "DNS": {
     "Type": "coredns",
     "Endpoint": "10.0.0.10:1053",
-    "ServiceName": "kube-dns",
-    "Domain": "cluster.local"
   }
 }
-
 ```
+
 ### DNS总体架构
 
 ![pic1](https://img2022.cnblogs.com/blog/2052820/202207/2052820-20220729201111426-1668551830.png)
 
 当pod1应用想通过dns域名的方式访问pod2则首先根据容器中/etc/resolv.conf内容配置的namserver地址，向dns服务器发出请求，由service将请求抛出转发给kube-dns service，由它进行调度后端的core-dns进行域名解析。解析后请求给kubernetes service进行调度后端etcd数据库返回数据，pod1得到数据后由core-dns转发目的pod2地址解析，最终pod1请求得到pod2。
 
+### 补充
+
+#### 常用的nerdctl命令
+
+当然可以，请参考以下表格：
+
+
+| 命令      | 参数                                                                                                                                                                                                                                            | 描述                           |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `run`     | `-d`: 在后台运行容器<br>`-it`: 分配一个交互式终端<br>`-e key=value`: 设置环境变量<br>`-p hostPort:containerPort`: 暴露端口<br>`-v hostDir:containerDir`: 挂载主机目录到容器目录<br>`--entrypoint /bin/bash`: 覆盖容器启动命令为 `/bin/bash`     | 运行一个容器                   |
+| `exec`    | `-it`: 分配一个交互式终端<br>`-e key=value`: 设置环境变量<br>`-w dir`: 指定工作目录<br>`--user`: 指定用户身份<br>`--privileged`: 授予容器 root 权限<br>`--net host`: 使用主机网络<br /><br /> <br />比如：`nerdctl exec -it <container\_id> sh` | 在一个运行中的容器内部执行命令 |
+| `attach`  | 无                                                                                                                                                                                                                                              | 连接到一个运行中的容器         |
+| `ps`      | `-a`: 显示所有容器<br>`-q`: 只显示容器 ID                                                                                                                                                                                                       | 列出所有容器                   |
+| `logs`    | `-f`: 实时跟踪日志<br>`--tail N`: 显示最后 N 条日志                                                                                                                                                                                             | 查看容器日志                   |
+| `inspect` | 无                                                                                                                                                                                                                                              | 显示容器详细信息               |
+| `rm`      | `-f`: 强制删除容器<br>`-v`: 删除容器相关的数据卷                                                                                                                                                                                                | 删除容器                       |
+| `pause`   | 无                                                                                                                                                                                                                                              | 暂停容器                       |
+| `unpause` | 无                                                                                                                                                                                                                                              | 恢复容器                       |
+| `stop`    | `-t seconds`: 等待容器停止的时间                                                                                                                                                                                                                | 停止容器                       |
+| `kill`    | 无                                                                                                                                                                                                                                              | 强制停止容器                   |
+| `restart` | 无                                                                                                                                                                                                                                              | 重启容器                       |
+| `top`     | 无                                                                                                                                                                                                                                              | 查看容器内部进程信息           |
+| `stats`   | 无                                                                                                                                                                                                                                              | 查看容器资源使用情况           |
+
+注意：该表格仅列举了 `nerdctl` 常用命令和部分参数，更多详细信息可以通过 `nerdctl --help` 查看。
 
 ### 参考资料
 

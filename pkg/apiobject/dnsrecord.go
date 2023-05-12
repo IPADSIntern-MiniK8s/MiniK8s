@@ -1,15 +1,6 @@
 package apiobject
 
 // example:
-// dns := DNSConfig{
-//    Name: "example-dns",
-//    Kind: "CoreDNS",
-//    Host: "example.com",
-//    Paths: []Path{
-//        {Address: "/sub1", Service: "service1", Port: 8080},
-//        {Address: "/sub2", Service: "service2", Port: 8081},
-//    },
-//}
 
 import "encoding/json"
 
@@ -24,7 +15,6 @@ type DNSRecord struct {
 type Path struct {
 	Address string `json:"address"`
 	Service string `json:"service"`
-	Port    int    `json:"port"`
 }
 
 func (r *DNSRecord) MarshalJSON() ([]byte, error) {
