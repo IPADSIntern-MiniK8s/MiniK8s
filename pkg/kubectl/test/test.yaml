@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Pod
+metadata:
+  labels:
+    app: deploy-1
+  name: example-pod2
+spec:
+  containers:
+    - image: nginx
+      name: example-container
+      ports:
+        - containerPort: 12345
+          name: p1
