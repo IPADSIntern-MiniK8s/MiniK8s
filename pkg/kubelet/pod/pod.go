@@ -26,6 +26,11 @@ func CreatePod(pod apiobject.Pod) (bool, string) {
 		return false, ""
 	}
 	defer os.Remove("./resolv.conf")
+
+	if !addCoreDns("./resolv.conf") {
+		return false, ""
+	}
+
 	_, err = utils.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/hosts", "./hosts")
 	if err != nil {
 		fmt.Println(output)
@@ -155,4 +160,22 @@ func generateContainerName(containerName string, podName string, isPause bool) s
 		return podName + "-pause"
 	}
 	return fmt.Sprintf("%s-%s", podName, containerName)
+}
+
+func addCoreDns(path string) bool {
+	originalData, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+
+	newData := []byte("nameserver 192.168.1.13\n")
+	newData = append(newData, originalData...)
+	//fmt.Println(string(newData))
+
+	// 将新数据写入文件
+	err = os.WriteFile(path, newData, 0644)
+	if err != nil {
+		return false
+	}
+	return true
 }
