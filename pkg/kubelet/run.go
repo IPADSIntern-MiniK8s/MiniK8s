@@ -71,7 +71,7 @@ func watchPod(config Config) {
 		switch pod.Status.Phase {
 		case apiobject.Running:
 			{
-				success, ip := kubeletPod.CreatePod(pod)
+				success, ip := kubeletPod.CreatePod(pod, config.ApiserverAddr)
 				fmt.Println(success)
 				if !success {
 					continue
