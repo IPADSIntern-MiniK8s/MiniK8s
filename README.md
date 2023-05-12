@@ -1,14 +1,14 @@
-# minik8s-group11
+# mini-k8s-group11
 
 ## 文档
 
-- [kubectl](https://ipads.se.sjtu.edu.cn:2020/520021910933/minik8s/-/blob/develop/doc/kubectl-api.md)
-- [kubelet](https://ipads.se.sjtu.edu.cn:2020/520021910933/minik8s/-/blob/develop/doc/kubelet.md)
-- [apiserver](https://ipads.se.sjtu.edu.cn:2020/520021910933/minik8s/-/blob/develop/doc/apiserver.md)
-- [kubeproxy](https://ipads.se.sjtu.edu.cn:2020/520021910933/minik8s/-/blob/develop/doc/kubeproxy.md)
-- [scheduler](https://ipads.se.sjtu.edu.cn:2020/520021910933/minik8s/-/blob/develop/doc/scheduler.md)
-- [dns](https://ipads.se.sjtu.edu.cn:2020/520021910933/minik8s/-/blob/develop/doc/dns.md)
-- [ci/cd](https://ipads.se.sjtu.edu.cn:2020/520021910933/minik8s/-/blob/develop/doc/CICD.md)
+- [kubectl](https://gitee.com/szy_0127/mini-k8s/blob/develop/doc/kubectl-api.md)
+- [kubelet](https://gitee.com/szy_0127/mini-k8s/blob/develop/doc/kubelet.md)
+- [apiserver](https://gitee.com/szy_0127/mini-k8s/blob/develop/doc/apiserver.md)
+- [kubeproxy](https://gitee.com/szy_0127/mini-k8s/blob/develop/doc/kubeproxy.md)
+- [scheduler](https://gitee.com/szy_0127/mini-k8s/blob/develop/doc/scheduler.md)
+- [dns](https://gitee.com/szy_0127/mini-k8s/blob/develop/doc/dns.md)
+- [ci/cd](https://gitee.com/szy_0127/mini-k8s/blob/develop/doc/CICD.md)
 
 ## 启动
 
@@ -37,26 +37,26 @@ testpod1 configured
 主机1：
 
 ```shell
-root@minik8s-1:~# nerdctl -n testpod ps
+root@mini-k8s-1:~# nerdctl -n testpod ps
 CONTAINER ID    IMAGE                                                            COMMAND                   CREATED          STATUS    PORTS    NAMES
 85f7d62fca86    registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6    "/pause"                  8 minutes ago    Up                 testpod-pause
 testpod-c1      docker.io/mcastelino/nettools:latest                             "/root/test_mount/te…"    8 minutes ago    Up
 testpod-c2      docker.io/mcastelino/nettools:latest                             "/root/test_mount/te…"    8 minutes ago    Up
-root@minik8s-1:~# nerdctl -n testpod inspect -f '{{.NetworkSettings.IPAddress}}' testpod-c1
+root@mini-k8s-1:~# nerdctl -n testpod inspect -f '{{.NetworkSettings.IPAddress}}' testpod-c1
 10.2.17.233
 ```
 
 主机2：
 
 ```shell
-root@minik8s-2:~# nerdctl -n testpod ps
+root@mini-k8s-2:~# nerdctl -n testpod ps
 CONTAINER ID    IMAGE                                                            COMMAND                   CREATED          STATUS    PORTS    NAMES
 1a03a3b0dc04    registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6    "/pause"                  8 minutes ago    Up                 testpod1-pause
 testpod1-c1     docker.io/mcastelino/nettools:latest                             "/root/test_mount/te…"    8 minutes ago    Up
 testpod1-c2     docker.io/mcastelino/nettools:latest                             "/root/test_mount/te…"    8 minutes ago    Up
-root@minik8s-2:~# nerdctl -n testpod exec -it testpod1-c1 curl 10.2.17.233:12345
+root@mini-k8s-2:~# nerdctl -n testpod exec -it testpod1-c1 curl 10.2.17.233:12345
 http connect success
-root@minik8s-2:~# nerdctl -n testpod exec -it testpod1-c1 curl 10.2.17.233:23456
+root@mini-k8s-2:~# nerdctl -n testpod exec -it testpod1-c1 curl 10.2.17.233:23456
 http connect success
 ```
 
