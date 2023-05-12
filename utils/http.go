@@ -29,7 +29,7 @@ func SendJsonObject(method string, jsonObject []byte, url string) {
 			log.Fatal(err)
 		}
 		resp.Body.Close()
-		fmt.Println(resp.StatusCode)
+		//fmt.Println(resp.StatusCode)
 		if resp.StatusCode != http.StatusOK {
 			fmt.Println(body)
 		}
@@ -55,7 +55,7 @@ func SendRequest(method string, str []byte, url string) (string, error) {
 			log.Fatal(err)
 		}
 		resp.Body.Close()
-		fmt.Println(resp.StatusCode)
+		//fmt.Println(resp.StatusCode)
 	}
 	return body.String(), err
 

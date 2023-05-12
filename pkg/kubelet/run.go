@@ -43,13 +43,13 @@ func register(config Config) {
 	utils.SendJsonObject("POST", nodejson, fmt.Sprintf("http://%s/api/v1/nodes", config.ApiserverAddr))
 }
 
-func watchPod(apiserverAddr string) {
+func watchPod(config Config) {
 	hostname, _ := os.Hostname()
 	headers := http.Header{}
 	headers.Set("X-Source", hostname)
 	dialer := websocket.Dialer{}
 	dialer.Jar = nil
-	conn, _, err := dialer.Dial(fmt.Sprintf("ws://%s/api/v1/watch/pods", apiserverAddr), headers)
+	conn, _, err := dialer.Dial(fmt.Sprintf("ws://%s/api/v1/watch/pods", config.ApiserverAddr), headers)
 	if err != nil {
 		fmt.Println(err)
 		panic(err)
@@ -65,6 +65,9 @@ func watchPod(apiserverAddr string) {
 
 		json.Unmarshal(msgjson, &pod)
 		fmt.Println(pod.Status.Phase)
+		if pod.Status.HostIp != config.IP {
+			continue
+		}
 		switch pod.Status.Phase {
 		case apiobject.Running:
 			{
@@ -97,12 +100,12 @@ func watchPod(apiserverAddr string) {
 			fmt.Println(err)
 			continue
 		}
-		utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", apiserverAddr, pod.Data.Namespace, pod.Data.Name))
+		utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", config.ApiserverAddr, pod.Data.Namespace, pod.Data.Name))
 	}
 }
 
 func Run(config Config) {
 	register(config)
 	time.Sleep(time.Second * 5)
-	watchPod(config.ApiserverAddr)
+	watchPod(config)
 }

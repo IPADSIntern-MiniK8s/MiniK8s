@@ -9,7 +9,7 @@ import (
 
 //var apiServerIp = "http://192.168.1.13:8080"
 
-var Resources = []string{"pod"}
+var Resources = []string{"pod", "service", "endpoint"}
 
 func ParseUrlFromJson(_json []byte) string {
 	// operation: create/apply. eg: POST "/api/v1/namespaces/{namespace}/pods"
@@ -23,14 +23,24 @@ func ParseUrlFromJson(_json []byte) string {
 func ParseUrlMany(kind string, ns string) string {
 	// operation: get. eg: GET "/api/v1/namespaces/{namespace}/pods"
 	// operation: create/apply. eg: POST "/api/v1/namespaces/{namespace}/pods"
-	namespace := ns
+	var namespace string
+	if ns == "" {
+		namespace = "default"
+	} else {
+		namespace = ns
+	}
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss", utils.ApiServerIp, namespace, kind)
 	return url
 }
 
 func ParseUrlOne(kind string, name string, ns string) string {
 	// operation: get. eg: "/api/v1/namespaces/{namespace}/pods/{pod_name}"
-	namespace := ns
-	url := fmt.Sprintf("%s/api/v1/namespaces/%s/%ss/%s", utils.ApiServerIp, namespace, kind, name)
+	var namespace string
+	if ns == "" {
+		namespace = "default"
+	} else {
+		namespace = ns
+	}
+	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss/%s", utils.ApiServerIp, namespace, kind, name)
 	return url
 }
