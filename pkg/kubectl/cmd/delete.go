@@ -34,10 +34,10 @@ func delete(cmd *cobra.Command, args []string) {
 
 	/* display the return info */
 	var str []byte
-	info, err := utils.SendRequest("DELETE", str, _url)
+	_, err := utils.SendRequest("DELETE", str, _url)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Print(info, "\n")
+	fmt.Print(name, " deleted", "\n")
 	/* TODO 解析info，错误判断pod名字是否存在 */
 }
