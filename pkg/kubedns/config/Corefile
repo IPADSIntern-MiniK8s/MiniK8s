@@ -1,0 +1,15 @@
+.:1053 {
+    etcd {
+        endpoint http://localhost:2380
+        path /dns
+        upstream /etc/resolv.conf
+        fallthrough
+    }
+    forward . /etc/resolv.conf
+    reload 6s
+    log
+    errors
+    loop
+    prometheus  # 监控插件
+    loadbalance
+}
