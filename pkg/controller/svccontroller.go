@@ -6,13 +6,17 @@ import (
 	"github.com/tidwall/gjson"
 	"minik8s/pkg/apiobject"
 	"minik8s/utils"
+	"strconv"
+	"strings"
 )
 
 /* 主要工作：
 1. 监听service资源的创建。一旦service资源创建，为其分配唯一的cluster ip。
 2. 遍历pod列表，找到符合selector条件的pod，记录。创建endpoint。
-3. 监听pod列表，一旦pod删除。删除endpoint。
-4. 监听service资源的删除。删除对应endpoint。
+3. 监听pod创建。增加endpoint。++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+4. 监听pod删除。删除endpoint。
+5. 监听pod更新。如果标签更改，删除/增加endpoint。
+6. 监听service资源的删除。删除对应endpoint。
 */
 
 var IPMap = [1 << 8]bool{false}
@@ -38,44 +42,53 @@ func (s svcServiceHandler) HandleCreate(message []byte) {
 	svc.UnMarshalJSON(message)
 
 	// 1. allocate Cluster ip and update service
-	svc.Spec.ClusterIP = allocateClusterIP()
-	svcList[svc.Spec.ClusterIP] = svc
+	svc.Status.ClusterIP = allocateClusterIP()
+	svcList[svc.Status.ClusterIP] = svc
 	utils.UpdateObject(svc, s.GetType(), svc.Data.Namespace, svc.Data.Name)
 
 	// 2. traverse the pod list and create endpoints
-	info := utils.GetObjects(utils.POD)
-	podList := gjson.Get(info, "").Array()
-	var edptList []*apiobject.Endpoint
-	for _, p := range podList {
-		pod := &apiobject.Pod{}
-		pod.UnMarshalJSON([]byte(p.String()))
-		if utils.IsPodFitSelector(svc.Spec.Selector, pod.Data.Labels) {
-			createEndpoints(&edptList, svc, pod)
-		}
-	}
-	svcToEndpoints[svc.Spec.ClusterIP] = &edptList
+	createEndpointsFromPodList(svc)
 
-	log.Info("[svc controller] Create service. Cluster IP:", svc.Spec.ClusterIP)
+	log.Info("[svc controller] Create service. Cluster IP:", svc.Status.ClusterIP)
 }
 
 func (s svcServiceHandler) HandleDelete(message []byte) {
 	svc := &apiobject.Service{}
 	svc.UnMarshalJSON(message)
-	delete(svcList, svc.Spec.ClusterIP)
+	delete(svcList, svc.Status.ClusterIP)
+	index := strings.SplitN(svc.Status.ClusterIP, ",", -1)
+	indexLast, _ := strconv.Atoi(index[len(index)-1])
+	print(indexLast)
+	IPMap[indexLast] = false
 
 	// delete corresponding endpoints
-	for _, edpt := range *svcToEndpoints[svc.Spec.ClusterIP] {
+	for _, edpt := range *svcToEndpoints[svc.Status.ClusterIP] {
 		utils.DeleteObject(utils.ENDPOINT, edpt.Data.Namespace, edpt.Data.Name)
 	}
+	delete(svcToEndpoints, svc.Status.ClusterIP)
 
-	log.Info("[svc controller] Delete service. Cluster IP:", svc.Spec.ClusterIP)
+	log.Info("[svc controller] Delete service. Cluster IP:", svc.Status.ClusterIP)
 }
 
 func (s svcServiceHandler) HandleUpdate(message []byte) {
 	svc := &apiobject.Service{}
 	svc.UnMarshalJSON(message)
 
-	log.Info("[svc controller] Update service. Cluster IP:", svc.Spec.ClusterIP)
+	oldSvc, ok := svcList[svc.Status.ClusterIP]
+	if !ok {
+		log.Info("[svc controller] Service not found. ClusterIP:", svc.Status.ClusterIP, "\n")
+		return
+	}
+	// check if the label changed. if so, delete old endpoints and add new ones
+	if !utils.IsLabelEqual(oldSvc.Spec.Selector, svc.Spec.Selector) {
+		for _, edpt := range *svcToEndpoints[svc.Status.ClusterIP] {
+			utils.DeleteObject(utils.ENDPOINT, edpt.Data.Namespace, edpt.Data.Name)
+		}
+		createEndpointsFromPodList(svc)
+	}
+
+	svcList[svc.Status.ClusterIP] = svc
+	log.Info("[svc controller] Update service. Cluster IP:", svc.Status.ClusterIP)
 }
 
 func (s svcServiceHandler) GetType() utils.ObjType {
@@ -89,27 +102,14 @@ func (s svcPodHandler) HandleCreate(message []byte) {
 }
 
 func (s svcPodHandler) HandleDelete(message []byte) {
-	logInfo := "[svc controller] Delete endpoints.\n"
 
 	pod := &apiobject.Pod{}
 	pod.UnMarshalJSON(message)
 	// delete corresponding endpoints
 	for _, svc := range svcList {
-		edptList := svcToEndpoints[svc.Spec.ClusterIP]
-		var newEdptList []*apiobject.Endpoint
-		for key, edpt := range *edptList {
-			if edpt.Spec.DestIP == pod.Status.PodIp {
-				edpt := (*edptList)[key]
-				utils.DeleteObject(utils.ENDPOINT, edpt.Data.Namespace, edpt.Data.Name)
-				logInfo += fmt.Sprintf("srcIP:%s:%d, dstIP:%s:%d\n", edpt.Spec.SvcIP, edpt.Spec.SvcPort, edpt.Spec.DestIP, edpt.Spec.DestPort)
-			} else {
-				newEdptList = append(newEdptList, edpt)
-			}
-		}
-		svcToEndpoints[svc.Spec.ClusterIP] = &newEdptList
+		deleteEndpoints(svc, pod)
 	}
 
-	log.Info(logInfo)
 }
 
 func (s svcPodHandler) HandleUpdate(message []byte) {
@@ -117,9 +117,14 @@ func (s svcPodHandler) HandleUpdate(message []byte) {
 	pod.UnMarshalJSON(message)
 
 	for _, svc := range svcList {
-		if utils.IsPodFitSelector(svc.Spec.Selector, pod.Data.Labels) {
-			createEndpoints(svcToEndpoints[svc.Spec.ClusterIP], svc, pod)
+		exist := isEndpointExist(svcToEndpoints[svc.Status.ClusterIP], pod.Status.PodIp)
+		fit := utils.IsLabelEqual(svc.Spec.Selector, pod.Data.Labels)
+		if !exist && fit {
+			createEndpoints(svcToEndpoints[svc.Status.ClusterIP], svc, pod)
+		} else if exist && !fit {
+			deleteEndpoints(svc, pod)
 		}
+		// TODO: handle the change of POD IP
 	}
 }
 
@@ -133,7 +138,7 @@ func allocateClusterIP() string {
 	for i, used := range IPMap {
 		if !used {
 			IPMap[i] = true
-			return IPStart + string(i)
+			return IPStart + strconv.Itoa(i)
 		}
 	}
 	log.Fatal("[svc controller] Cluster IP used up!")
@@ -153,12 +158,12 @@ func findDstPort(targetPort string, containers []apiobject.Container) int32 {
 }
 
 func createEndpoints(edptList *[]*apiobject.Endpoint, svc *apiobject.Service, pod *apiobject.Pod) {
-	logInfo := "[svc controller] Create endpoints.\n"
+	logInfo := "[svc controller] Create endpoints."
 
 	for _, port := range svc.Spec.Ports {
 		dstPort := findDstPort(port.TargetPort, pod.Spec.Containers)
 		spec := apiobject.EndpointSpec{
-			SvcIP:    svc.Spec.ClusterIP,
+			SvcIP:    svc.Status.ClusterIP,
 			SvcPort:  port.Port,
 			DestIP:   pod.Status.PodIp,
 			DestPort: dstPort,
@@ -166,15 +171,57 @@ func createEndpoints(edptList *[]*apiobject.Endpoint, svc *apiobject.Service, po
 		edpt := &apiobject.Endpoint{
 			Spec: spec,
 			Data: apiobject.MetaData{
-				Name:             svc.Data.Name + "-" + pod.Data.Name,
-				Namespace:        svc.Data.Namespace,
-				ResourcesVersion: "CREATE",
+				Name:      svc.Data.Name + "-" + pod.Data.Name,
+				Namespace: svc.Data.Namespace,
 			},
 		}
 		utils.CreateObject(edpt, utils.ENDPOINT, svc.Data.Namespace)
 		*edptList = append(*edptList, edpt)
-		logInfo += fmt.Sprintf("srcIP:%s:%d, dstIP:%s:%d\n", svc.Spec.ClusterIP, port.Port, pod.Status.PodIp, dstPort)
+		logInfo += fmt.Sprintf("srcIP:%s:%d, dstIP:%s:%d ; ", svc.Status.ClusterIP, port.Port, pod.Status.PodIp, dstPort)
 	}
 
 	log.Info(logInfo)
+
+}
+
+func deleteEndpoints(svc *apiobject.Service, pod *apiobject.Pod) {
+	logInfo := "[svc controller] Delete endpoints."
+
+	edptList := svcToEndpoints[svc.Status.ClusterIP]
+	var newEdptList []*apiobject.Endpoint
+	for key, edpt := range *edptList {
+		if edpt.Spec.DestIP == pod.Status.PodIp {
+			edpt := (*edptList)[key]
+			utils.DeleteObject(utils.ENDPOINT, edpt.Data.Namespace, edpt.Data.Name)
+			logInfo += fmt.Sprintf("srcIP:%s:%d, dstIP:%s:%d ; ", edpt.Spec.SvcIP, edpt.Spec.SvcPort, edpt.Spec.DestIP, edpt.Spec.DestPort)
+		} else {
+			newEdptList = append(newEdptList, edpt)
+		}
+	}
+	svcToEndpoints[svc.Status.ClusterIP] = &newEdptList
+
+	log.Info(logInfo)
+}
+
+func isEndpointExist(edptList *[]*apiobject.Endpoint, podIP string) bool {
+	for _, edpt := range *edptList {
+		if edpt.Spec.DestIP == podIP {
+			return true
+		}
+	}
+	return false
+}
+
+func createEndpointsFromPodList(svc *apiobject.Service) {
+	info := utils.GetObject(utils.POD, svc.Data.Namespace, "")
+	podList := gjson.Parse(info).Array()
+	var edptList []*apiobject.Endpoint
+	for _, p := range podList {
+		pod := &apiobject.Pod{}
+		pod.UnMarshalJSON([]byte(p.String()))
+		if pod.Data.ResourcesVersion != "delete" && utils.IsLabelEqual(svc.Spec.Selector, pod.Data.Labels) {
+			createEndpoints(&edptList, svc, pod)
+		}
+	}
+	svcToEndpoints[svc.Status.ClusterIP] = &edptList
 }

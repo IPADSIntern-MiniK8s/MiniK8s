@@ -10,6 +10,11 @@ import (
 	"net/http"
 )
 
+type Config struct {
+	ApiserverAddr string
+	Policy        string
+}
+
 // generate the new pointer slice
 func toPointerSlice(slice []apiobject.Node) []*apiobject.Node {
 	result := make([]*apiobject.Node, len(slice))
@@ -29,8 +34,9 @@ func toValueSlice(slice []*apiobject.Node) []apiobject.Node {
 	return result
 }
 
-func Run(policyName string) {
+func Run(config Config) {
 	// init scheduler and filter
+	policyName := config.Policy
 	var filter filter2.TemplateFilter
 	concreteFilter := filter2.ConfigFilter{Name: "ConfigFilter"}
 	filter = concreteFilter

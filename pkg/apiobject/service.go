@@ -51,9 +51,6 @@ type ServiceSpec struct {
 
 	// Route service traffic to pods with label keys and values matching this selector.
 	Selector map[string]string `json:"selector"`
-
-	// ClusterIP is the IP address of the service and is usually assigned randomly by the master.
-	ClusterIP string `json:"clusterIP"`
 }
 
 // ServicePort represents the port on which the service is exposed
@@ -118,6 +115,9 @@ type ServiceStatus struct {
 		CREATED: cluster ip分配完成
 	*/
 	Phase string `json:"phase,omitempty"`
+
+	// ClusterIP is the IP address of the service and is usually assigned randomly by the master.
+	ClusterIP string `json:"clusterIP"`
 }
 
 func (s *Service) UnMarshalJSON(data []byte) error {

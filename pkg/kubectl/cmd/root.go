@@ -7,7 +7,7 @@ import (
 
 func init() {
 	/* flag options that can be inherited by child commands */
-	RootCmd.Flags().StringVarP(&nameSpace, "nameSpace", "n", "default", "kubectl (-n NAMESPACE)")
+	RootCmd.PersistentFlags().StringVarP(&nameSpace, "nameSpace", "n", "default", "kubectl (-n NAMESPACE)")
 
 	/* apply cmd: eg: kubectl apply -f <FILENAME> */
 	ApplyCmd.Flags().StringVarP(&filePath, "filePath", "f", "", "kubectl apply -f <FILENAME>")
@@ -16,6 +16,7 @@ func init() {
 
 	RootCmd.AddCommand(GetCmd)
 
+	RootCmd.AddCommand(DeleteCmd)
 }
 
 var filePath string

@@ -5,6 +5,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	"github.com/tidwall/gjson"
+	"log"
 	"minik8s/pkg/kubectl/utils"
 	"minik8s/utils"
 	"os"
@@ -34,5 +35,12 @@ func apply(cmd *cobra.Command, args []string) {
 	_url := ctlutils.ParseUrlMany(kind, namespace)
 	fmt.Printf("url:%s\n", _url)
 
-	utils.SendJsonObject("POST", _json, _url)
+	//utils.SendJsonObject("POST", _json, _url)
+	_, err = utils.SendRequest("POST", _json, _url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	name := gjson.Get(string(_json), "metadata.name")
+	fmt.Print(name, " configured", "\n")
+
 }

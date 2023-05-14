@@ -2,9 +2,9 @@ package utils
 
 /* ========== Resource Function ========== */
 
-func IsPodFitSelector(selector map[string]string, pod map[string]string) bool {
-	for k, v := range selector {
-		if pod[k] != v {
+func IsLabelEqual(a map[string]string, b map[string]string) bool {
+	for k, v := range a {
+		if b[k] != v {
 			return false
 		}
 	}

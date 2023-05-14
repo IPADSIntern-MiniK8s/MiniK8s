@@ -148,12 +148,13 @@ func CreatePodHandler(c *gin.Context) {
 	//		watcher, ok := watch.WatchTable[nodeKey]
 	//		if ok && node.Status.Addresses != nil && len(node.Status.Addresses) != 0 {
 	//			// TODO: the message format should be defined later
+	//			log.Info("[CreatePod] choose the node")
 	//			pod.Status.Phase = apiobject.Running
 	//			pod.Status.HostIp = node.Status.Addresses[0].Address
 	//			jsonBytes, err := pod.MarshalJSON()
 	//			err = watcher.Write(jsonBytes)
 	//			if err != nil {
-	//				log.Debug("[CreatePodHandler] send to the node failed")
+	//				log.Error("[CreatePodHandler] send to the node failed")
 	//				continue
 	//			}
 	//			scheduled = true
@@ -298,6 +299,13 @@ func DeletePodHandler(c *gin.Context) {
 		return
 	}
 
+	// 2.3 delete the pod information in etcd
+	err = podStorageTool.Delete(context.Background(), key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	// 3. return the pod to the client
 	c.JSON(http.StatusOK, pod)
 }
@@ -328,13 +336,6 @@ func UpdatePodStatusHandler(c *gin.Context) {
 		return
 	}
 	err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 2.3 delete the pod information in etcd
-	err = podStorageTool.Delete(context.Background(), key)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
