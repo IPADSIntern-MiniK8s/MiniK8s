@@ -2,17 +2,18 @@ package handlers
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
+	"minik8s/pkg/kubedns/nginx"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 var dnsStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
 
-// generate the path for the DNSRecord Path
 func generatePath(rawPath string, host string, method string) error {
 	parts := strings.Split(rawPath, ".")
 	result := "/dns"
@@ -20,17 +21,34 @@ func generatePath(rawPath string, host string, method string) error {
 		result = result + "/" + parts[i]
 	}
 	log.Info("[generatePath] the new dns path is ", result)
-	hoststr := `{"host":"` + host + `"}`
+	hoststr := apiobject.DNSEntry{
+		Host: "192.168.1.13",
+	}
 
 	if method == "create" {
-		err := dnsStorageTool.Create(context.Background(), result, hoststr)
+		err := dnsStorageTool.Create(context.Background(), result, &hoststr)
 		return err
 	} else {
-		err := dnsStorageTool.GuaranteedUpdate(context.Background(), result, hoststr)
+		err := dnsStorageTool.GuaranteedUpdate(context.Background(), result, &hoststr)
 		return err
 	}
 }
 
+func getAllDNSRecords() []apiobject.DNSRecord {
+	var dnsRecords []apiobject.DNSRecord
+	err := dnsStorageTool.GetList(context.Background(), "/registry/dnsrecords", &dnsRecords)
+	if err != nil {
+		log.Error("[getAllDNSRecords] error getting all DNS records: ", err)
+	}
+	return dnsRecords
+}
+
+func updateNginx() error {
+	allRecord := getAllDNSRecords()
+	nginx.GenerateConfig(allRecord)
+	err := nginx.ReloadNginx()
+	return err
+}
 // CreateDNSRecordHandler create a DNS record
 // CreateDNSRecordHandler the url format POST /api/v1/dns
 func CreateDNSRecordHandler(c *gin.Context) {
@@ -52,16 +70,27 @@ func CreateDNSRecordHandler(c *gin.Context) {
 		return
 	}
 
-	for _, path := range dnsRecord.Paths {
-		err = generatePath(path.Address, dnsRecord.Host, "create")
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
+	// 3. save the hostname and the path in the nginx
+	// hostKey := "dns/" + dnsRecord.Host
+	// // TODO: maybe need change later, now just use the default value
+	// hostContent := `{"host":0.0.0.0}`
+	// err = dnsStorageTool.Create(context.Background(), hostKey, &hostContent)
+	err = generatePath(dnsRecord.Host, "0.0.0.0", "create")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
 	}
 
+	// 4. update the nginx config
+	err = updateNginx()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 	c.JSON(http.StatusOK, dnsRecord)
 }
 
@@ -96,15 +125,24 @@ func UpdateDNSRecordHandler(c *gin.Context) {
 		return
 	}
 
-	for _, path := range dnsRecord.Paths {
-		err = generatePath(path.Address, dnsRecord.Host, "update")
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
+	// save the host path in etcd
+	err = generatePath(dnsRecord.Host, "0.0.0.0", "update")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
 	}
+
+	// 4. update the nginx config
+	err = updateNginx()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	
 
 	c.JSON(http.StatusOK, dnsRecord)
 }
@@ -124,6 +162,15 @@ func DeleteDNSRecordHandler(c *gin.Context) {
 	// 2. delete the DNSRecord and the path in the etcd
 	key := "/registry/dnsrecords/" + name
 	err := dnsStorageTool.Delete(context.Background(), key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// 3. update the nginx config
+	err = updateNginx()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -164,15 +211,6 @@ func GetDNSRecordHandler(c *gin.Context) {
 
 // GetDNSRecordsHandler list all DNS records
 func GetDNSRecordsHandler(c *gin.Context) {
-	key := "/registry/dnsrecords"
-	var dnsRecords []apiobject.DNSRecord
-	err := dnsStorageTool.GetList(context.Background(), key, &dnsRecords)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
+	var dnsRecords []apiobject.DNSRecord = getAllDNSRecords()
 	c.JSON(http.StatusOK, dnsRecords)
 }

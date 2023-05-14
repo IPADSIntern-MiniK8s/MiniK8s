@@ -71,6 +71,12 @@ Kubernetes中的DNS服务使用了可扩展性的设计，可以支持多种不�
     普通Service的DNS记录是Service本身的IP
     无头Service（Headless Service）的DNS记录则是其选择的 Pod IP 的集合，（无头Service的名称与Pod中配置subdomain一致
 
+### DNS总体架构
+
+![pic1](https://img2022.cnblogs.com/blog/2052820/202207/2052820-20220729201111426-1668551830.png)
+
+当pod1应用想通过dns域名的方式访问pod2则首先根据容器中/etc/resolv.conf内容配置的namserver地址，向dns服务器发出请求，由service将请求抛出转发给kube-dns service，由它进行调度后端的core-dns进行域名解析。解析后请求给kubernetes service进行调度后端etcd数据库返回数据，pod1得到数据后由core-dns转发目的pod2地址解析，最终pod1请求得到pod2。
+
 ### DNS注册
 
 在 Kubernetes 中，每个 Pod 都有一个 DNS 名称，称为 Pod DNS 名称。Pod DNS 名称由以下部分组成：
@@ -94,6 +100,8 @@ my-service.my-namespace.svc.cluster.local
 当 Service 创建时，它会向 kube-dns 服务注册自己的 DNS 记录。kube-dns 服务会自动将该记录与其他 DNS 记录结合起来，提供一个完整的服务发现机制。
 
 总的来说，在 Kubernetes 中，DNS 注册的过程是自动完成的。当 Pod 或 Service 创建时，它们会向集群 DNS 注册自己的 DNS 记录。kube-dns 服务负责将这些记录与其他服务和 DNS 记录结合起来，提供一个完整的服务发现机制。这使得 Kubernetes 用户可以轻松地在集群中发现和连接其他容器和服务。
+
+
 
 #### DNS注册的过程
 
@@ -156,8 +164,8 @@ events {
 http {
     
     server {
-        listen 0.0.0.0:80;
-        server_name dns-test1;
+        listen 192.168.1.13:80;
+        server_name node1.com;
 
         
         location /service1/ {
@@ -173,8 +181,8 @@ http {
     }
     
     server {
-        listen 0.0.0.0:80;
-        server_name dns-test2;
+        listen 192.168.1.13:80;
+        server_name node2.com;
 
         
         location /service3 {
@@ -207,9 +215,9 @@ http {
 3. 测试
 - 向`etcd`中插入相应的域名数据：
 ```shell
-etcdctl put /dns/dns-test1 '{"host":"0.0.0.0"}'
+etcdctl put /dns/com/node1 '{"host":"192.168.1.13"}'
 ```
-- 启动`coreDNS`和`nginx`
+- 启动`coreDNS`和`nginx`(见下面的安装运行)
 - `nginx`的配置如上所示
 - 启动http server
 ```shell
@@ -218,7 +226,7 @@ python3 -m http.server --bind 127.1.1.10 8010
 ```
 - 新开terminal，使用`curl`测试
 ```shell
-curl http://dns-test1:80/service1/test.html
+curl http://node1.com:80/service1/test.html
 ```
 
 - 测试结果
@@ -329,6 +337,7 @@ error_log  /var/log/nginx/error.log  debug;
 ``` 
 
 #### 为了使用etcd热更新：安装confd
+> 最后采用的方案是go的`text/template`, confd一直报错：`no template`
 - 安装
 ```shell
 $ wget https://github.com/kelseyhightower/confd/releases/download/v0.16.0/confd-0.16.0-linux-amd64
@@ -346,11 +355,13 @@ export PATH="$PATH:/opt/confd/bin"
   mkdir -p /etc/confd/{conf.d,templates}
   ll /etc/confd/
   ```
-### DNS总体架构
 
-![pic1](https://img2022.cnblogs.com/blog/2052820/202207/2052820-20220729201111426-1668551830.png)
+## 运行测试
+dns部分和apiserver绑定在一起，由apiserver进行调度，不需要启动额外的应用程序
+发送postman中的示例`post dnsrecord`请求以后，并在相应的机器3的ip和端口启动http server模拟service，然后在机器1上的容器内使用curl测试，结果如下
+![test1](assets/image-20230514181753203.png)
 
-当pod1应用想通过dns域名的方式访问pod2则首先根据容器中/etc/resolv.conf内容配置的namserver地址，向dns服务器发出请求，由service将请求抛出转发给kube-dns service，由它进行调度后端的core-dns进行域名解析。解析后请求给kubernetes service进行调度后端etcd数据库返回数据，pod1得到数据后由core-dns转发目的pod2地址解析，最终pod1请求得到pod2。
+
 
 ### 补充
 

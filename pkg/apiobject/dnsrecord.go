@@ -18,6 +18,10 @@ type Path struct {
 	Port    int    `json:"port"`
 }
 
+type DNSEntry struct {
+	Host string `json:"host"`
+}
+
 func (r *DNSRecord) MarshalJSON() ([]byte, error) {
 	type Alias DNSRecord
 	return json.Marshal(&struct {

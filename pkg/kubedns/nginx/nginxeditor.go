@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
 	"os"
+	"os/exec"
 	"strconv"
 	"text/template"
 )
@@ -24,6 +25,7 @@ type Config struct {
 	Servers []Server
 }
 
+// GenerateConfig generate the nginx config file
 func GenerateConfig(configs []apiobject.DNSRecord) {
 
 	file, err := os.OpenFile("/home/mini-k8s/pkg/kubedns/config/nginx.conf", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
@@ -46,7 +48,7 @@ events {
 	}
 	log.Debug("[GenerateConfig] wrote ", bytes, " bytes to file")
 
-	tmpl := template.Must(template.ParseFiles("nginx.tmpl"))
+	tmpl := template.Must(template.ParseFiles("/home/mini-k8s/pkg/kubedns/nginx/nginx.tmpl"))
 
 	// generate the servers
 	ServerList := make([]Server, 0)
@@ -63,7 +65,7 @@ events {
 		}
 		server := Server{
 			Port:       "80",
-			ServerName: config.Name,
+			ServerName: config.Host,
 			Locations:  locations,
 		}
 		ServerList = append(ServerList, server)
@@ -78,4 +80,21 @@ events {
 	}
 
 	file.Close()
+}
+
+
+func ReloadNginx() error {
+	cmd := exec.Command("pkill", "nginx")
+	err := cmd.Run()
+    if err != nil {
+        log.Error("[ReloadNginx] cmd.Run() failed with ", err.Error())
+		return err
+    }
+	cmd = exec.Command("nginx", "-c", "/home/mini-k8s/pkg/kubedns/config/nginx.conf")
+	err = cmd.Run()
+	if err != nil {
+		log.Error("[ReloadNginx] cmd.Run() failed with ", err.Error())
+		return err
+	}
+	return nil
 }
