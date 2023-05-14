@@ -1,0 +1,14 @@
+http {
+    {{range .Servers}}
+    server {
+        listen 127.0.0.1:{{.Port}};
+        server_name {{.ServerName}};
+
+        {{range .Locations}}
+        location {{.Path}} {
+            proxy_pass http://{{.IP}}:{{.Port}};
+        }
+        {{end}}
+    }
+    {{end}}
+}

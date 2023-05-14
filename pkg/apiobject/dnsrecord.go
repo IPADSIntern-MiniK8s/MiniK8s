@@ -5,7 +5,7 @@ package apiobject
 import "encoding/json"
 
 type DNSRecord struct {
-	Kind       string `json:"kind"`
+	Kind       string `json:"kind,omitempty"`
 	APIVersion string `json:"apiVersion,omitempty"`
 	Name       string `json:"name"`
 	Host       string `json:"host"`
@@ -13,8 +13,9 @@ type DNSRecord struct {
 }
 
 type Path struct {
-	Address string `json:"address"`
+	Address string `json:"address,omitempty"`
 	Service string `json:"service"`
+	Port    int    `json:"port"`
 }
 
 func (r *DNSRecord) MarshalJSON() ([]byte, error) {

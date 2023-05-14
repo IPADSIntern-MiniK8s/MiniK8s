@@ -122,7 +122,9 @@ CoreDNS内部包含一个DNS记录存储后端。该后端被称为CoreDNS的存
 
 Kubernetes 的 DNS 服务器会将这个请求解析成一个或多个后端 Pod 的 IP 地址和端口号，并将其返回给发起请求的 Pod。Pod 将会使用这些信息与后端 Pod 进行通信，这个过程对于 Pod 来说是透明的。
 
-**使用nginx做负载均衡，反向代理？**
+### 不同子路径对应不同的service
+
+使用**nginx**做反向代理，将不同的path路由到不同的ip+port
 
 ## 环境准备
 
@@ -171,28 +173,45 @@ coredns --version
   ```
 
 #### 如何将coreDNS作为DNS服务运行
+在worker节点上运行的容器上，更改`etc/resolv.conf`, 将master节点设为首选的`nameserver`
 
-Flannel可以通过在其配置中指定DNS选项来使用CoreDNS作为DNS服务器。具体来说，可以在Flannel的配置文件中添加以下内容：
-
+#### 安装运行nginx
+- 安装
 ```shell
-{
-  "Network": "10.2.17.1/24",
-  "Backend": {
-    "Type": "udp",
-    "Port": 7890
-  },
-  "BackendType":"vxlan",
-  "BackendData":{
-    "VNI":1,
-    "VtepMAC":"0a:6a:c6:8d:cf:89"
-  }
-  "DNS": {
-    "Type": "coredns",
-    "Endpoint": "10.0.0.10:1053",
-  }
-}
+sudo apt update
+sudo apt install nginx
 ```
-
+- 启动
+```shell
+sudo systemctl status nginx
+sudo systemctl start nginx
+```
+如果要指定conf文件
+```shell
+ nginx -c /home/mini-k8s/pkg/kubedns/config/nginx.conf
+```
+- 停止
+```shell
+pkill nginx
+```
+#### 为了使用etcd热更新：安装confd
+- 安装
+```shell
+$ wget https://github.com/kelseyhightower/confd/releases/download/v0.16.0/confd-0.16.0-linux-amd64
+```
+Move the binary to an installation path, make it executable, and add to path
+```shell
+mkdir -p /opt/confd/bin
+mv confd-0.16.0-linux-amd64 /opt/confd/bin/confd
+chmod +x /opt/confd/bin/confd
+export PATH="$PATH:/opt/confd/bin"
+```
+- confd的配置
+  - 创建confdir
+  ```shell
+  mkdir -p /etc/confd/{conf.d,templates}
+  ll /etc/confd/
+  ```
 ### DNS总体架构
 
 ![pic1](https://img2022.cnblogs.com/blog/2052820/202207/2052820-20220729201111426-1668551830.png)
