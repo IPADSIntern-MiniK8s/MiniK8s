@@ -1,12 +1,14 @@
 http {
     {{range .Servers}}
     server {
-        listen 127.0.0.1:{{.Port}};
+        listen 0.0.0.0:{{.Port}};
         server_name {{.ServerName}};
 
         {{range .Locations}}
-        location {{.Path}} {
-            proxy_pass http://{{.IP}}:{{.Port}};
+        location /{{.Path}}/ {
+            access_log /var/log/nginx/access.log;
+            rewrite ^/{{.Path}}(.*)$ /$1;
+            proxy_pass http://{{.IP}}:{{.Port}}/;
         }
         {{end}}
     }

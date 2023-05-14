@@ -114,18 +114,142 @@ CoreDNS是一个Kubernetes集群中的Kubernetes插件，它通常在Kubernetes�
 
 CoreDNS内部包含一个DNS记录存储后端。该后端被称为CoreDNS的存储插件。CoreDNS存储插件的主要作用是管理DNS记录的存储和检索，例如将DNS记录存储在etcd、Consul或文件系统中，并在必要时从这些后端中检索记录。当客户端查询DNS记录时，CoreDNS将首先从存储插件中检索记录，然后将记录返回给客户端。如果记录不存在，则返回一个相应的错误。此外，存储插件还支持动态DNS更新，允许客户端通过API向CoreDNS添加、删除和修改DNS记录。
 
-### pod 访问到service的逻辑
-
-在 Kubernetes 中，Pod 可以通过 Service 的名称进行访问，无需知道具体的后端 Pod 的 IP 地址和端口号。Service 实际上是一个虚拟的逻辑概念，它代表了一组具有相同标签的 Pod，同时为这些 Pod 提供了一个统一的入口。
-
-当 Pod 通过 Service 名称进行访问时，它会向 Kubernetes 的 DNS 服务器发出一个请求。这个请求的格式为`<service-name>.<namespace>.svc.cluster.local`，其中`<service-name>`是 Service 的名称，`<namespace>`是该 Service 所在的命名空间。`svc.cluster.local`是 Kubernetes 集群的默认域名，用于指示请求应该由集群内部的 DNS 服务器进行处理。
-
-Kubernetes 的 DNS 服务器会将这个请求解析成一个或多个后端 Pod 的 IP 地址和端口号，并将其返回给发起请求的 Pod。Pod 将会使用这些信息与后端 Pod 进行通信，这个过程对于 Pod 来说是透明的。
-
 ### 不同子路径对应不同的service
 
 使用**nginx**做反向代理，将不同的path路由到不同的ip+port
 
+## 具体实现思路
+### DNS配置
+DNS的配置是通过yaml文件进行的，在具体操作的时候将其映射为一个`apiobject` (`DNSRecord`)，支持的字段及其含义和要求文档中的基本一致,以下是一个例子
+```json
+{
+  "kind": "DNS",
+  "apiVersion": "v1",
+  "name": "dns-test1",
+  "host": "node1.com",
+  "paths": [
+      {
+          "address": "10.1.1.10",
+          "service": "service1",
+          "port": 8010
+      },
+      {
+          "address": "10.1.1.11",
+          "service": "service2",
+          "port": 8011
+      }
+  ]
+}
+```
+当相应的yaml文件被解析后，会生成一个`DNSRecord`对象，该对象的host和nginx server ip的对应会被存储到etcd中，从而实现了域名到ip的映射，并通过`coreDNS`实现了域名解析的动态加载
+
+而nginx server ip下不同path到具体的service的映射则是通过nginx的配置文件实现的，具体的配置文件示例如下
+```nginx
+worker_processes  5;  ## Default: 1
+error_log  ./error.log debug;
+pid        ./nginx.pid;
+worker_rlimit_nofile 8192;
+
+events {
+  worker_connections  4096;  ## Default: 1024
+}
+http {
+    
+    server {
+        listen 0.0.0.0:80;
+        server_name dns-test1;
+
+        
+        location /service1/ {
+            access_log /var/log/nginx/access.log;
+            proxy_pass http://127.1.1.10:8010/;
+        }
+        
+        location /service2/ {
+            access_log /var/log/nginx/access.log;
+            proxy_pass http://127.1.1.11:8011/;
+        }
+        
+    }
+    
+    server {
+        listen 0.0.0.0:80;
+        server_name dns-test2;
+
+        
+        location /service3 {
+            access_log /var/log/nginx/access.log;
+            rewrite ^/service3(.*)$ /$1 break;
+            proxy_pass http://127.1.1.12:8081;
+        }
+        
+        location /service4 {
+            access_log /var/log/nginx/access.log;
+            rewrite ^/service4(.*)$ /$1 break;
+            proxy_pass http://127.1.1.13:8082;
+        }
+        
+    }
+    
+}
+```
+当DNSRecord被更新后，nginx的配置文件也会手动更新并重新加载，从而实现了不同path到不同service的映射
+
+### 根据域名定位到IP和port的过程
+1. 通过域名找到nginx server ip
+
+以上面的nginx配置文件为例，我们要访问`http://dns-test1:80/service`，首先会通过`coreDNS`将`dns-test1`解析为`nginx` server ip `127.0.0.1`，这个过程是通过`coreDNS`实现的
+
+2. 根据不同的path找到service
+
+在nginx中根据location的名字找到对应的service ip和端口，比如在上面的例子中是`10.1.1.10:8010`，这个过程是通过nginx实现的
+
+3. 测试
+- 向`etcd`中插入相应的域名数据：
+```shell
+etcdctl put /dns/dns-test1 '{"host":"0.0.0.0"}'
+```
+- 启动`coreDNS`和`nginx`
+- `nginx`的配置如上所示
+- 启动http server
+```shell
+cd /home/mini-k8s/pkg/kubedns/testing
+python3 -m http.server --bind 127.1.1.10 8010
+```
+- 新开terminal，使用`curl`测试
+```shell
+curl http://dns-test1:80/service1/test.html
+```
+
+- 测试结果
+```shell
+*   Trying 0.0.0.0:80...
+* TCP_NODELAY set
+* Connected to dns-test1 (127.0.0.1) port 80 (#0)
+> GET /service1/test.html HTTP/1.1
+> Host: dns-test1
+> User-Agent: curl/7.68.0
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< Server: nginx/1.18.0 (Ubuntu)
+< Date: Sun, 14 May 2023 08:37:24 GMT
+< Content-Type: text/html
+< Content-Length: 117
+< Connection: keep-alive
+< Last-Modified: Sun, 14 May 2023 07:13:40 GMT
+< 
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+</head>
+<body>
+    <h1>Hello, world!</h1>
+</body>
+</html>
+```
 ## 环境准备
 
 ### 安装运行coreDNS
@@ -148,7 +272,7 @@ coredns --version
   在home目录下
 
 ```shell
-./coredns -dns.port=1053 -conf /home/mini-k8s/pkg/kubedns/config/Corefile
+./coredns -conf /home/mini-k8s/pkg/kubedns/config/Corefile
 ```
 
 - 测试
@@ -194,6 +318,16 @@ sudo systemctl start nginx
 ```shell
 pkill nginx
 ```
+- 查看log
+```shell
+tail -f /var/log/nginx/error.log
+tail -f /var/log/nginx/access.log
+```
+- 设置日志级别
+```shell
+error_log  /var/log/nginx/error.log  debug;
+``` 
+
 #### 为了使用etcd热更新：安装confd
 - 安装
 ```shell

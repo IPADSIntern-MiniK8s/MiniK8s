@@ -32,7 +32,7 @@ func GenerateConfig(configs []apiobject.DNSRecord) {
 	}
 	defaultHeader := `
 worker_processes  5;  ## Default: 1
-error_log  ./error.log;
+error_log  ./error.log debug;
 pid        ./nginx.pid;
 worker_rlimit_nofile 8192;
 
