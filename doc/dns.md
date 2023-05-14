@@ -206,11 +206,11 @@ http {
 ### 根据域名定位到IP和port的过程
 1. 通过域名找到nginx server ip
 
-以上面的nginx配置文件为例，我们要访问`http://dns-test1:80/service`，首先会通过`coreDNS`将`dns-test1`解析为`nginx` server ip `127.0.0.1`，这个过程是通过`coreDNS`实现的
+以上面的nginx配置文件为例，我们要访问`http://dns-test1:80/service`，首先会通过`coreDNS`将`node1.com`解析为`nginx` server ip `192.168.1.13`，这个过程是通过`coreDNS`实现的
 
 2. 根据不同的path找到service
 
-在nginx中根据location的名字找到对应的service ip和端口，比如在上面的例子中是`10.1.1.10:8010`，这个过程是通过nginx实现的
+在nginx中根据location的名字找到对应的service ip和端口，比如在上面的例子中是`127.1.1.10:8010`，这个过程是通过nginx实现的
 
 3. 测试
 - 向`etcd`中插入相应的域名数据：
