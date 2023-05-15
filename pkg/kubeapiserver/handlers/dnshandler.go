@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
 	"minik8s/pkg/kubedns/nginx"
@@ -43,6 +44,27 @@ func getAllDNSRecords() []apiobject.DNSRecord {
 	return dnsRecords
 }
 
+func getServiceAddr(serviceName string) (string, error) {
+	var services []apiobject.Service
+	key := "/registry/services/"
+	err := dnsStorageTool.GetList(context.Background(), key, &services)
+	if err != nil {
+		log.Error("[getServiceAddr] error getting service: ", err)
+		return "", err
+	}
+	for _, service := range services {
+		if service.Data.Name == serviceName {
+			if service.Status.ClusterIP != "" {
+				return service.Status.ClusterIP, nil
+			}
+		}
+
+	}
+
+	return "", errors.New("service not found")
+}
+	
+
 func updateNginx() error {
 	allRecord := getAllDNSRecords()
 	nginx.GenerateConfig(allRecord)
@@ -58,6 +80,20 @@ func CreateDNSRecordHandler(c *gin.Context) {
 			"error": err.Error(),
 		})
 		return
+	}
+
+	// 1. if the address field is empty, fill it with the service address
+	for _, path := range dnsRecord.Paths {
+		if path.Address == "" {
+			addr, err := getServiceAddr(path.Service)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": err.Error(),
+				})
+				return
+			}
+			path.Address = addr
+		}
 	}
 
 	// 2. save the DNSRecord and the path in the etcd
