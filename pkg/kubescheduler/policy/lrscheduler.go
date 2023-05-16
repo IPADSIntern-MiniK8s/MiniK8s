@@ -47,8 +47,9 @@ func (s *LeastRequestScheduler) Schedule(pod *apiobject.Pod, nodes []*apiobject.
 			}
 		}
 	}
-
-	s.frequency[nodes[0].Data.Name] += 1
+	if length > 0 {
+		s.frequency[nodes[0].Data.Name] += 1
+	}
 	return nodes
 }
 
