@@ -16,3 +16,11 @@ func IsLabelEqual(a map[string]string, b map[string]string) bool {
 func WaitForever() {
 	<-make(chan struct{})
 }
+
+/* ========== Rand Function ========== */
+
+func GenerateName(name string, n int) string {
+
+	return name + "-" + String(n)
+
+}
