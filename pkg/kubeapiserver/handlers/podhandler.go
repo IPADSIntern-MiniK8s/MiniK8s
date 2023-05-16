@@ -136,78 +136,78 @@ func CreatePodHandler(c *gin.Context) {
 
 	scheduled := false
 
-	for _, node := range nodeList {
-		if node.Status.Conditions[0].Status == "Ready" {
-			nodeKey = node.Data.Name
-			println("the watchTable is: ", watch.WatchTable, "the length is: ", len(watch.WatchTable))
-			log.Debug("[CreatePodHandler] the nodeKey is: ", nodeKey)
-			// print the watchTable keys
-			for k, _ := range watch.WatchTable {
-				println("the key is: ", k)
-			}
-			watcher, ok := watch.WatchTable[nodeKey]
-			if ok && node.Status.Addresses != nil && len(node.Status.Addresses) != 0 {
-				// TODO: the message format should be defined later
-				log.Info("[CreatePod] choose the node")
-				pod.Status.Phase = apiobject.Running
-				pod.Status.HostIp = node.Status.Addresses[0].Address
-				jsonBytes, err := pod.MarshalJSON()
-				err = watcher.Write(jsonBytes)
-				if err != nil {
-					log.Error("[CreatePodHandler] send to the node failed")
-					continue
-				}
-				scheduled = true
-				break
-			} else {
-				continue
-			}
-		}
-	}
-
-	//// send the pod to scheduler by websocket
-	//scheduler, ok := watch.WatchTable["scheduler"]
-	//if ok {
-	//	jsonBytes, err := pod.MarshalJSON()
-	//	err = scheduler.Write(jsonBytes)
-	//	if err != nil {
-	//		log.Error("[CreatePodHandler] send to the node failed")
-	//	}
-	//
-	//	// read from the scheduler util something can be read
-	//	response, err := scheduler.Read()
-	//	if err != nil {
-	//		log.Error("[CreatePodHandler] read from the scheduler failed")
-	//	}
-	//	// parse the response
-	//	var selectedNodes []apiobject.Node
-	//	err = apiobject.UnMarshalJSONList(response, &selectedNodes)
-	//	if err != nil {
-	//		log.Error("[CreatePodHandler] unmarshal the response failed")
-	//	}
-	//	if selectedNodes == nil || len(selectedNodes) == 0 {
-	//		log.Error("[CreatePodHandler] no available node")
-	//	} else {
-	//		scheduled = true
-	//	}
-	//
-	//	// for convenience, api server take the duty of binding the pod to the node
-	//	err = bind(pod, &selectedNodes[0])
-	//	// change to running status
-	//	pod.Status.Phase = apiobject.Running
-	//	if err != nil {
-	//		log.Error("[CreatePodHandler] bind the pod to the node failed")
-	//	}
-	//
-	//	// write the pod to the node
-	//	nodeKey := selectedNodes[0].Data.Name
-	//	sendPodToNode(pod, nodeKey)
-	//
-	//	// keep check and resend to the next node if necessary
-	//	if len(selectedNodes) > 1 {
-	//		go keepSchedule(key, selectedNodes)
+	//for _, node := range nodeList {
+	//	if node.Status.Conditions[0].Status == "Ready" {
+	//		nodeKey = node.Data.Name
+	//		println("the watchTable is: ", watch.WatchTable, "the length is: ", len(watch.WatchTable))
+	//		log.Debug("[CreatePodHandler] the nodeKey is: ", nodeKey)
+	//		// print the watchTable keys
+	//		for k, _ := range watch.WatchTable {
+	//			println("the key is: ", k)
+	//		}
+	//		watcher, ok := watch.WatchTable[nodeKey]
+	//		if ok && node.Status.Addresses != nil && len(node.Status.Addresses) != 0 {
+	//			// TODO: the message format should be defined later
+	//			log.Info("[CreatePod] choose the node")
+	//			pod.Status.Phase = apiobject.Running
+	//			pod.Status.HostIp = node.Status.Addresses[0].Address
+	//			jsonBytes, err := pod.MarshalJSON()
+	//			err = watcher.Write(jsonBytes)
+	//			if err != nil {
+	//				log.Error("[CreatePodHandler] send to the node failed")
+	//				continue
+	//			}
+	//			scheduled = true
+	//			break
+	//		} else {
+	//			continue
+	//		}
 	//	}
 	//}
+
+	// send the pod to scheduler by websocket
+	scheduler, ok := watch.WatchTable["scheduler"]
+	if ok {
+		jsonBytes, err := pod.MarshalJSON()
+		err = scheduler.Write(jsonBytes)
+		if err != nil {
+			log.Error("[CreatePodHandler] send to the node failed")
+		}
+
+		// read from the scheduler util something can be read
+		response, err := scheduler.Read()
+		if err != nil {
+			log.Error("[CreatePodHandler] read from the scheduler failed")
+		}
+		// parse the response
+		var selectedNodes []apiobject.Node
+		err = apiobject.UnMarshalJSONList(response, &selectedNodes)
+		if err != nil {
+			log.Error("[CreatePodHandler] unmarshal the response failed")
+		}
+		if selectedNodes == nil || len(selectedNodes) == 0 {
+			log.Error("[CreatePodHandler] no available node")
+		} else {
+			scheduled = true
+		}
+
+		// for convenience, api server take the duty of binding the pod to the node
+		err = bind(pod, &selectedNodes[0])
+		// change to running status
+		pod.Status.Phase = apiobject.Running
+		if err != nil {
+			log.Error("[CreatePodHandler] bind the pod to the node failed")
+		}
+
+		// write the pod to the node
+		nodeKey := selectedNodes[0].Data.Name
+		sendPodToNode(pod, nodeKey)
+
+		// keep check and resend to the next node if necessary
+		if len(selectedNodes) > 1 {
+			go keepSchedule(key, selectedNodes)
+		}
+	}
 
 	if !scheduled {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "no available node"})
