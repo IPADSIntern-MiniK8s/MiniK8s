@@ -11,4 +11,5 @@ const (
 	POD      ObjType = "pods"
 	SERVICE  ObjType = "services"
 	ENDPOINT ObjType = "endpoints"
+	REPLICA  ObjType = "replicas"
 )
