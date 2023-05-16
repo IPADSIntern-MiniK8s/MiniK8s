@@ -200,6 +200,8 @@ func TestRemoveOneContainer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	RemoveContainer(ctx, containers[0])
+	if len(containers) > 0 {
+		RemoveContainer(ctx, containers[0])
+	}
 
 }
