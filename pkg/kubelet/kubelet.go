@@ -33,7 +33,8 @@ func (kl *Kubelet) register() {
 		APIVersion: "v1",
 		Kind:       "Node",
 		Data: apiobject.MetaData{
-			Name: hostname,
+			Name:   hostname,
+			Labels: kl.Labels,
 		},
 		Spec: apiobject.NodeSpec{
 			Unschedulable: false,
