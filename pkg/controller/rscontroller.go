@@ -15,7 +15,7 @@ import (
 3. 监听replication资源的更新。监听selector条件的更改和目标replicas数目和当前replica数目的更改。
 4. 监听replication资源的删除。删除对应的pod。
 5. 监听pod删除。如果满足controller条件，对应replicas状态数减1，根据template创建新的pod。
-6. 监听pod更新：如果controller被设置过，查看label是否更改。并更改对应controller状态。
+6. 监听pod更新：查看label是否更改。并更改对应controller状态。
 */
 type rsReplicaHandler struct {
 }
@@ -74,7 +74,7 @@ func (r rsReplicaHandler) HandleUpdate(message []byte) {
 		utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
 	}
 
-	/* TODO: rs label change */
+	/* TODO: rs selector change */
 }
 
 func (r rsReplicaHandler) GetType() utils.ObjType {
@@ -92,7 +92,7 @@ func (p rsPodHandler) HandleDelete(message []byte) {
 	pod.UnMarshalJSON(message)
 
 	// check if the pod belongs to the replica
-	if *pod.Data.OwnerReference.Controller && pod.Data.OwnerReference.Kind == "replica" {
+	if pod.Data.OwnerReference.Controller && pod.Data.OwnerReference.Kind == "replica" {
 		info := utils.GetObject(utils.REPLICA, pod.Data.Namespace, pod.Data.OwnerReference.Name)
 		rs := &apiobject.ReplicationController{}
 		rs.UnMarshalJSON([]byte(info))
@@ -102,7 +102,22 @@ func (p rsPodHandler) HandleDelete(message []byte) {
 }
 
 func (p rsPodHandler) HandleUpdate(message []byte) {
+	pod := &apiobject.Pod{}
+	pod.UnMarshalJSON(message)
 
+	// check if the pod label changes
+	info := utils.GetObject(utils.REPLICA, pod.Data.Namespace, pod.Data.OwnerReference.Name)
+	rs := &apiobject.ReplicationController{}
+	rs.UnMarshalJSON([]byte(info))
+	if !isPodBelongToController(pod, rs) {
+		// update rs controller
+		rs.Status.Replicas = rs.Status.Replicas - 1
+		utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+
+		// update pod: delete controller info
+		pod.Data.OwnerReference.Controller = false
+		utils.UpdateObject(pod, utils.REPLICA, pod.Data.Namespace, pod.Data.Name)
+	}
 }
 
 func (p rsPodHandler) GetType() utils.ObjType {
@@ -118,7 +133,7 @@ func createFromPodList(rs *apiobject.ReplicationController) int32 {
 	for _, p := range podList {
 		pod := &apiobject.Pod{}
 		pod.UnMarshalJSON([]byte(p.String()))
-		if utils.IsLabelEqual(rs.Spec.Selector, pod.Data.Labels) {
+		if pod.Data.OwnerReference.Controller == false && utils.IsLabelEqual(rs.Spec.Selector, pod.Data.Labels) {
 			setController(rs.Data.Name, pod)
 			utils.UpdateObject(pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
 			num++
@@ -149,16 +164,15 @@ func createFromTemplate(t *apiobject.PodTemplateSpec, num int32, name string, ns
 }
 
 func setController(name string, p *apiobject.Pod) {
-	var allocate = true
 	p.Data.OwnerReference = apiobject.OwnerReference{
 		Kind:       "replica",
 		Name:       name,
-		Controller: &allocate,
+		Controller: true,
 	}
 }
 
 func isPodBelongToController(p *apiobject.Pod, c *apiobject.ReplicationController) bool {
-	if *p.Data.OwnerReference.Controller == true && p.Data.OwnerReference.Name == c.Data.Name && p.Data.OwnerReference.Kind == "replica" {
+	if p.Data.OwnerReference.Controller == true && p.Data.OwnerReference.Name == c.Data.Name && p.Data.OwnerReference.Kind == "replica" {
 		return true
 	} else {
 		return false

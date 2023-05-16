@@ -22,7 +22,7 @@ type MetaData struct {
 type OwnerReference struct {
 	Kind       string `json:"kind"`
 	Name       string `json:"name"`
-	Controller *bool  `json:"controller,omitempty"`
+	Controller bool   `json:"controller,omitempty"`
 }
 
 type VersionLabel string
