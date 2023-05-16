@@ -181,7 +181,8 @@ func CreatePodHandler(c *gin.Context) {
 		}
 		// parse the response
 		var selectedNodes []apiobject.Node
-		err = apiobject.UnMarshalJSONList(response, &selectedNodes)
+		node := apiobject.Node{}
+		selectedNodes, err = node.UnMarshalJSONList(response)
 		if err != nil {
 			log.Error("[CreatePodHandler] unmarshal the response failed")
 		}
