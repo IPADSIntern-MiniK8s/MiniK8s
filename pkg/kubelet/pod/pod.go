@@ -130,20 +130,44 @@ func apiContainer2Container(metaData apiobject.MetaData, volumes []apiobject.Vol
 */
 
 func DeletePod(pod apiobject.Pod) bool {
-	var err error
+	client, err := container.NewClient(pod.Data.Namespace)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	ctx := context.Background()
+	containers, err := client.Containers(ctx)
+	if err != nil {
+		return false
+	}
+	containerNames := map[string]bool{}
+
 	for _, c := range pod.Spec.Containers {
 		n := generateContainerName(c.Name, pod.Data.Name, false)
-		_, err = utils.Ctl(pod.Data.Namespace, "stop", n)
-		if err != nil {
-			return false
-		}
-		_, err = utils.Ctl(pod.Data.Namespace, "rm", n)
-		if err != nil {
-			return false
+		containerNames[n] = true
+		//_, err = utils.Ctl(pod.Data.Namespace, "stop", n)
+		//if err != nil {
+		//	return false
+		//}
+		//_, err = utils.Ctl(pod.Data.Namespace, "rm", n)
+		//if err != nil {
+		//	return false
+		//}
+	}
+	//fmt.Println(containerNames)
+	for _, c := range containers {
+		//fmt.Println(c.ID())
+		//fmt.Println(container.GetContainerStatus(ctx, c))
+		if _, ok := containerNames[c.ID()]; ok {
+			//fmt.Println(ok, c.ID())
+			success := container.RemoveContainer(ctx, c)
+			if !success {
+				return false
+			}
 		}
 	}
-
-	//delete pause
+	//must delete pause at last, otherwise other containers will be stopped
+	//TODO use walk to get pause container
 	name := generateContainerName("", pod.Data.Name, true)
 	_, err = utils.Ctl(pod.Data.Namespace, "stop", name)
 	if err != nil {

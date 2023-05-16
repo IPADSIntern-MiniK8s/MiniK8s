@@ -6,6 +6,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/oci"
+	"syscall"
 )
 
 type ContainerSpec struct {
@@ -26,6 +27,7 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	if err != nil {
 		return nil
 	}
+	//TODO if first may outoftime?
 	image, err := client.Pull(ctx, PadImageName(spec.Image), containerd.WithPullUnpack)
 	if err != nil {
 		return nil
@@ -74,9 +76,55 @@ func StartContainer(ctx context.Context, containerToStart containerd.Container) 
 		fmt.Println(err)
 		return 0
 	}
-	task.Wait(ctx)
 	return task.Pid()
 	//status, err := task.Wait(ctx)
+}
+
+// copy from nerdctl pkg/cmd/container/remove.go
+func RemoveContainer(ctx context.Context, containerToRemove containerd.Container) bool {
+	task, err := containerToRemove.Task(ctx, nil)
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+	status, err := task.Status(ctx)
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+	switch status.Status {
+	case containerd.Created, containerd.Stopped:
+		if _, err := task.Delete(ctx); err != nil {
+			fmt.Println(err.Error())
+			return false
+		}
+		return true
+	case containerd.Paused:
+		if _, err := task.Delete(ctx, containerd.WithProcessKill); err != nil {
+			fmt.Println(err.Error())
+			return false
+		}
+		return true
+	default:
+		//fmt.Println("default")
+		if err := task.Kill(ctx, syscall.SIGKILL); err != nil {
+			fmt.Println(err.Error())
+			return false
+		}
+		es, err := task.Wait(ctx)
+		if err == nil {
+			<-es
+		}
+		if _, err = task.Delete(ctx, containerd.WithProcessKill); err != nil {
+			fmt.Println(err.Error())
+			return false
+		}
+	}
+	if err = containerToRemove.Delete(ctx); err != nil {
+		return false
+	}
+	//fmt.Println("success")
+	return true
 }
 
 func GetContainerStatus(ctx context.Context, c containerd.Container) string {

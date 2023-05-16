@@ -93,6 +93,71 @@ func TestContainer(t *testing.T) {
 	}
 }
 
+func TestRemoveContainer(t *testing.T) {
+	ctx := context.Background()
+	spec := ContainerSpec{
+		Image:              "docker.io/library/ubuntu:latest",
+		Name:               "test-container1",
+		ContainerNamespace: "test",
+		Mounts: map[string]string{
+			"/home/test_mount": "/root/test_mount",
+		},
+		CmdLine: []string{"/root/test_mount/test_network"},
+		Envs:    []string{"port=12345"},
+	}
+	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
+	time.Sleep(time.Second * 2)
+	client, err := NewClient(spec.ContainerNamespace)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	containers, err := client.Containers(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if len(containers) > 0 {
+		fmt.Println(GetContainerStatus(ctx, containers[0]))
+		t.Fatalf("make sure there is no container created before test")
+	}
+	container := CreateContainer(ctx, spec)
+	if container == nil {
+		t.Fatalf("create container failed")
+	}
+	defer container.Delete(ctx, containerd.WithSnapshotCleanup)
+	pid := StartContainer(ctx, container)
+	if pid == 0 {
+		t.Fatalf("start container failed")
+	}
+	time.Sleep(time.Second)
+
+	containers, err = client.Containers(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if len(containers) != 1 {
+		t.Fatalf("container status wrong")
+	}
+	c := containers[0]
+	if c.ID() != spec.Name {
+		t.Fatalf("wrong container")
+	}
+	if GetContainerStatus(ctx, c) != "running" {
+		t.Fatalf("container status wrong")
+	}
+
+	removed := RemoveContainer(ctx, c)
+	if !removed {
+		t.Fatalf("remove container failed")
+	}
+	time.Sleep(time.Second)
+	client, err = NewClient(spec.ContainerNamespace)
+	containers, _ = client.Containers(ctx)
+	if len(containers) > 0 {
+		t.Fatalf("rm container failed,%v:%v", c.ID(), GetContainerStatus(ctx, c))
+	}
+}
+
 func TestPadImageName(t *testing.T) {
 	answer := "docker.io/library/ubuntu:latest"
 	if PadImageName("ubuntu") != answer {
@@ -110,7 +175,7 @@ func TestPadImageName(t *testing.T) {
 }
 
 func TestGetContainerStatus(t *testing.T) {
-	client, err := NewClient("test")
+	client, err := NewClient("testpod1")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -123,4 +188,18 @@ func TestGetContainerStatus(t *testing.T) {
 		fmt.Println(c.ID())
 		fmt.Println(GetContainerStatus(ctx, c))
 	}
+}
+
+func TestRemoveOneContainer(t *testing.T) {
+	client, err := NewClient("testpod1")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	ctx := context.Background()
+	containers, err := client.Containers(ctx)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	RemoveContainer(ctx, containers[0])
+
 }

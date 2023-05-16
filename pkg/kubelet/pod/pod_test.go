@@ -14,7 +14,7 @@ import (
 // nerdctl -n testpod rm $(nerdctl -n testpod ps -a| grep -v CONTAINER |awk '{print $1}')
 func TestPod(t *testing.T) {
 	//should start etcd and flannld
-	namespace := "testpod"
+	namespace := "testpod3"
 	pod := apiobject.Pod{
 		Data: apiobject.MetaData{Name: "testpod", Namespace: namespace},
 		Spec: apiobject.PodSpec{
@@ -58,6 +58,8 @@ func TestPod(t *testing.T) {
 		t.Fatalf("create pod failed")
 	}
 
+	time.Sleep(time.Second)
+
 	success = utils.CheckCmd(namespace, "testpod-c1", []string{"curl", "127.0.0.1:23456"}, "http connect success")
 	if !success {
 		t.Fatalf("test localhost network failed")
@@ -84,6 +86,7 @@ func TestPod(t *testing.T) {
 	}
 
 	// may get "Shutting down, got signal: Terminated" from pause container, it is a normal behavior
+
 	success = DeletePod(pod)
 	if !success {
 		t.Fatalf("delete pod failed")
