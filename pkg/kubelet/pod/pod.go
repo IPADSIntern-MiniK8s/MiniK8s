@@ -160,23 +160,35 @@ func DeletePod(pod apiobject.Pod) bool {
 		//fmt.Println(container.GetContainerStatus(ctx, c))
 		if _, ok := containerNames[c.ID()]; ok {
 			//fmt.Println(ok, c.ID())
-			success := container.RemoveContainer(ctx, c)
-			if !success {
+			if success := container.RemoveContainer(ctx, c); !success {
 				return false
 			}
 		}
 	}
 	//must delete pause at last, otherwise other containers will be stopped
 	//TODO use walk to get pause container
-	name := generateContainerName("", pod.Data.Name, true)
-	_, err = utils.Ctl(pod.Data.Namespace, "stop", name)
+	pauseName := generateContainerName("", pod.Data.Name, true)
+
+	//nerdctl pkg/idutil/containerwalkercontainerwalker.go
+	containers, err = client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "nerdctl/name", pauseName))
 	if err != nil {
 		return false
 	}
-	_, err = utils.Ctl(pod.Data.Namespace, "rm", name)
-	if err != nil {
+	if len(containers) < 0 {
 		return false
 	}
+	if success := container.RemoveContainer(ctx, containers[0]); !success {
+		return false
+	}
+
+	//_, err = utils.Ctl(pod.Data.Namespace, "stop", name)
+	//if err != nil {
+	//	return false
+	//}
+	//_, err = utils.Ctl(pod.Data.Namespace, "rm", name)
+	//if err != nil {
+	//	return false
+	//}
 	return true
 }
 

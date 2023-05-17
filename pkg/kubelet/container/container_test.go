@@ -205,3 +205,18 @@ func TestRemoveOneContainer(t *testing.T) {
 	}
 
 }
+
+func TestContainerFilter(t *testing.T) {
+	client, err := NewClient("default")
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	ctx := context.Background()
+	containers, err := client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "nerdctl/name", "testpod2-pause"))
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, c := range containers {
+		fmt.Println(c.ID())
+	}
+}
