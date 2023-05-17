@@ -109,7 +109,7 @@ func TestPod(t *testing.T) {
 
 func TestPodCommunication(t *testing.T) {
 	//should start etcd and flannld
-	namespace := "testpod"
+	namespace := "testpodns"
 	pod1 := apiobject.Pod{
 		Data: apiobject.MetaData{Name: "pod1", Namespace: namespace},
 		Spec: apiobject.PodSpec{
