@@ -1,15 +1,14 @@
 package watch
 
 import (
-	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
-	"minik8s/pkg/kubeapiserver/storage"
+	//"minik8s/pkg/kubeapiserver/storage"
 	"net/http"
 )
 
-var Storage = storage.NewEtcdStorageNoParam()
+//var Storage = storage.NewEtcdStorageNoParam()
 
 // WatchServer WebSocket server
 type WatchServer struct {
@@ -60,19 +59,40 @@ func (s *WatchServer) Close() error {
 }
 
 // Watch an etcd key
-func (s *WatchServer) innerWatch(key string) error {
-	// TODO: concurrent problem
-	err := Storage.Watch(context.Background(), key, func(key string, value []byte) error {
-		innerErr := s.Write(value)
-		if innerErr != nil {
-			log.Error("[Watch] Write message error: ", innerErr)
-			return innerErr
-		}
-		return nil
-	})
-	return err
-}
+//func (s *WatchServer) innerWatch(key string) error {
+//	// TODO: concurrent problem
+//	err := Storage.Watch(context.Background(), key, func(key string, value []byte) error {
+//		innerErr := s.Write(value)
+//		log.Info("[innerWatch] key: ", key, "timestamp: ")
+//		if innerErr != nil {
+//			log.Error("[Watch] Write message error: ", innerErr)
+//			return innerErr
+//		}
+//		return nil
+//	})
+//	return err
+//}
+//
+//func (s *WatchServer) Watch(key string) {
+//	go s.innerWatch(key)
+//}
 
-func (s *WatchServer) Watch(key string) {
-	go s.innerWatch(key)
+func ListWatch(watchKey string, value []byte) error {
+
+	list, ok := WatchStorage.Load(watchKey)
+	if !ok {
+		log.Error("[ListWatch] key: ", watchKey, " not found")
+		return nil
+	}
+	if threadList, ok := list.(*ThreadSafeList); ok {
+		for e := threadList.List.Front(); e != nil; e = e.Next() {
+			if server, ok := e.Value.(*WatchServer); ok {
+				err := server.Write(value)
+				if err != nil {
+					log.Warn("[ListWatch] Write message error: ", err)
+				}
+			}
+		}
+	}
+	return nil
 }

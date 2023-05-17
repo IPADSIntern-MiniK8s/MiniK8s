@@ -1,91 +1,52 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
-	"minik8s/pkg/apiobject"
-	kubeletPod "minik8s/pkg/kubelet/pod"
-	"minik8s/utils"
-	"net/http"
-	"os"
-	"time"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"minik8s/pkg/kubelet"
 )
 
-func register() {
-	hostname, _ := os.Hostname()
-	node := apiobject.Node{
-		APIVersion: "v1",
-		Kind:       "Node",
-		Data: apiobject.MetaData{
-			Name: hostname,
-		},
-		Spec: apiobject.NodeSpec{},
-	}
-	nodejson, _ := node.MarshalJSON()
-	utils.SendJsonObject("POST", nodejson, "http://192.168.1.13:8080/api/v1/nodes")
+var RootCmd = &cobra.Command{
+	Use:   "kubelet",
+	Short: "kubelet manages containers",
+	Long:  "kubelet manages containers",
+	Run:   runRoot,
 }
 
-func watchPod() {
-	hostname, _ := os.Hostname()
-	headers := http.Header{}
-	headers.Set("X-Source", hostname)
-	dialer := websocket.Dialer{}
-	dialer.Jar = nil
-	conn, _, err := dialer.Dial("ws://192.168.1.13:8080/api/v1/watch/pods", headers)
-	if err != nil {
-		fmt.Println(err)
-		panic(err)
-	}
-	defer conn.Close()
-	var pod apiobject.Pod
-	for {
-		_, msgjson, err := conn.ReadMessage()
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
+var configAddr string
 
-		json.Unmarshal(msgjson, &pod)
-		fmt.Println(pod.Status.Phase)
-		switch pod.Status.Phase {
-		case apiobject.Running:
-			{
-				success, ip := kubeletPod.CreatePod(pod)
-				fmt.Println(success)
-				if !success {
-					continue
-				}
-
-				pod.Status.PodIp = ip
-				pod.Status.Phase = apiobject.Succeeded
-				break
-			}
-		case apiobject.Terminating:
-			{
-				success := kubeletPod.DeletePod(pod)
-				if !success {
-					continue
-				}
-				pod.Status.Phase = apiobject.Deleted
-				break
-			}
-		default:
-			continue
-		}
-		utils.UpdateObject(&pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
-		time.Sleep(time.Millisecond * 200)
-		//podjson, err := pod.MarshalJSON()
-		//if err != nil {
-		//	fmt.Println(err)
-		//	continue
-		//}
-		//utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", utils.ApiServerIp, pod.Data.Namespace, pod.Data.Name))
-	}
+var KubeletConfig = kubelet.Config{
+	ApiserverAddr: "192.168.1.13:8080",
+	FlannelSubnet: "10.2.17.1/24",
+	IP:            "192.168.1.12",
 }
 
+func initConfig() {
+	//fmt.Println(configAddr)
+	viper.SetConfigFile(configAddr)
+	err := viper.ReadInConfig()
+	if err == nil {
+		//panic(err)
+		if err := viper.Unmarshal(&KubeletConfig); err != nil {
+			//panic(err)
+		}
+	}
+	//if err,use default config
+	fmt.Println(KubeletConfig)
+}
+
+func init() {
+	cobra.OnInitialize(initConfig)
+	//RootCmd.Flags().StringVarP(&apiserverAddr, "apiserver-address", "a", utils.ApiServerIp, "kubelet (-a apiserver-address)")
+	RootCmd.PersistentFlags().StringVarP(&configAddr, "config", "c", "./kubelet-config.yaml", "kubelet (-c config)")
+}
+
+func runRoot(cmd *cobra.Command, args []string) {
+	kubelet.Run(KubeletConfig)
+}
 func main() {
-	register()
-	time.Sleep(time.Second * 5)
-	watchPod()
+	if err := RootCmd.Execute(); err != nil {
+		fmt.Println(err.Error())
+	}
 }

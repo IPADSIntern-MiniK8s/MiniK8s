@@ -40,7 +40,7 @@ func (p proxyServiceHandler) HandleDelete(message []byte) {
 	svc.UnMarshalJSON(message)
 
 	for _, p := range svc.Spec.Ports {
-		key := svc.Spec.ClusterIP + ":" + strconv.Itoa(int(p.Port))
+		key := svc.Status.ClusterIP + ":" + strconv.Itoa(int(p.Port))
 		ipvs.DeleteService(key)
 	}
 
@@ -51,7 +51,7 @@ func (p proxyServiceHandler) HandleUpdate(message []byte) {
 	svc.UnMarshalJSON(message)
 
 	for _, p := range svc.Spec.Ports {
-		ipvs.AddService(svc.Spec.ClusterIP, uint16(p.Port))
+		ipvs.AddService(svc.Status.ClusterIP, uint16(p.Port))
 	}
 
 }
