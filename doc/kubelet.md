@@ -158,3 +158,11 @@ nerdctl对于网络的解析太复杂了，对于pause并没有很多额外的�
 
 [k8s网络插件之Flannel_林凡修的博客-CSDN博客](https://blog.csdn.net/weixin_43266367/article/details/127836595)
 
+## 资源监控
+可以通过containerd的api拿到metrics对象,不过需要Unmarshal，并且对应的接口离其报错，找不到type，只能照着containerd的源码手动用反射
+### memory
+    是一个定值，表示占用内存大小，单位byte
+### CPU
+    进程创建开始之后累计执行的时间，如果跑在2个核上，过了1s，则记为2s
+    通过与上一次获取的cpu执行时间的delta和时间delta可以计算出CPUPercent，和top展示的cpu%是一模一样的
+    CPUPercent和容器创建指定的cpu参数可对应，例如指定cpu=1，则cpu%=100%;cpu=2,cpu%=200%（两核跑满）;cpu=500m,cpu%=50%
