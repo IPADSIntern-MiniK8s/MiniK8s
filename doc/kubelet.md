@@ -25,6 +25,11 @@
 3. containerd api
 
    实在难用，官方文档一共就readme的几句话，剩下的全靠看源码+猜+看nerdctl源码如何使用
+这里研究出的api如下
+- 创建容器 包括配置
+- 销毁容器
+- 获取容器状态
+- 获取容器资源信息
 
 ### configuration
 
@@ -61,14 +66,20 @@ containerd的api有一个docker没有的概念task
 
 每个容器创建后，可以开启task，每个task对应一个进程，有对应的api，这时候才会产生新的命名空间
 
+删除容器，先要killtask 然后delete task 最后delete容器
+
 ### pause
 用containerd api设置网络特别麻烦，因此直接用nerdctl跑pause容器，并inspect拿到pid
-pause容器管理存在以下问题：
-1. nerdctl只允许设置container name，container id只能是hash
-2. containerd的api只能拿id 而不能拿name
-3. pause容器属于kubelet自身实现的一部分，不应该把pause信息暴露给apiserver或其他组件
-4. pod信息由apiserver持久化在etcd中，kubelet自身不应该保存信息
-因此这里直接使用podname+"pause"为每个pause容器命名，删除时也只能使用nerdctl帮助，因为nerdctl操作的可以是id也可以是name
+
+因此这里直接使用podname+"-pause"为每个pause容器命名
+
+虽然containerd的container对象只能访问.ID，而nerdctl 的 `--name` 设置的是name并不是id 但还是可以通过containerd的filter+label拿到container对象
+
+然而由于一开始pause容器利用nerdctl实现网络配置，nerdctl本身除了调用containerd的api外，自己有维护一个namestore，在创建容器时会 `aquire` 需要在销毁时 `release`
+
+所以销毁容器只调containerd的api是不够的，会导致containerd的容器已经被删掉了，但是nerdctl维护的信息还没删，导致下一次创建同名pause容器会有问题
+
+解决方案可以是照nerdctl的代码找到对应的文件路径 然后照抄 `release`的代码，但这导致minik8s存在与nerdctl耦合的路径配置，较复杂 所以不如销毁pause仍用nerdctl直接实现
 
 ## network
 
@@ -138,13 +149,12 @@ node启动`./flanneld-amd64 -etcd-endpoints=http://192.168.1.12:2379 -iface=ens3
 ```
 
 `nerdctl run -d -v /home/test_mount:/root/test_mount --net flannel -e port=12345 mcastelino/nettools /root/test_mount/test_network` 测试网络可行
-nerdctl对于网络的解析太复杂了，对于pause并没有很多乱七八糟的配置，所以直接用ctl启动pause    
+nerdctl对于网络的解析太复杂了，对于pause并没有很多额外的配置，所以直接用ctl启动pause    
 在加入pause的namespace后发现，虽然其他容器有通过虚拟网卡向外找到合适的转发接口的能力，但是并没有DNS server。这里解决方法是使用外部的`nerdctl cp`命令将首个容器(pause)的`/etc/resolv.conf` `/etc/hosts`文件复制给每个该pod下的容器  
 容器内部部署的服务 可在主机上通过容器ip+容器内端口的方式直接访问到，至此实现pod间通信、主机与pod通信，后续交给kube-proxy
 
 ### 原理
 
-有时间再研究
 
 [k8s网络插件之Flannel_林凡修的博客-CSDN博客](https://blog.csdn.net/weixin_43266367/article/details/127836595)
 

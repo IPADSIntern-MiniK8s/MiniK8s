@@ -25,13 +25,16 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	//must add tag and host
 	client, err := NewClient(spec.ContainerNamespace)
 	if err != nil {
+		fmt.Println("new client failed")
 		return nil
 	}
-	//TODO if first may outoftime?
+
 	image, err := client.Pull(ctx, PadImageName(spec.Image), containerd.WithPullUnpack)
 	if err != nil {
+		fmt.Println(err.Error())
 		return nil
 	}
+	//fmt.Println("pull image success")
 	opts := []oci.SpecOpts{oci.WithImageConfig(image), GenerateHostnameSpec(spec.Name)}
 	if spec.Mounts != nil && len(spec.Mounts) > 0 {
 		opts = append(opts, GenerateMountSpec(spec.Mounts))
@@ -60,6 +63,7 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 		containerd.WithNewSpec(opts...),
 	)
 	if err != nil {
+		fmt.Println(err.Error())
 		return nil
 	}
 	return newContainer
@@ -120,8 +124,16 @@ func RemoveContainer(ctx context.Context, containerToRemove containerd.Container
 			return false
 		}
 	}
-	if err = containerToRemove.Delete(ctx); err != nil {
-		return false
+
+	var delOpts []containerd.DeleteOpts
+	if _, err := containerToRemove.Image(ctx); err == nil {
+		delOpts = append(delOpts, containerd.WithSnapshotCleanup)
+	}
+
+	if containerToRemove.Delete(ctx, delOpts...) != nil {
+		if containerToRemove.Delete(ctx) != nil {
+			return false
+		}
 	}
 	//fmt.Println("success")
 	return true

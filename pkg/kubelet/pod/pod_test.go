@@ -14,7 +14,7 @@ import (
 // nerdctl -n testpod rm $(nerdctl -n testpod ps -a| grep -v CONTAINER |awk '{print $1}')
 func TestPod(t *testing.T) {
 	//should start etcd and flannld
-	namespace := "testpod3"
+	namespace := "testpodns"
 	pod := apiobject.Pod{
 		Data: apiobject.MetaData{Name: "testpod", Namespace: namespace},
 		Spec: apiobject.PodSpec{

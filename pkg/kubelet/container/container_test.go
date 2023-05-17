@@ -175,7 +175,7 @@ func TestPadImageName(t *testing.T) {
 }
 
 func TestGetContainerStatus(t *testing.T) {
-	client, err := NewClient("testpod1")
+	client, err := NewClient("testpod18")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
