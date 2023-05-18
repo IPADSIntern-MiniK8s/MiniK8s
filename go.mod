@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/containerd/containerd v1.7.0
+	github.com/containerd/typeurl v1.0.2
 	github.com/ghodss/yaml v1.0.0
 	github.com/gin-gonic/gin v1.9.0
 	github.com/gorilla/websocket v1.5.0

@@ -6,6 +6,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/oci"
+	"syscall"
 )
 
 type ContainerSpec struct {
@@ -24,12 +25,16 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	//must add tag and host
 	client, err := NewClient(spec.ContainerNamespace)
 	if err != nil {
+		fmt.Println("new client failed")
 		return nil
 	}
+
 	image, err := client.Pull(ctx, PadImageName(spec.Image), containerd.WithPullUnpack)
 	if err != nil {
+		fmt.Println(err.Error())
 		return nil
 	}
+	//fmt.Println("pull image success")
 	opts := []oci.SpecOpts{oci.WithImageConfig(image), GenerateHostnameSpec(spec.Name)}
 	if spec.Mounts != nil && len(spec.Mounts) > 0 {
 		opts = append(opts, GenerateMountSpec(spec.Mounts))
@@ -58,6 +63,7 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 		containerd.WithNewSpec(opts...),
 	)
 	if err != nil {
+		fmt.Println(err.Error())
 		return nil
 	}
 	return newContainer
@@ -74,9 +80,63 @@ func StartContainer(ctx context.Context, containerToStart containerd.Container) 
 		fmt.Println(err)
 		return 0
 	}
-	task.Wait(ctx)
 	return task.Pid()
 	//status, err := task.Wait(ctx)
+}
+
+// copy from nerdctl pkg/cmd/container/remove.go
+func RemoveContainer(ctx context.Context, containerToRemove containerd.Container) bool {
+	task, err := containerToRemove.Task(ctx, nil)
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+	status, err := task.Status(ctx)
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+	switch status.Status {
+	case containerd.Created, containerd.Stopped:
+		if _, err := task.Delete(ctx); err != nil {
+			fmt.Println(err.Error())
+			return false
+		}
+		return true
+	case containerd.Paused:
+		if _, err := task.Delete(ctx, containerd.WithProcessKill); err != nil {
+			fmt.Println(err.Error())
+			return false
+		}
+		return true
+	default:
+		//fmt.Println("default")
+		if err := task.Kill(ctx, syscall.SIGKILL); err != nil {
+			fmt.Println(err.Error())
+			return false
+		}
+		es, err := task.Wait(ctx)
+		if err == nil {
+			<-es
+		}
+		if _, err = task.Delete(ctx, containerd.WithProcessKill); err != nil {
+			fmt.Println(err.Error())
+			return false
+		}
+	}
+
+	var delOpts []containerd.DeleteOpts
+	if _, err := containerToRemove.Image(ctx); err == nil {
+		delOpts = append(delOpts, containerd.WithSnapshotCleanup)
+	}
+
+	if containerToRemove.Delete(ctx, delOpts...) != nil {
+		if containerToRemove.Delete(ctx) != nil {
+			return false
+		}
+	}
+	//fmt.Println("success")
+	return true
 }
 
 func GetContainerStatus(ctx context.Context, c containerd.Container) string {

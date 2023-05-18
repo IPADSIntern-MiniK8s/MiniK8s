@@ -108,13 +108,28 @@ func CreatePodHandler(c *gin.Context) {
 	}
 
 	// 2. save the pod's information in the storage
+	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
+	// check whether it is a real create pod request
+	var prevPod apiobject.Pod
+	err := podStorageTool.Get(context.Background(), key, &prevPod)
+	if err == nil {
+		// the pod has been created
+		err = updatePod(pod, key)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusOK, pod)
+		}
+		return
+	}
+
 	// 2.1 set the pod status
 	pod.Status.Phase = apiobject.Pending
-	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
+
 	log.Debug("[CreatePodHandler] key: ", key)
 
 	// 2.2 change the pod's resourceVersion
-	err := changePodResourceVersion(pod, c)
+	err = changePodResourceVersion(pod, c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -181,7 +196,8 @@ func CreatePodHandler(c *gin.Context) {
 		}
 		// parse the response
 		var selectedNodes []apiobject.Node
-		err = apiobject.UnMarshalJSONList(response, &selectedNodes)
+		node := apiobject.Node{}
+		selectedNodes, err = node.UnMarshalJSONList(response)
 		if err != nil {
 			log.Error("[CreatePodHandler] unmarshal the response failed")
 		}
@@ -310,6 +326,15 @@ func DeletePodHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, pod)
 }
 
+func updatePod(pod *apiobject.Pod, key string) error {
+	pod.Data.ResourcesVersion = apiobject.UPDATE
+	err := podStorageTool.GuaranteedUpdate(context.Background(), key, pod)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // UpdatePodStatusHandler the url format is POST /api/v1/nodes/{name}/update
 // update the node's status in etcd
 func UpdatePodStatusHandler(c *gin.Context) {
@@ -327,19 +352,25 @@ func UpdatePodStatusHandler(c *gin.Context) {
 
 	// 2. update the pod information in etcd
 	key := "/registry/pods/" + namespace + "/" + name
+	//log.Debug("[UpdatePodStatusHandler] key: ", key)
+	//
+	//// 2.2 change the pod's status
+	//err := changePodResourceVersion(pod, c)
+	//if err != nil {
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	//	return
+	//}
+	//err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
+	//if err != nil {
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	//	return
+	//}
+	err := updatePod(pod, key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	log.Debug("[UpdatePodStatusHandler] key: ", key)
-
-	// 2.2 change the pod's status
-	err := changePodResourceVersion(pod, c)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
 
 	// 3. return the result to the client
 	c.JSON(http.StatusOK, pod)
