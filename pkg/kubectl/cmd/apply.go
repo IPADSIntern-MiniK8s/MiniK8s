@@ -23,11 +23,13 @@ func apply(cmd *cobra.Command, args []string) {
 	_yaml, err := os.ReadFile(filePath)
 	if err != nil {
 		fmt.Println(err.Error())
+		return
 	}
 
 	_json, err := yaml.YAMLToJSON(_yaml)
 	if err != nil {
 		fmt.Println(err.Error())
+		return
 	}
 
 	kind := strings.ToLower(gjson.Get(string(_json), "kind").String())

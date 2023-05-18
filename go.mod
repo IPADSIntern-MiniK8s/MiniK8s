@@ -8,6 +8,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/gin-gonic/gin v1.9.0
 	github.com/gorilla/websocket v1.5.0
+	github.com/liushuochen/gotable v0.0.0-20221119160816-1113793e7092
 	github.com/mqliang/libipvs v0.0.0-20230109035226-02d9e44c145f
 	github.com/opencontainers/runtime-spec v1.1.0-rc.1
 	github.com/sirupsen/logrus v1.9.0
