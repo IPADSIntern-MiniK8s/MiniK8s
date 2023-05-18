@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/containerd/containerd v1.7.0
-	github.com/coreos/etcd v2.3.8+incompatible
+	github.com/containerd/typeurl v1.0.2
 	github.com/ghodss/yaml v1.0.0
 	github.com/gin-gonic/gin v1.9.0
 	github.com/gorilla/websocket v1.5.0
@@ -30,6 +30,7 @@ require (
 	github.com/containerd/fifo v1.1.0 // indirect
 	github.com/containerd/ttrpc v1.2.1 // indirect
 	github.com/containerd/typeurl/v2 v2.1.0 // indirect
+	github.com/coreos/etcd v2.3.8+incompatible // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
