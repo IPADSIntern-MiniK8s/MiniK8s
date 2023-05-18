@@ -16,6 +16,8 @@ kube-controller-manager 是控制平面的组件， 负责运行控制器进程�
 
 服务账号控制器（ServiceAccount controller）：为新的命名空间创建默认的服务账号（ServiceAccount）
 
+服务控制器（Service controller）：负责创建和更新 Endpoints 对象（以匹配 Service 对象选择器中定义的任何 Pod）
+
 ### replicaSet Controller
 - 为了实现replicaSet的功能，需要一个控制器来监控pod的状态，当pod的状态不符合预期时，控制器会自动创建或删除pod，使pod的数量符合预期。
 - 这个时候需要为pod增加uid
