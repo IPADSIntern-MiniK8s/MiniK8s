@@ -53,7 +53,7 @@ func TestPod(t *testing.T) {
 				},
 			},
 		}}
-	success, _ := CreatePod(pod)
+	success, _ := CreatePod(pod, "192.168.1.13:8080")
 	if !success {
 		t.Fatalf("create pod failed")
 	}
@@ -155,11 +155,11 @@ func TestPodCommunication(t *testing.T) {
 				},
 			},
 		}}
-	success, ip1 := CreatePod(pod1)
+	success, ip1 := CreatePod(pod1, "192.168.1.13:8080")
 	if !success {
 		t.Fatalf("create pod1 failed")
 	}
-	success, ip2 := CreatePod(pod2)
+	success, ip2 := CreatePod(pod2, "192.168.1.13:8080")
 	if !success {
 		t.Fatalf("create pod2 failed")
 	}

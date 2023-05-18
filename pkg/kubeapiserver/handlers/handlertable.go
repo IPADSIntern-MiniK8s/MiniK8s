@@ -23,4 +23,10 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/endpoints", Method: "GET", Handler: GetEndpointsHandler},                // GET, list all endpoints in this namespace
 	{Path: "/api/v1/namespaces/:namespace/endpoints/:name", Method: "DELETE", Handler: DeleteEndpointHandler},     // DELETE, delete a endpoint
 	{Path: "api/v1/namespaces/:namespace/endpoints/:name/update", Method: "POST", Handler: UpdateEndpointHandler}, // POST, update a endpoint
+
+	{Path: "api/v1/dns", Method: "POST", Handler: CreateDNSRecordHandler},              // POST, create a dns
+	{Path: "api/v1/dns/:name", Method: "GET", Handler: GetDNSRecordHandler},            // GET, get a dns
+	{Path: "api/v1/dns", Method: "GET", Handler: GetDNSRecordsHandler},                 // GET, list all dns records
+	{Path: "api/v1/dns/:name", Method: "DELETE", Handler: DeleteDNSRecordHandler},      // DELETE, delete a dns record
+	{Path: "api/v1/dns/:name/update", Method: "POST", Handler: UpdateDNSRecordHandler}, // POST, update a dns record
 }

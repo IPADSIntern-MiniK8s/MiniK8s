@@ -8,10 +8,11 @@ import (
 	"minik8s/pkg/kubelet/utils"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // use pointer to add pause container
-func CreatePod(pod apiobject.Pod) (bool, string) {
+func CreatePod(pod apiobject.Pod, apiserverAddr string) (bool, string) {
 	//ctx := context.Background()
 	output, err := utils.Ctl(pod.Data.Namespace, "run", "-d", "--net", "flannel", "--name", generateContainerName("", pod.Data.Name, true), "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6")
 	if err != nil {
@@ -26,6 +27,11 @@ func CreatePod(pod apiobject.Pod) (bool, string) {
 		return false, ""
 	}
 	defer os.Remove("./resolv.conf")
+
+	if !addCoreDns("./resolv.conf", apiserverAddr) {
+		return false, ""
+	}
+
 	_, err = utils.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/hosts", "./hosts")
 	if err != nil {
 		fmt.Println(output)
@@ -155,4 +161,22 @@ func generateContainerName(containerName string, podName string, isPause bool) s
 		return podName + "-pause"
 	}
 	return fmt.Sprintf("%s-%s", podName, containerName)
+}
+
+func addCoreDns(path, apiserverAddr string) bool {
+	originalData, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+
+	newData := []byte(fmt.Sprintf("nameserver %s\n", apiserverAddr[:strings.Index(apiserverAddr, ":")]))
+	newData = append(newData, originalData...)
+	//fmt.Println(string(newData))
+
+	// 将新数据写入文件
+	err = os.WriteFile(path, newData, 0644)
+	if err != nil {
+		return false
+	}
+	return true
 }

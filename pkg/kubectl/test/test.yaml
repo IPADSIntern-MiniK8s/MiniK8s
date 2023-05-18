@@ -1,14 +1,13 @@
 apiVersion: apps/v1
 kind: Pod
 metadata:
-  name: pod
-  namespace: default
+  labels:
+    app: deploy-1
+  name: example-pod2
 spec:
-  replicas: 3
-  template:
-    spec:
-      containers:
-        - name: testcase
-          image: 10.119.11.101:5000/autoscaler-test:1.0
-          ports:
-            - containerPort: 8080
+  containers:
+    - image: nginx
+      name: example-container
+      ports:
+        - containerPort: 12345
+          name: p1

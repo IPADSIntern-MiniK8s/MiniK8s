@@ -20,6 +20,7 @@ var KubeletConfig = kubelet.Config{
 	ApiserverAddr: "192.168.1.13:8080",
 	FlannelSubnet: "10.2.17.1/24",
 	IP:            "192.168.1.12",
+	Labels:        map[string]string{},
 }
 
 func initConfig() {
