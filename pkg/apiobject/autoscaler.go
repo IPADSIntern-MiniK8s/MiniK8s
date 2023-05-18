@@ -1,5 +1,10 @@
 package apiobject
 
+import (
+	"encoding/json"
+	"minik8s/utils"
+)
+
 /* an basic example of a autoscaler apiobject:
 apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
@@ -18,7 +23,7 @@ spec:
     type: Pods
   scaleTargetRef:   # 指定要控制的deploy
     apiVersion:  apps/v1
-    kind: Deployment
+    kind: Pod
     name: deploy-practice
   behavior:
     scaleDown:
@@ -40,7 +45,7 @@ type HorizontalPodAutoscaler struct {
 
 type HorizontalPodAutoscalerSpec struct {
 	ScaleTargetRef CrossVersionObjectReference      `json:"scaleTargetRef"`
-	MinReplicas    int32                            `json:"minReplicas,omitempty"`
+	MinReplicas    *int32                           `json:"minReplicas,omitempty"`
 	MaxReplicas    int32                            `json:"maxReplicas"`
 	Metrics        []MetricSpec                     `json:"metrics,omitempty"`
 	Behavior       *HorizontalPodAutoscalerBehavior `json:"behavior,omitempty"`
@@ -59,8 +64,8 @@ type MetricSpec struct {
 }
 
 type PodsMetricSource struct {
-	// metric identifies the target metric by name and selector
-	Metric MetricIdentifier `json:"metric" protobuf:"bytes,1,name=metric"`
+	//// metric identifies the target metric by name and selector
+	//Metric MetricIdentifier `json:"metric" protobuf:"bytes,1,name=metric"`
 	// target specifies the target value for the given metric
 	Target MetricTarget `json:"target" protobuf:"bytes,2,name=target"`
 }
@@ -77,11 +82,11 @@ type MetricTarget struct {
 	Type MetricTargetType `json:"type"`
 	// value is the target value of the metric (as a quantity).
 	// +optional
-	Value *Quantity `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+	Value *utils.Quantity `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 	// averageValue is the target value of the average of the
 	// metric across all relevant pods (as a quantity)
 	// +optional
-	AverageValue *Quantity `json:"averageValue,omitempty"`
+	AverageValue *utils.Quantity `json:"averageValue,omitempty"`
 	// averageUtilization is the target value of the average of the
 	// resource metric across all relevant pods, represented as a percentage of
 	// the requested value of the resource for the pods.
@@ -100,81 +105,6 @@ const (
 	// AverageValueMetricType declares a MetricTarget is an
 	AverageValueMetricType MetricTargetType = "AverageValue"
 )
-
-// Quantity is a fixed-point representation of a number.
-// It provides convenient marshaling/unmarshaling in JSON and YAML,
-// in addition to String() and AsInt64() accessors.
-//
-// The serialization format is:
-//
-// ```
-// <quantity>        ::= <signedNumber><suffix>
-//
-//	(Note that <suffix> may be empty, from the "" case in <decimalSI>.)
-//
-// <digit>           ::= 0 | 1 | ... | 9
-// <digits>          ::= <digit> | <digit><digits>
-// <number>          ::= <digits> | <digits>.<digits> | <digits>. | .<digits>
-// <sign>            ::= "+" | "-"
-// <signedNumber>    ::= <number> | <sign><number>
-// <suffix>          ::= <binarySI> | <decimalExponent> | <decimalSI>
-// <binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei
-//
-//	(International System of units; See: http://physics.nist.gov/cuu/Units/binary.html)
-//
-// <decimalSI>       ::= m | "" | k | M | G | T | P | E
-//
-//	(Note that 1024 = 1Ki but 1000 = 1k; I didn't choose the capitalization.)
-//
-// <decimalExponent> ::= "e" <signedNumber> | "E" <signedNumber>
-// ```
-//
-// No matter which of the three exponent forms is used, no quantity may represent
-// a number greater than 2^63-1 in magnitude, nor may it have more than 3 decimal
-// places. Numbers larger or more precise will be capped or rounded up.
-// (E.g.: 0.1m will rounded up to 1m.)
-// This may be extended in the future if we require larger or smaller quantities.
-//
-// When a Quantity is parsed from a string, it will remember the type of suffix
-// it had, and will use the same type again when it is serialized.
-//
-// Before serializing, Quantity will be put in "canonical form".
-// This means that Exponent/suffix will be adjusted up or down (with a
-// corresponding increase or decrease in Mantissa) such that:
-//
-// - No precision is lost
-// - No fractional digits will be emitted
-// - The exponent (or suffix) is as large as possible.
-//
-// The sign will be omitted unless the number is negative.
-//
-// Examples:
-//
-// - 1.5 will be serialized as "1500m"
-// - 1.5Gi will be serialized as "1536Mi"
-//
-// Note that the quantity will NEVER be internally represented by a
-// floating point number. That is the whole point of this exercise.
-//
-// Non-canonical values will still parse as long as they are well formed,
-// but will be re-emitted in their canonical form. (So always use canonical
-// form, or don't diff.)
-//
-// This format is intended to make it difficult to use these numbers without
-// writing some sort of special handling code in the hopes that that will
-// cause implementors to also use a fixed point implementation.
-type Quantity struct {
-	// i is the quantity in int64 scaled form, if d.Dec == nil
-	i int64Amount
-	// d is the quantity in inf.Dec form if d.Dec != nil
-	d infDecAmount
-	// s is the generated value of this quantity to avoid recalculation
-	s string
-
-	// Change Format at will. See the comment for Canonicalize for
-	// more details.
-	Format
-}
 
 type ResourceName string
 
@@ -218,11 +148,11 @@ type HPAScalingRules struct {
 	// selectPolicy is used to specify which policy should be used.
 	// If not set, the default value MaxPolicySelect is used.
 	// +optional
-	SelectPolicy *ScalingPolicySelect `json:"selectPolicy,omitempty" protobuf:"bytes,1,opt,name=selectPolicy"`
+	SelectPolicy *ScalingPolicySelect `json:"selectPolicy,omitempty"`
 	// policies is a list of potential scaling polices which can be used during scaling.
 	// At least one policy must be specified, otherwise the HPAScalingRules will be discarded as invalid
 	// +optional
-	Policies []HPAScalingPolicy `json:"policies,omitempty" protobuf:"bytes,2,rep,name=policies"`
+	Policies []HPAScalingPolicy `json:"policies,omitempty"`
 }
 
 type HPAScalingPolicyType string
@@ -233,6 +163,17 @@ const (
 	// PercentScalingPolicy is a policy used to specify a relative amount of change with respect to
 	// the current number of pods.
 	PercentScalingPolicy HPAScalingPolicyType = "Percent"
+)
+
+type ScalingPolicySelect string
+
+const (
+	// MaxPolicySelect selects the policy with the highest possible change.
+	MaxPolicySelect ScalingPolicySelect = "Max"
+	// MinPolicySelect selects the policy with the lowest possible change.
+	MinPolicySelect ScalingPolicySelect = "Min"
+	// DisabledPolicySelect disables the scaling in this direction.
+	DisabledPolicySelect ScalingPolicySelect = "Disabled"
 )
 
 // HPAScalingPolicy is a single policy which must hold true for a specified past interval.
@@ -276,3 +217,53 @@ const (
 	// QPS from loadbalancer running outside of cluster).
 	ExternalMetricSourceType MetricSourceType = "External"
 )
+
+type HorizontalPodAutoscalerStatus struct {
+	// observedGeneration is the most recent generation observed by this autoscaler.
+	// +optional
+	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
+
+	// lastScaleTime is the last time the HorizontalPodAutoscaler scaled the number of pods,
+	// used by the autoscaler to control how often the number of pods is changed.
+	// +optional
+	LastScaleTime *utils.Time `json:"lastScaleTime,omitempty"`
+
+	// currentReplicas is current number of replicas of pods managed by this autoscaler,
+	// as last seen by the autoscaler.
+	CurrentReplicas int32 `json:"currentReplicas"`
+
+	// desiredReplicas is the desired number of replicas of pods managed by this autoscaler,
+	// as last calculated by the autoscaler.
+	DesiredReplicas int32 `json:"desiredReplicas"`
+
+	//// currentMetrics is the last read state of the metrics used by this autoscaler.
+	//// +optional
+	//CurrentMetrics []MetricStatus `json:"currentMetrics"`
+	//
+	//// conditions is the set of conditions required for this autoscaler to scale its target,
+	//// and indicates whether or not those conditions are met.
+	//// +optional
+	//Conditions []HorizontalPodAutoscalerCondition `json:"conditions"`
+}
+
+func (h *HorizontalPodAutoscaler) MarshalJSON() ([]byte, error) {
+	type Alias HorizontalPodAutoscaler
+	return json.Marshal(&struct {
+		*Alias
+	}{
+		Alias: (*Alias)(h),
+	})
+}
+
+func (h *HorizontalPodAutoscaler) UnMarshalJSON(data []byte) error {
+	type Alias HorizontalPodAutoscaler
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(h),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	return nil
+}
