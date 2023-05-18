@@ -1,5 +1,49 @@
 # Auto-Scaling
 
+## Metric指标
+
+kubelet通过内置CAdvisor获得资源具体使用情况，auto-scaler通过api向kubelet获取资源使用数据，**不经过api-server**（因为这部分数据不需要持久化）。
+
+### api格式
+
+#### REST API
+
+仅支持GET格式REST请求。
+
+- `/nodes` - all node metrics; type `[]NodeMetrics`
+- `/nodes/{node}` - metrics for a specified node; type `NodeMetrics`
+- `/namespaces/{namespace}/pods` - all pod metrics within namespace with support for `all-namespaces`; type `[]PodMetrics`
+- `/namespaces/{namespace}/pods/{pod}` - metrics for a specified pod; type `PodMetrics`
+
+**向kubelet请求的格式：**
+
+仅支持GET格式REST请求。
+
+- `/node` - node metric; type `NodeMetrics`
+
+- `/pods` - all pod metrics ; type `[]PodMetrics`
+- `/namespaces/{namespace}/pods/{pod}` - metrics for a specified pod; type `PodMetrics`
+
+<u>**kubelet在10250端口监听请求**</u>
+
+#### APIObject
+
+详见`pkg/apiobject/metrics.go`
+
+### 单位约定
+
+**资源用量均为int型整数**，单位换算方式如下：
+
+- cpu  ： k8s的1000 = cpu的一个核
+
+   	 如果一台服务器cpu是4核 那么 k8s单位表示就是 4* 1000
+
+- 内存 : k8s的8320MI = 8320 * 1024 * 1024 字节
+
+​    	1MI = 1024*1024 字节
+
+​    	同理 1024MI /1024 = 1G
+
 ## controllers
 
 kube-controller-manager 是控制平面的组件， 负责运行控制器进程。
@@ -73,5 +117,4 @@ HorizontalPodAutoscaler 控制器访问支持扩缩的相应工作负载资源�
 如果创建 HorizontalPodAutoscaler 时指定了多个指标， 那么会按照每个指标分别计算扩缩副本数，取最大值进行扩缩。 如果任何一个指标无法顺利地计算出扩缩副本数（比如，通过 API 获取指标时出错）， 并且可获取的指标建议缩容，那么本次扩缩会被跳过。 这表示，如果一个或多个指标给出的 desiredReplicas 值大于当前值，HPA 仍然能实现扩容。
 
 最后，在 HPA 控制器执行扩缩操作之前，会记录扩缩建议信息。 控制器会在操作时间窗口中考虑所有的建议信息，并从中选择得分最高的建议。 这个值可通过 kube-controller-manager 服务的启动参数 --horizontal-pod-autoscaler-downscale-stabilization 进行配置， 默认值为 5 分钟。 这个配置可以让系统更为平滑地进行缩容操作，从而消除短时间内指标值快速波动产生的影响。
-
 
