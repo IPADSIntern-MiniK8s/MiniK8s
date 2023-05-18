@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/clientv3"
 	"minik8s/pkg/kubeapiserver/watch"
+	"minik8s/pkg/apiobject"
 	"reflect"
 	"strings"
 )
@@ -171,6 +172,17 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 		if existingData == newData {
 			return nil // No update needed
 		}
+
+		// replace the status of the newData with the status of the existingData
+		switch value := newData.(type) {
+		case apiobject.Pod:
+			value.Status = existingData.(apiobject.Pod).Status
+		case apiobject.Node:
+			value.Status = existingData.(apiobject.Node).Status
+		case apiobject.Service:
+			value.Status = existingData.(apiobject.Service).Status
+		}
+
 
 		// Create a transaction to update the data with optimistic concurrency control
 		jsonValue, err := json.Marshal(newData)
