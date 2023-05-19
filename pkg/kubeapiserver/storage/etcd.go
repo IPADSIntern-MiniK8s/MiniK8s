@@ -6,8 +6,8 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/clientv3"
-	"minik8s/pkg/kubeapiserver/watch"
 	"minik8s/pkg/apiobject"
+	"minik8s/pkg/kubeapiserver/watch"
 	"reflect"
 	"strings"
 )
@@ -61,11 +61,14 @@ func (e *EtcdStorage) GetList(ctx context.Context, key string, out interface{}) 
 	if err != nil {
 		return err
 	}
-	if resp.Kvs == nil || len(resp.Kvs) == 0 {
-		return fmt.Errorf("key not found: %s", key)
-	}
 
 	outType := reflect.TypeOf(out).Elem().Elem()
+
+	if resp.Kvs == nil || len(resp.Kvs) == 0 {
+		items := reflect.MakeSlice(reflect.SliceOf(outType), 0, 0)
+		reflect.ValueOf(out).Elem().Set(items)
+		return nil
+	}
 
 	// make a slice to hold the items
 	items := reflect.MakeSlice(reflect.SliceOf(outType), len(resp.Kvs), len(resp.Kvs))
@@ -173,16 +176,33 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 			return nil // No update needed
 		}
 
-		// replace the status of the newData with the status of the existingData
-		switch value := newData.(type) {
-		case apiobject.Pod:
-			value.Status = existingData.(apiobject.Pod).Status
-		case apiobject.Node:
-			value.Status = existingData.(apiobject.Node).Status
-		case apiobject.Service:
-			value.Status = existingData.(apiobject.Service).Status
+		// Replace the status of the newData with the status of the existingData
+		switch value := (newData).(type) {
+		case *apiobject.Pod:
+			{
+				var existingData apiobject.Pod
+				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+					return err
+				}
+				value.Union(&existingData)
+			}
+		case *apiobject.Service:
+			{
+				var existingData apiobject.Service
+				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+					return err
+				}
+				value.Union(&existingData)
+			}
+		case *apiobject.ReplicationController:
+			{
+				var existingData apiobject.ReplicationController
+				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+					return err
+				}
+				value.Union(&existingData)
+			}
 		}
-
 
 		// Create a transaction to update the data with optimistic concurrency control
 		jsonValue, err := json.Marshal(newData)

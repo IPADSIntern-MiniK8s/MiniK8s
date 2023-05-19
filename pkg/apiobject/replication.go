@@ -90,3 +90,9 @@ func (r *ReplicationController) MarshalJSON() ([]byte, error) {
 		Alias: (*Alias)(r),
 	})
 }
+
+func (r *ReplicationController) Union(other *ReplicationController) {
+	if r.Status.Replicas == 0 {
+		r.Status.Replicas = other.Status.Replicas
+	}
+}
