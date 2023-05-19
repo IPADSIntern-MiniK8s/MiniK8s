@@ -6,8 +6,8 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"go.etcd.io/etcd/clientv3"
-	"minik8s/pkg/kubeapiserver/watch"
 	"minik8s/pkg/apiobject"
+	"minik8s/pkg/kubeapiserver/watch"
 	"reflect"
 	"strings"
 )
@@ -156,7 +156,7 @@ func (e *EtcdStorage) Watch(ctx context.Context, key string, callback func(strin
 func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData interface{}) error {
 	for {
 		// Get the current version of the data to update
-		var existingData interface{}
+
 		resp, err := e.client.Get(ctx, key)
 		if err != nil {
 			return err
@@ -164,25 +164,50 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 		if resp.Kvs == nil || len(resp.Kvs) == 0 {
 			return fmt.Errorf("key not found: %s", key)
 		}
-		if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
-			return err
-		}
 
 		// Compare the current data to the new data to see if an update is needed
-		if existingData == newData {
-			return nil // No update needed
-		}
-
+		//if existingData == newData {
+		//	return nil // No update needed
+		//}
 		// replace the status of the newData with the status of the existingData
-		switch value := newData.(type) {
-		case apiobject.Pod:
-			value.Status = existingData.(apiobject.Pod).Status
-		case apiobject.Node:
-			value.Status = existingData.(apiobject.Node).Status
-		case apiobject.Service:
-			value.Status = existingData.(apiobject.Service).Status
-		}
+		switch value := (newData).(type) {
+		case *apiobject.Pod:
+			{
+				var existingData apiobject.Pod
+				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+					return err
+				}
+				empty := apiobject.PodStatus{}
+				if value.Status == empty {
+					value.Status = existingData.Status
+				}
+			}
 
+		case *apiobject.Node:
+			{
+				var existingData apiobject.Node
+				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+					return err
+				}
+				value.Status = existingData.Status
+			}
+		case *apiobject.Service:
+			{
+				var existingData apiobject.Service
+				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+					return err
+				}
+				value.Status = existingData.Status
+			}
+		case *apiobject.ReplicationController:
+			{
+				var existingData apiobject.ReplicationController
+				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+					return err
+				}
+				value.Status = existingData.Status
+			}
+		}
 
 		// Create a transaction to update the data with optimistic concurrency control
 		jsonValue, err := json.Marshal(newData)

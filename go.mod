@@ -3,10 +3,12 @@ module minik8s
 go 1.19
 
 require (
+	github.com/containerd/cgroups v1.1.0
 	github.com/containerd/containerd v1.7.0
 	github.com/containerd/typeurl v1.0.2
 	github.com/ghodss/yaml v1.0.0
 	github.com/gin-gonic/gin v1.9.0
+	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/websocket v1.5.0
 	github.com/liushuochen/gotable v0.0.0-20221119160816-1113793e7092
 	github.com/mqliang/libipvs v0.0.0-20230109035226-02d9e44c145f

@@ -48,15 +48,7 @@ func (r rsReplicaHandler) HandleDelete(message []byte) {
 	rs := &apiobject.ReplicationController{}
 	rs.UnMarshalJSON(message)
 
-	info := utils.GetObject(utils.POD, rs.Data.Namespace, "")
-	podList := gjson.Parse(info).Array()
-	for _, p := range podList {
-		pod := &apiobject.Pod{}
-		pod.UnMarshalJSON([]byte(p.String()))
-		if isPodBelongToController(pod, rs) {
-			utils.DeleteObject(utils.POD, pod.Data.Namespace, pod.Data.Name)
-		}
-	}
+	deleteFromPodList(rs, rs.Status.Replicas)
 	utils.DeleteObject(utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
 
 	log.Info("[rs controller] Delete replicaset. Name:", rs.Data.Name)
@@ -71,6 +63,11 @@ func (r rsReplicaHandler) HandleUpdate(message []byte) {
 		if rest > 0 {
 			createFromTemplate(rs.Spec.Template, rest, rs.Data.Name, rs.Data.Namespace)
 		}
+		rs.Status.Replicas = rs.Spec.Replicas
+		utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+	} else if rs.Spec.Replicas < rs.Status.Replicas {
+		// choose  pod to delete
+		deleteFromPodList(rs, rs.Status.Replicas-rs.Spec.Replicas)
 		rs.Status.Replicas = rs.Spec.Replicas
 		utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
 	}
@@ -107,18 +104,21 @@ func (p rsPodHandler) HandleUpdate(message []byte) {
 	pod.UnMarshalJSON(message)
 
 	// check if the pod label changes
-	info := utils.GetObject(utils.REPLICA, pod.Data.Namespace, pod.Status.OwnerReference.Name)
-	rs := &apiobject.ReplicationController{}
-	rs.UnMarshalJSON([]byte(info))
-	if !isPodBelongToController(pod, rs) {
-		// update rs controller
-		rs.Status.Replicas = rs.Status.Replicas - 1
-		utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+	if pod.Status.OwnerReference.Controller == true {
+		info := utils.GetObject(utils.REPLICA, pod.Data.Namespace, pod.Status.OwnerReference.Name)
+		rs := &apiobject.ReplicationController{}
+		rs.UnMarshalJSON([]byte(info))
+		if !utils.IsLabelEqual(rs.Spec.Selector, pod.Data.Labels) {
+			// update rs controller
+			rs.Status.Replicas = rs.Status.Replicas - 1
+			utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
 
-		// update pod: delete controller info
-		pod.Status.OwnerReference.Controller = false
-		utils.UpdateObject(pod, utils.REPLICA, pod.Data.Namespace, pod.Data.Name)
+			// update pod: delete controller info
+			pod.Status.OwnerReference.Controller = false
+			utils.UpdateObject(pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
+		}
 	}
+
 }
 
 func (p rsPodHandler) GetType() utils.ObjType {
@@ -145,6 +145,23 @@ func createFromPodList(rs *apiobject.ReplicationController) int32 {
 	}
 	log.Info("[rs controller] Create from pod list. Create Num:", num-rs.Status.Replicas)
 	return rs.Spec.Replicas - num
+}
+
+func deleteFromPodList(rs *apiobject.ReplicationController, num int32) {
+	info := utils.GetObject(utils.POD, rs.Data.Namespace, "")
+	podList := gjson.Parse(info).Array()
+	for _, p := range podList {
+		pod := &apiobject.Pod{}
+		pod.UnMarshalJSON([]byte(p.String()))
+		if isPodBelongToController(pod, rs) {
+			utils.DeleteObject(utils.POD, pod.Data.Namespace, pod.Data.Name)
+			num--
+			if num == 0 {
+				break
+			}
+		}
+	}
+	log.Info("[rs controller] Delete from pod list. Create Num:", num)
 }
 
 func createFromTemplate(t *apiobject.PodTemplateSpec, num int32, name string, ns string) {
