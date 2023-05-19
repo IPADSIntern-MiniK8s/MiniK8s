@@ -2,7 +2,7 @@ package apiobject
 
 import (
 	"encoding/json"
-	"minik8s/utils"
+	"minik8s/pkg/apiobject/utils"
 )
 
 /* an basic example of a autoscaler apiobject:

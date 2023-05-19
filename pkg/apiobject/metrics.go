@@ -2,7 +2,7 @@ package apiobject
 
 import (
 	"encoding/json"
-	utils "minik8s/utils"
+	"minik8s/pkg/apiobject/utils"
 )
 
 // NodeMetrics sets resource usage metrics of a node.

@@ -53,6 +53,20 @@ func CreateReplicaHandler(c *gin.Context) {
 	}
 
 	// 2. save the replica information in the storage
+	key := "/registry/replicas/" + namespace + "/" + replica.Data.Name
+	// check whether it is a real create replica request
+	var prevReplica apiobject.Service
+	err := replicaStorageTool.Get(context.Background(), key, &prevReplica)
+	if err == nil {
+		// the replica already exists
+		err = updateReplica(replica, key)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusOK, replica)
+		}
+		return
+	}
 	// 2.1 change the replica resource version
 	if err := changeReplicaResourceVersion(replica, c); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -60,10 +74,10 @@ func CreateReplicaHandler(c *gin.Context) {
 	}
 
 	// 2.2 save the replica information in the etcd
-	key := "/registry/replicas/" + namespace + "/" + replica.Data.Name
+	key = "/registry/replicas/" + namespace + "/" + replica.Data.Name
 	log.Debug("[CreateReplicaHandler] key is ", key)
 
-	err := replicaStorageTool.Create(context.Background(), key, &replica)
+	err = replicaStorageTool.Create(context.Background(), key, &replica)
 	if err != nil {
 		log.Error("[CreateReplicaHandler] save replica information error, ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -72,6 +86,16 @@ func CreateReplicaHandler(c *gin.Context) {
 
 	// 3. return the replica information
 	c.JSON(http.StatusOK, replica)
+}
+
+func updateReplica(service *apiobject.ReplicationController, key string) error {
+	service.Data.ResourcesVersion = apiobject.UPDATE
+	err := serviceStorageTool.GuaranteedUpdate(context.Background(), key, service)
+	if err != nil {
+		log.Error("[UpdateServiceHandler] update service information error, ", err)
+		return err
+	}
+	return nil
 }
 
 // GetReplicaHandler the url format is GET /api/v1/namespaces/:namespace/replicas/:name
