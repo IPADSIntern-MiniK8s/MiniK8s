@@ -116,9 +116,16 @@ type Volume struct {
 }
 
 type PodStatus struct {
-	Phase  PhaseLabel `json:"phase,omitempty""`
-	HostIp string     `json:"hostIP,omitempty"`
-	PodIp  string     `json:"podIP,omitempty"`
+	Phase          PhaseLabel     `json:"phase,omitempty""`
+	HostIp         string         `json:"hostIP,omitempty"`
+	PodIp          string         `json:"podIP,omitempty"`
+	OwnerReference OwnerReference `json:"ownerReference,omitempty"`
+}
+
+type OwnerReference struct {
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Controller bool   `json:"controller,omitempty"`
 }
 
 type PhaseLabel string
