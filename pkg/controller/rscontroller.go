@@ -39,6 +39,7 @@ func (r rsReplicaHandler) HandleCreate(message []byte) {
 	}
 
 	rs.Status.Replicas = rs.Spec.Replicas
+	rs.Status.Scale = rs.Spec.Replicas
 	utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
 
 	log.Info("[rs controller] Create replicaset. Name:", rs.Data.Name)
@@ -66,7 +67,7 @@ func (r rsReplicaHandler) HandleUpdate(message []byte) {
 	rs := &apiobject.ReplicationController{}
 	rs.UnMarshalJSON(message)
 
-	if rs.Spec.Replicas > rs.Status.Replicas {
+	if rs.Status.Scale > rs.Status.Replicas {
 		rest := createFromPodList(rs)
 		if rest > 0 {
 			createFromTemplate(rs.Spec.Template, rest, rs.Data.Name, rs.Data.Namespace)
