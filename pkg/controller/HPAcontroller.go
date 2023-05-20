@@ -16,9 +16,15 @@ import (
 1. 监听autoscaler的创建。更改对应replicaset/创建对应replicaset。
 2. 监听autoscaler的更改。如果CurrentReplicas和DesiredReplicas数量不一致，则更新对应rs。
 3. 监听autoscaler的删除。将对应replicaset的control状态还原。
-4. 监听pod删除。删除endpoint。
-5. 监听pod更新。如果标签更改，删除/增加endpoint。
-6. 监听service资源的删除。删除对应endpoint。
+4. 每隔15s检查hpa的条件是否满足，进行扩缩容。扩缩容逻辑如下：
+	1）ScaleTargetRef字段找到对应的pod。Metrics字段提供多个指定的指标，根据每个指标利用metric api向kubelet查询对应pod的资源利用率并计算当前指标值。
+	2）将计算出的结果与指标比较。计算出扩缩容的期望副本数。公式： 期望副本数 = ceil[当前副本数 * (当前指标 / 期望指标)]
+	3）每个指标都会计算出一个期望副本数。取最大值作为总的期望副本数。
+	4）根据Behavior字段定义的扩缩容行为判断总的期望副本数是否满足条件，并确定最终的期望副本数。需要满足的条件有：
+		a. 不超过MaxReplicas，不小于MinReplicas。
+		b. 上一次扩缩容距今时间大于StabilizationWindowSeconds（扩容默认为0，缩容默认为300s）
+		c. 满足HPAScalingPolicy。（如每3秒最多新增10个pod，每20s最多减少10%的pod）。不同policy的限制之间可以设定取最小/最大限制。
+	5）根据上述三个条件的限制确定最终副本数，并更新hpa的DesiredReplicas。
 */
 
 type hpaScalerHandler struct {
