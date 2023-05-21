@@ -3,10 +3,16 @@ package container
 import (
 	"context"
 	"fmt"
+	v1 "github.com/containerd/cgroups/stats/v1"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/oci"
+	"github.com/gogo/protobuf/proto"
+	"minik8s/pkg/apiobject"
+	"minik8s/pkg/apiobject/utils"
+	"reflect"
 	"syscall"
+	"time"
 )
 
 type ContainerSpec struct {
@@ -149,4 +155,100 @@ func GetContainerStatus(ctx context.Context, c containerd.Container) string {
 		return err.Error()
 	}
 	return string(status.Status)
+}
+
+type metricsCollection struct {
+	begin       time.Time
+	tasks       []containerd.Task
+	preTimes    []time.Time
+	preCPUs     []uint64
+	CPUPercents []uint64
+	memorys     []uint64
+}
+
+func GetContainersMetrics(cs []containerd.Container) *apiobject.PodMetrics {
+	if len(cs) == 0 {
+		return &apiobject.PodMetrics{}
+	}
+	ctx := context.Background()
+	collection := metricsCollection{
+		begin:       time.Now(),
+		tasks:       []containerd.Task{},
+		preTimes:    []time.Time{},
+		preCPUs:     []uint64{},
+		CPUPercents: []uint64{},
+		memorys:     []uint64{},
+	}
+	for _, c := range cs {
+		task, err := c.Task(ctx, nil)
+		if err != nil {
+			return nil
+		}
+		collection.tasks = append(collection.tasks, task)
+		collection.preTimes = append(collection.preTimes, time.Now())
+		collection.preCPUs = append(collection.preCPUs, 0)
+		collection.CPUPercents = append(collection.CPUPercents, 0)
+		collection.memorys = append(collection.memorys, 0)
+	}
+
+	podMetrics := &apiobject.PodMetrics{Window: utils.Duration{time.Second * 5},
+		Containers: []apiobject.ContainerMetrics{},
+	}
+	//fmt.Println(task.Pid())
+
+	var data v1.Metrics
+	var v interface{}
+	var curTime time.Time
+	var curCPU uint64
+	collection.begin = time.Now()
+	for i := 0; i <= 1; i++ {
+		for ti, task := range collection.tasks {
+			metrics, err := task.Metrics(ctx)
+			if err != nil {
+				continue
+			}
+			curTime = time.Now()
+
+			//can not use Unmarshall, strange
+			//fmt.Println(typeurl.UnmarshalAny(metrics.Data))
+			//fmt.Println(typeurl.UnmarshalByTypeURL(metrics.Data.TypeUrl, metrics.Data.Value))
+			v = reflect.New(reflect.TypeOf(data)).Interface()
+			err = proto.Unmarshal(metrics.Data.Value, v.(proto.Message))
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+			switch value := v.(type) {
+			case *v1.Metrics:
+				data = *value
+			default:
+				return nil
+			}
+			if i == 0 {
+				collection.preTimes[ti] = curTime
+				collection.preCPUs[ti] = data.CPU.Usage.Total
+				collection.memorys[ti] = data.Memory.Usage.Usage
+				time.Sleep(podMetrics.Window.Duration)
+				continue
+			}
+
+			//fmt.Println("memory:", data.Memory.Usage.Usage)
+			//fmt.Println("CPU:", data.CPU.Usage.Total)
+			curCPU = data.CPU.Usage.Total
+			cpuDelta := curCPU - collection.preCPUs[ti]
+
+			timeDelta := curTime.Sub(collection.preTimes[ti])
+			collection.CPUPercents[ti] = uint64(float64(cpuDelta) / float64(timeDelta.Nanoseconds()) * 1000)
+		}
+	}
+	podMetrics.Timestamp.Time = curTime
+	for ci, c := range cs {
+		podMetrics.Containers = append(podMetrics.Containers, apiobject.ContainerMetrics{
+			Name: c.ID(),
+			Usage: map[apiobject.ResourceName]utils.Quantity{
+				apiobject.ResourceCPU:    utils.Quantity(collection.CPUPercents[ci]),
+				apiobject.ResourceMemory: utils.Quantity(collection.memorys[ci]),
+			},
+		})
+	}
+	return podMetrics
 }
