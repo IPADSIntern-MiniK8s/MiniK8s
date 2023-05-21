@@ -21,6 +21,7 @@ var KubeletConfig = kubelet.Config{
 	FlannelSubnet: "10.2.17.1/24",
 	IP:            "192.168.1.12",
 	Labels:        map[string]string{},
+	ListenAddr:    "localhost:10250",
 }
 
 func initConfig() {
