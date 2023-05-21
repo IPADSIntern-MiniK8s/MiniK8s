@@ -1,6 +1,10 @@
 package metricsserver
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"minik8s/pkg/kubelet/pod"
+	"net/http"
+)
 
 type route struct {
 	Path    string
@@ -9,10 +13,14 @@ type route struct {
 }
 
 var handlerTable = [...]route{
-	{Path: "/:namespace/:pod", Method: "GET", Handler: nil},
-	{Path: "/:namespace/:pod", Method: "GET", Handler: nil},
+	//{Path: "/:namespace/:pod", Method: "GET", Handler: nil},
+	{Path: "/:namespace/:pod", Method: "GET", Handler: getPodMetricsHandler},
 }
 
-func GetPodMetrics(c *gin.Context) {
+func getPodMetricsHandler(c *gin.Context) {
+	namespace := c.Param("namespace")
+	name := c.Param("pod")
 
+	metrics := pod.GetPodMetrics(namespace, name)
+	c.JSON(http.StatusOK, metrics)
 }
