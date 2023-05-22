@@ -164,3 +164,18 @@ func isPodBelongToController(p *apiobject.Pod, c *apiobject.ReplicationControlle
 		return false
 	}
 }
+
+func GetPodListFromRS(rs *apiobject.ReplicationController) []*apiobject.Pod {
+	var podList []*apiobject.Pod
+	info := utils.GetObject(utils.POD, rs.Data.Namespace, "")
+	pList := gjson.Parse(info).Array()
+	for _, p := range pList {
+		pod := &apiobject.Pod{}
+		pod.UnMarshalJSON([]byte(p.String()))
+
+		if isPodBelongToController(pod, rs) {
+			podList = append(podList, pod)
+		}
+	}
+	return podList
+}

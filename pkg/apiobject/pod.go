@@ -116,7 +116,7 @@ type Volume struct {
 }
 
 type PodStatus struct {
-	Phase  PhaseLabel `json:"phase,omitempty""`
+	Phase  PhaseLabel `json:"phase,omitempty"`
 	HostIp string     `json:"hostIP,omitempty"`
 	PodIp  string     `json:"podIP,omitempty"`
 }

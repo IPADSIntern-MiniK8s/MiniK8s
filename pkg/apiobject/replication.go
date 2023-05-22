@@ -43,6 +43,7 @@ spec:
 	      emptyDir: {} # 数据卷类型
 */
 type ReplicationController struct {
+	Kind       string                      `json:"kind,omitempty"`
 	APIVersion string                      `json:"apiVersion,omitempty"`
 	Data       MetaData                    `json:"metadata"`
 	Spec       ReplicationControllerSpec   `json:"spec,omitempty"`
@@ -67,6 +68,9 @@ type PodTemplateSpec struct {
 type ReplicationControllerStatus struct {
 	// Replicas is the number of actual replicas.
 	Replicas int32 `json:"replicas"`
+	// Used for replica controlled by HPA
+	Scale          int32          `json:"scale"`
+	OwnerReference OwnerReference `json:"ownerReference,omitempty"`
 }
 
 func (r *ReplicationController) UnMarshalJSON(data []byte) error {
@@ -91,8 +95,18 @@ func (r *ReplicationController) MarshalJSON() ([]byte, error) {
 	})
 }
 
+
 func (r *ReplicationController) Union(other *ReplicationController) {
 	if r.Status.Replicas == 0 {
 		r.Status.Replicas = other.Status.Replicas
 	}
+}
+
+
+func (r *ReplicationController) UnMarshalJSONList(data []byte) ([]ReplicationController, error) {
+	var list []ReplicationController
+	if err := json.Unmarshal(data, &list); err != nil {
+		return nil, err
+	}
+	return list, nil
 }

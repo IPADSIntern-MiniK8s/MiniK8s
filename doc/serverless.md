@@ -1,5 +1,15 @@
 # Serverless
 
+## Overview
+### 需要的组件
+Autoscaler（自动缩放器）：
+Autoscaler 是 Knative 中的一个组件，用于根据工作负载的需求自动调整底层的资源（如 Pod）数量。它通过监测当前工作负载的指标（如请求数、CPU 使用率等）来动态地调整副本数量，以确保应用程序能够根据需求自动扩展或收缩。Autoscaler 可以自动处理流量峰值、负载均衡和资源利用效率等方面的调整，以提供更高的可伸缩性和资源效率。
+
+它主要有两项工作：一个是负责把pod启动起来，另外一个是把启动中的请求转发给pod。
+
+Activator（激活器）：
+Activator 是 Knative 中的另一个组件，用于处理请求的激活和暂停。它负责在请求到达时将处于休眠状态的应用程序实例（如休眠的 Pod）唤醒，以处理传入的请求。Activator 监测流量并维护一组活动的应用程序实例，根据需要将流量路由到相应的实例。这种激活和休眠的机制可以帮助节省资源，避免持续运行的实例浪费资源，提高整体的资源利用率。
+
 ## Function
 > 要求：⽀持Function抽象。⽤⼾可以通过单个⽂件（zip包或代码⽂件）定义函数内容，通过指令上传给 minik8s，并且通过http trigger调⽤函数。
 ### 实现
@@ -66,6 +76,11 @@ ctr run --rm -t localhost:5000/helloworld:latest helloworld
 2023/05/20 09:09:56 Sleeping for 0 ms
 2023/05/20 09:09:56 Starting server on port 8081
 2023/05/20 09:09:56 Ready, listening on 8080 and 8081
+```
+
+6. 使用go api操作 docker registry
+```shell
+go get github.com/docker/docker/client
 ```
 
 #### docker registry 对应的命令
@@ -155,4 +170,22 @@ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ser
 ```shell
 curl -X POST -H "Content-Type: application/json" -d '{"x": 3, "y": 5}' http://172.17.0.3:8081/
 ```
+
+### 具体实现
+1. upload function
+用户发送`function`的注册请求（`api/v1/functions`），`apiserver`会将`function`的信息存储到`etcd`中，同时会将`function`的代码文件制作成镜像，并推送到`registry`中
+
+这个时候，serverless部分会监听`etcd`中`function`的变化，创建相应的replicaSet，初始的replica数量为0，当`function`的replica数量发生变化时，会自动调整`function`的replica数量
+
+2. http trigger
+用户发送`http trigger`的请求，`apiserver`会将请求转发给`serverless`，`serverless`会查找是否有合适的pod，向对应的pod发送请求，如果没有合适的pod，首先修改replicaSet的replica数量，当合适的pod被创建以后，向pod发送请求
+
+
+> 注意事项：
+> 1. serverless对应的pod和replicaSet的名称是一致的，并且都在`serverless`的命名空间下
+> 2. serverless对应的pod和replicaSet的名称是`function`的名称，所以`function`的名称不能重复
+
+
+### 参考资料
+https://blog.csdn.net/zw0Pi8G5C1x/article/details/123784951
 
