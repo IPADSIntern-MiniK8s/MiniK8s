@@ -3,7 +3,7 @@ package apiobject
 import (
 	"encoding/json"
 	"fmt"
-	"minik8s/utils"
+	"minik8s/config"
 )
 
 /* an basic example of a pod apiobject:
@@ -124,9 +124,9 @@ type PodStatus struct {
 }
 
 type OwnerReference struct {
-	Kind       utils.ObjType `json:"kind"`
-	Name       string        `json:"name"`
-	Controller bool          `json:"controller,omitempty"`
+	Kind       config.ObjType `json:"kind"`
+	Name       string         `json:"name"`
+	Controller bool           `json:"controller,omitempty"`
 }
 
 type PhaseLabel string

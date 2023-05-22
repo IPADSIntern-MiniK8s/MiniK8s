@@ -2,8 +2,8 @@ package apiobject
 
 import (
 	"encoding/json"
+	"minik8s/config"
 	"minik8s/pkg/apiobject/utils"
-	u "minik8s/utils"
 )
 
 /* an basic example of a autoscaler apiobject:
@@ -53,9 +53,9 @@ type HorizontalPodAutoscalerSpec struct {
 }
 
 type CrossVersionObjectReference struct {
-	Kind       u.ObjType `json:"kind"`
-	Name       string    `json:"name"`
-	APIVersion string    `json:"apiVersion,omitempty"`
+	Kind       config.ObjType `json:"kind"`
+	Name       string         `json:"name"`
+	APIVersion string         `json:"apiVersion,omitempty"`
 }
 
 type MetricSpec struct {

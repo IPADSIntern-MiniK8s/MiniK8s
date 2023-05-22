@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"math"
+	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	apiu "minik8s/pkg/apiobject/utils"
 	"minik8s/utils"
@@ -38,22 +39,22 @@ func (s hpaScalerHandler) HandleCreate(message []byte) {
 
 	// find replicaset to control
 	switch hpa.Spec.ScaleTargetRef.Kind {
-	case utils.REPLICA:
+	case config.REPLICA:
 		{
 			info := utils.GetObject(hpa.Spec.ScaleTargetRef.Kind, hpa.Data.Namespace, hpa.Spec.ScaleTargetRef.Name)
 			rs := &apiobject.ReplicationController{}
 			rs.UnMarshalJSON([]byte(info))
 
 			rs.Status.OwnerReference = apiobject.OwnerReference{
-				Kind:       utils.HPA,
+				Kind:       config.HPA,
 				Name:       hpa.Data.Name,
 				Controller: true,
 			}
 			rs.Status.Scale = hpa.Spec.MinReplicas
 
-			utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+			utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 		}
-	case utils.POD:
+	case config.POD:
 		{
 			//TODO: the pod situation
 		}
@@ -67,7 +68,7 @@ func (s hpaScalerHandler) HandleDelete(message []byte) {
 	hpa.UnMarshalJSON(message)
 
 	switch hpa.Spec.ScaleTargetRef.Kind {
-	case utils.REPLICA:
+	case config.REPLICA:
 		{
 			info := utils.GetObject(hpa.Spec.ScaleTargetRef.Kind, hpa.Data.Namespace, hpa.Spec.ScaleTargetRef.Name)
 			rs := &apiobject.ReplicationController{}
@@ -76,9 +77,9 @@ func (s hpaScalerHandler) HandleDelete(message []byte) {
 			rs.Status.OwnerReference.Controller = false
 			rs.Status.Scale = 0
 
-			utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+			utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 		}
-	case utils.POD:
+	case config.POD:
 		{
 			//TODO: the pod situation
 		}
@@ -94,19 +95,19 @@ func (s hpaScalerHandler) HandleUpdate(message []byte) {
 	// change the controlled resource according to hpa
 	if hpa.Status.CurrentReplicas != hpa.Status.DesiredReplicas {
 		switch hpa.Spec.ScaleTargetRef.Kind {
-		case utils.REPLICA:
+		case config.REPLICA:
 			{
 				info := utils.GetObject(hpa.Spec.ScaleTargetRef.Kind, hpa.Data.Namespace, hpa.Spec.ScaleTargetRef.Name)
 				rs := &apiobject.ReplicationController{}
 				rs.UnMarshalJSON([]byte(info))
 				// update rs
 				rs.Status.Scale = hpa.Status.DesiredReplicas
-				utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+				utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 				// update hpa
 				hpa.Status.CurrentReplicas = hpa.Status.DesiredReplicas
-				utils.UpdateObject(hpa, utils.HPA, hpa.Data.Namespace, hpa.Data.Name)
+				utils.UpdateObject(hpa, config.HPA, hpa.Data.Namespace, hpa.Data.Name)
 			}
-		case utils.POD:
+		case config.POD:
 			{
 				//TODO: the pod situation
 			}
@@ -115,8 +116,8 @@ func (s hpaScalerHandler) HandleUpdate(message []byte) {
 	/* TODO: scaleTargetRef change */
 }
 
-func (s hpaScalerHandler) GetType() utils.ObjType {
-	return utils.HPA
+func (s hpaScalerHandler) GetType() config.ObjType {
+	return config.HPA
 }
 
 /* ========== Start Check Function ========== */
@@ -127,7 +128,7 @@ func regularCheck() {
 	//给对象增加定时任务
 	c.AddFunc("@every 15s", func() {
 		// get all hpa
-		info := utils.GetObject(utils.HPA, "nil", "")
+		info := utils.GetObject(config.HPA, "nil", "")
 		hpaList := gjson.Parse(info).Array()
 		for _, h := range hpaList {
 			hpa := &apiobject.HorizontalPodAutoscaler{}
@@ -143,7 +144,7 @@ func reconcileAutoscaler(hpa *apiobject.HorizontalPodAutoscaler) {
 	// 1. get all the pods belong to hpa
 	var podList []*apiobject.Pod
 	switch hpa.Spec.ScaleTargetRef.Kind {
-	case utils.REPLICA:
+	case config.REPLICA:
 		{
 			info := utils.GetObject(hpa.Spec.ScaleTargetRef.Kind, hpa.Data.Namespace, hpa.Spec.ScaleTargetRef.Name)
 			rs := &apiobject.ReplicationController{}
@@ -207,7 +208,7 @@ func reconcileAutoscaler(hpa *apiobject.HorizontalPodAutoscaler) {
 	if duration > float64(window) {
 		hpa.Status.LastScaleTime = apiu.Now()
 		hpa.Status.DesiredReplicas = desired
-		utils.UpdateObject(hpa, utils.HPA, hpa.Data.Namespace, hpa.Data.Name)
+		utils.UpdateObject(hpa, config.HPA, hpa.Data.Namespace, hpa.Data.Name)
 	}
 }
 
