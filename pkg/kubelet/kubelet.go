@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"minik8s/pkg/apiobject"
+	"minik8s/pkg/kubelet/metricsserver"
 	kubeletPod "minik8s/pkg/kubelet/pod"
 	"minik8s/utils"
 	"net/http"
@@ -16,6 +17,8 @@ type Kubelet struct {
 	FlannelSubnet string            //service
 	IP            string            //host ip
 	Labels        map[string]string // for nodeSelector
+	ListenAddr    string            //MetricsServer listen for auto-scaling
+	Server        *metricsserver.MetricsServer
 }
 
 func NewKubelet(config Config) *Kubelet {
@@ -24,6 +27,8 @@ func NewKubelet(config Config) *Kubelet {
 		FlannelSubnet: config.FlannelSubnet,
 		IP:            config.IP,
 		Labels:        config.Labels,
+		ListenAddr:    config.ListenAddr,
+		Server:        metricsserver.NewMetricsServer(),
 	}
 }
 
