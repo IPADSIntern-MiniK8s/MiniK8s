@@ -30,9 +30,9 @@ var HandlerTable = [...]Route{
 	{Path: "api/v1/dns/:name", Method: "DELETE", Handler: DeleteDNSRecordHandler},      // DELETE, delete a dns record
 	{Path: "api/v1/dns/:name/update", Method: "POST", Handler: UpdateDNSRecordHandler}, // POST, update a dns record
 
-	{Path: "api/v1/namespaces/:namespace/replicas", Method: "POST", Handler: CreateReplicaHandler},              // POST, create a replica
-	{Path: "api/v1/namespaces/:namespace/replicas/:name", Method: "GET", Handler: GetReplicaHandler},            // GET, get a replica
-	{Path: "api/v1/namespaces/:namespace/replicas", Method: "GET", Handler: GetReplicasHandler},                 // GET, list all replicas in this namespace
-	{Path: "api/v1/namespaces/:namespace/replicas/:name", Method: "DELETE", Handler: DeleteReplicaHandler},      // DELETE, delete a replica
+	{Path: "/api/v1/namespaces/:namespace/replicas", Method: "POST", Handler: CreateReplicaHandler},             // POST, create a replica
+	{Path: "/api/v1/namespaces/:namespace/replicas/:name", Method: "GET", Handler: GetReplicaHandler},           // GET, get a replica
+	{Path: "/api/v1/namespaces/:namespace/replicas", Method: "GET", Handler: GetReplicasHandler},                // GET, list all replicas
+	{Path: "/api/v1/namespaces/:namespace/replicas/:name", Method: "DELETE", Handler: DeleteReplicaHandler},     // DELETE, delete a replica
 	{Path: "api/v1/namespaces/:namespace/replicas/:name/update", Method: "POST", Handler: UpdateReplicaHandler}, // POST, update a replica
 }

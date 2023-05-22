@@ -12,4 +12,5 @@ const (
 	SERVICE  ObjType = "services"
 	ENDPOINT ObjType = "endpoints"
 	REPLICA  ObjType = "replicas"
+	HPA      ObjType = "hpas"
 )

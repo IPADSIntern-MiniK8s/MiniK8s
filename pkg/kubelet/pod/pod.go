@@ -3,6 +3,7 @@ package pod
 import (
 	"context"
 	"fmt"
+	"github.com/containerd/containerd"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubelet/container"
 	"minik8s/pkg/kubelet/utils"
@@ -15,13 +16,21 @@ import (
 func CreatePod(pod apiobject.Pod, apiserverAddr string) (bool, string) {
 	//ctx := context.Background()
 	output, err := utils.Ctl(pod.Data.Namespace, "run", "-d", "--net", "flannel", "--name", generateContainerName("", pod.Data.Name, true), "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6")
+	//print(output)
 	if err != nil {
 		fmt.Println(output)
 		return false, ""
 	}
-	pauseContainerID := output[:12]
+	pauseContainerID := ""
+	outputLen := len(output)
+	if outputLen < 100 {
+		pauseContainerID = output[:12]
+	} else {
+		pauseContainerID = output[outputLen-64-1 : outputLen-64+12-1]
+	}
+	//fmt.Println(pauseContainerID)
 	//although in one network namespace, other containers do not have the same network config files as pause, like dns server
-	_, err = utils.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/resolv.conf", "./resolv.conf")
+	output, err = utils.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/resolv.conf", "./resolv.conf")
 	if err != nil {
 		fmt.Println(output)
 		return false, ""
@@ -29,6 +38,7 @@ func CreatePod(pod apiobject.Pod, apiserverAddr string) (bool, string) {
 	defer os.Remove("./resolv.conf")
 
 	if !addCoreDns("./resolv.conf", apiserverAddr) {
+		fmt.Println("add coredns failed")
 		return false, ""
 	}
 
@@ -40,12 +50,12 @@ func CreatePod(pod apiobject.Pod, apiserverAddr string) (bool, string) {
 	defer os.Remove("./hosts")
 	pausePid, err := utils.GetInfo(pod.Data.Namespace, pauseContainerID, ".State.Pid")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err.Error())
 		return false, ""
 	}
 	pid, err := strconv.Atoi(pausePid)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err.Error())
 		return false, ""
 	}
 	namespacePathPrefix := fmt.Sprintf("/proc/%d/ns/", pid)
@@ -62,12 +72,12 @@ func CreatePod(pod apiobject.Pod, apiserverAddr string) (bool, string) {
 		}
 		_, err = utils.Ctl(pod.Data.Namespace, "cp", "./resolv.conf", cSpec.Name+":/etc/resolv.conf")
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(err.Error())
 			return false, ""
 		}
 		_, err = utils.Ctl(pod.Data.Namespace, "cp", "./hosts", cSpec.Name+":/etc/hosts")
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(err.Error())
 			return false, ""
 		}
 	}
@@ -120,36 +130,66 @@ func apiContainer2Container(metaData apiobject.MetaData, volumes []apiobject.Vol
 	return c
 }
 
-/*
-1. its easier to create pause by nerdctl than by api (hard to set network)
-2. nerdctl can only set containerName, not containerID
-3. containerd api can only get ID, not containerName
-4. no place to store containerid because pause container belongs to a deep implementation of kubelet itself,which should not be seen by apiserver or kubectl
-
-
-*/
-
 func DeletePod(pod apiobject.Pod) bool {
-	var err error
-	for _, c := range pod.Spec.Containers {
-		n := generateContainerName(c.Name, pod.Data.Name, false)
-		_, err = utils.Ctl(pod.Data.Namespace, "stop", n)
-		if err != nil {
-			return false
-		}
-		_, err = utils.Ctl(pod.Data.Namespace, "rm", n)
-		if err != nil {
-			return false
-		}
+	client, err := container.NewClient(pod.Data.Namespace)
+	if err != nil {
+		fmt.Println(err)
+		return false
 	}
-
-	//delete pause
-	name := generateContainerName("", pod.Data.Name, true)
-	_, err = utils.Ctl(pod.Data.Namespace, "stop", name)
+	ctx := context.Background()
+	containers, err := client.Containers(ctx)
 	if err != nil {
 		return false
 	}
-	_, err = utils.Ctl(pod.Data.Namespace, "rm", name)
+	containerNames := map[string]bool{}
+
+	for _, c := range pod.Spec.Containers {
+		n := generateContainerName(c.Name, pod.Data.Name, false)
+		containerNames[n] = true
+		//_, err = utils.Ctl(pod.Data.Namespace, "stop", n)
+		//if err != nil {
+		//	return false
+		//}
+		//_, err = utils.Ctl(pod.Data.Namespace, "rm", n)
+		//if err != nil {
+		//	return false
+		//}
+	}
+	//fmt.Println(containerNames)
+	for _, c := range containers {
+		//fmt.Println(c.ID())
+		//fmt.Println(container.GetContainerStatus(ctx, c))
+		if _, ok := containerNames[c.ID()]; ok {
+			//fmt.Println(ok, c.ID())
+			if success := container.RemoveContainer(ctx, c); !success {
+				return false
+			}
+		}
+	}
+	//must delete pause at last, otherwise other containers will be stopped
+
+	pauseName := generateContainerName("", pod.Data.Name, true)
+
+	//use containerd api can find container according to name
+	//but pause containerd is created by nerdctl instead of containerd, and nerdctl itself maintains a namestore which should be released
+
+	//nerdctl pkg/idutil/containerwalkercontainerwalker.go
+	//containers, err = client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "nerdctl/name", pauseName))
+	//if err != nil {
+	//	return false
+	//}
+	//if len(containers) < 0 {
+	//	return false
+	//}
+	//if success := container.RemoveContainer(ctx, containers[0]); !success {
+	//	return false
+	//}
+
+	_, err = utils.Ctl(pod.Data.Namespace, "stop", pauseName)
+	if err != nil {
+		return false
+	}
+	_, err = utils.Ctl(pod.Data.Namespace, "rm", pauseName)
 	if err != nil {
 		return false
 	}
@@ -161,6 +201,9 @@ func generateContainerName(containerName string, podName string, isPause bool) s
 		return podName + "-pause"
 	}
 	return fmt.Sprintf("%s-%s", podName, containerName)
+}
+func belongsToPod(containerName, podName string) bool {
+	return strings.HasPrefix(containerName, podName)
 }
 
 func addCoreDns(path, apiserverAddr string) bool {
@@ -179,4 +222,20 @@ func addCoreDns(path, apiserverAddr string) bool {
 		return false
 	}
 	return true
+}
+
+func GetPodMetrics(namespace, podName string) *apiobject.PodMetrics {
+	client, err := container.NewClient(namespace)
+	if err != nil {
+		return nil
+	}
+	ctx := context.Background()
+	containers, err := client.Containers(ctx)
+	cs := make([]containerd.Container, 0, 0)
+	for _, c := range containers {
+		if belongsToPod(c.ID(), podName) {
+			cs = append(cs, c)
+		}
+	}
+	return container.GetContainersMetrics(cs)
 }

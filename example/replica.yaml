@@ -1,0 +1,25 @@
+kind: Replica
+apiVersion: apps/v1
+metadata:
+  name: replica-practice
+spec:
+  replicas: 3
+  selector:
+      app: replica-practice
+  template:
+    metadata:
+      labels:
+        app: replica-practice
+    spec:
+      containers:
+        - name: fileserver
+          image: hejingkai/fileserver:latest
+          ports:
+            - name: p1 # 端口名称
+              containerPort: 8080  # 容器端口
+          volumeMounts:
+            - name: download
+              mountPath: /usr/share/files
+      volumes: # 定义数据卷
+        - name: download # 数据卷名称
+          emptyDir: {} # 数据卷类型

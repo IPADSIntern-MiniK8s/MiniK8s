@@ -14,13 +14,6 @@ type MetaData struct {
 	Namespace        string            `json:"namespace,omitempty"`
 	Labels           map[string]string `json:"labels,omitempty"`
 	ResourcesVersion VersionLabel      `json:"resourcesVersion,omitempty"` // use for update
-	OwnerReference   OwnerReference    `json:"OwnerReference,omitempty"`
-}
-
-type OwnerReference struct {
-	Kind       string `json:"kind"`
-	Name       string `json:"name"`
-	Controller *bool  `json:"controller,omitempty"`
 }
 
 type VersionLabel string
