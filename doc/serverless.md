@@ -126,6 +126,20 @@ go get github.com/docker/docker/client
 
    这将在容器中运行 `myimage` 镜像，并在终端中显示容器的输出。如果容器成功运行并显示预期的输出，说明容器存储功能正常。
 
+6. 在另外一台机器上使用这台机器上的镜像
+- 获得运行权限
+```shell
+chmod +x /pkg/serverless/registry.sh
+```
+- 运行脚本, 获得从registry中获得镜像的权限
+```shell
+./pkg/serverless/registry.sh
+```
+- 从registry中拉取镜像
+```shell
+docker pull 192.168.1.13:5000/helloworld:latest
+```
+
 #### flask
 1. flask version：2.3.2
 2. 每个function都会对应一个flask server，用来接受外界的调用请求，并返回结果

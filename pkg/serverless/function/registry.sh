@@ -15,8 +15,16 @@ fi
 
 # if the current ip not equal to the server ip, then mark the server ip as trusted
 if [ "$(hostname -I | awk '{print $1}')" != "$serverIp" ]; then
-  docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock registry \
-    /bin/sh -c "echo '{\"insecure-registries\":[\"$serverIp:5000\"]}' > /etc/docker/daemon.json"
+  # check whether the file exist
+  if [ ! -f /etc/docker/daemon.json ]; then
+      touch /etc/docker/daemon.json
+  fi
+
+  # add http 
+  echo '{
+    "insecure-registries": ["'"$serverIp:5000"'"]
+  }' > /etc/docker/daemon.json
+
   systemctl restart docker
 fi
 
