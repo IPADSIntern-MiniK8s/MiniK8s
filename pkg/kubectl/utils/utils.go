@@ -3,7 +3,7 @@ package ctlutils
 import (
 	"fmt"
 	"github.com/tidwall/gjson"
-	"minik8s/utils"
+	"minik8s/config"
 	"strings"
 )
 
@@ -16,7 +16,7 @@ func ParseUrlFromJson(_json []byte) string {
 	kind := strings.ToLower(gjson.Get(string(_json), "kind").String())
 	namespace := gjson.Get(string(_json), "metadata.namespace")
 
-	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss", utils.ApiServerIp, namespace, kind)
+	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss", config.ApiServerIp, namespace, kind)
 	return url
 }
 
@@ -29,7 +29,7 @@ func ParseUrlMany(kind string, ns string) string {
 	} else {
 		namespace = ns
 	}
-	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss", utils.ApiServerIp, namespace, kind)
+	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss", config.ApiServerIp, namespace, kind)
 	return url
 }
 
@@ -41,6 +41,6 @@ func ParseUrlOne(kind string, name string, ns string) string {
 	} else {
 		namespace = ns
 	}
-	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss/%s", utils.ApiServerIp, namespace, kind, name)
+	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%ss/%s", config.ApiServerIp, namespace, kind, name)
 	return url
 }

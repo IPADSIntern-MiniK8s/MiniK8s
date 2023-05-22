@@ -8,6 +8,7 @@ package kubeproxy
 */
 
 import (
+	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeproxy/ipvs"
 	"minik8s/utils"
@@ -56,8 +57,8 @@ func (p proxyServiceHandler) HandleUpdate(message []byte) {
 
 }
 
-func (p proxyServiceHandler) GetType() utils.ObjType {
-	return utils.SERVICE
+func (p proxyServiceHandler) GetType() config.ObjType {
+	return config.SERVICE
 }
 
 /* ========== Start Endpoint Handler ========== */
@@ -86,8 +87,8 @@ func (e proxyEndpointHandler) HandleUpdate(message []byte) {
 
 }
 
-func (e proxyEndpointHandler) GetType() utils.ObjType {
-	return utils.ENDPOINT
+func (e proxyEndpointHandler) GetType() config.ObjType {
+	return config.ENDPOINT
 }
 
 //func HandleServiceChange(message string) {

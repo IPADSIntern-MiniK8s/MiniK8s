@@ -2,6 +2,7 @@ package apiobject
 
 import (
 	"encoding/json"
+	"minik8s/config"
 	"minik8s/pkg/apiobject/utils"
 )
 
@@ -45,16 +46,16 @@ type HorizontalPodAutoscaler struct {
 
 type HorizontalPodAutoscalerSpec struct {
 	ScaleTargetRef CrossVersionObjectReference      `json:"scaleTargetRef"`
-	MinReplicas    *int32                           `json:"minReplicas,omitempty"`
+	MinReplicas    int32                            `json:"minReplicas,omitempty"`
 	MaxReplicas    int32                            `json:"maxReplicas"`
 	Metrics        []MetricSpec                     `json:"metrics,omitempty"`
 	Behavior       *HorizontalPodAutoscalerBehavior `json:"behavior,omitempty"`
 }
 
 type CrossVersionObjectReference struct {
-	Kind       string `json:"kind"`
-	Name       string `json:"name"`
-	APIVersion string `json:"apiVersion,omitempty"`
+	Kind       config.ObjType `json:"kind"`
+	Name       string         `json:"name"`
+	APIVersion string         `json:"apiVersion,omitempty"`
 }
 
 type MetricSpec struct {
@@ -82,7 +83,7 @@ type MetricTarget struct {
 	Type MetricTargetType `json:"type"`
 	// value is the target value of the metric (as a quantity).
 	// +optional
-	Value *utils.Quantity `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+	Value *utils.Quantity `json:"value,omitempty"`
 	// averageValue is the target value of the average of the
 	// metric across all relevant pods (as a quantity)
 	// +optional
@@ -226,7 +227,7 @@ type HorizontalPodAutoscalerStatus struct {
 	// lastScaleTime is the last time the HorizontalPodAutoscaler scaled the number of pods,
 	// used by the autoscaler to control how often the number of pods is changed.
 	// +optional
-	LastScaleTime *utils.Time `json:"lastScaleTime,omitempty"`
+	LastScaleTime utils.Time `json:"lastScaleTime,omitempty"`
 
 	// currentReplicas is current number of replicas of pods managed by this autoscaler,
 	// as last seen by the autoscaler.
