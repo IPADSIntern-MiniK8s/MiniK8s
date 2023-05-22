@@ -30,15 +30,23 @@ func (r rsReplicaHandler) HandleCreate(message []byte) {
 	rs := &apiobject.ReplicationController{}
 	rs.UnMarshalJSON(message)
 
+	var expectReplica int32
+	// check if the rs is controlled
+	if rs.Status.OwnerReference.Controller == true {
+		expectReplica = rs.Status.Scale
+	} else {
+		expectReplica = rs.Spec.Replicas
+	}
+
 	// 1. traverse the pod list to find the pod fits the selector and add owner reference to them
-	rest := createFromPodList(rs, rs.Spec.Replicas)
+	rest := createFromPodList(rs, expectReplica)
 
 	// 2. if the number is less than the required number, create new pods according to the template
 	if rest > 0 {
 		createFromTemplate(rs.Spec.Template, rest, rs.Data.Name, rs.Data.Namespace)
 	}
 
-	rs.Status.Replicas = rs.Spec.Replicas
+	rs.Status.Replicas = expectReplica
 	utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
 
 	log.Info("[rs controller] Create replicaset. Name:", rs.Data.Name)
