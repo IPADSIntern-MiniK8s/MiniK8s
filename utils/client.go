@@ -103,11 +103,20 @@ func GetObject(ty ObjType, ns string, name string) string {
 	log.Info("[get obj]", name)
 	//GET /api/v1/pods
 	var url string
-	if name == "" {
-		url = fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s", ApiServerIp, ns, ty)
+	if ns != "nil" {
+		if name == "" {
+			url = fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s", ApiServerIp, ns, ty)
+		} else {
+			url = fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s", ApiServerIp, ns, ty, name)
+		}
 	} else {
-		url = fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s", ApiServerIp, ns, ty, name)
+		if name == "" {
+			url = fmt.Sprintf("http://%s/api/v1/%s", ApiServerIp, ty)
+		} else {
+			url = fmt.Sprintf("http://%s/api/v1/%s/%s", ApiServerIp, ty, name)
+		}
 	}
+
 	var str []byte
 	if info, err := SendRequest("GET", str, url); err != nil {
 		log.Error("get object ", info)
