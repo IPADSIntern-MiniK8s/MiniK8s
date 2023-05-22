@@ -7,10 +7,12 @@ require (
 	github.com/containerd/containerd v1.7.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/gin-gonic/gin v1.9.0
+	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/websocket v1.5.0
 	github.com/liushuochen/gotable v0.0.0-20221119160816-1113793e7092
 	github.com/mqliang/libipvs v0.0.0-20230109035226-02d9e44c145f
 	github.com/opencontainers/runtime-spec v1.1.0-rc.1
+	github.com/robfig/cron v1.2.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.15.0
@@ -67,7 +69,6 @@ require (
 	github.com/opencontainers/selinux v1.11.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/robfig/cron v1.2.0 // indirect
 	github.com/spf13/afero v1.9.3 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
