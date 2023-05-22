@@ -32,7 +32,7 @@ func TestContainer(t *testing.T) {
 	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
 	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
 	time.Sleep(time.Second * 2)
-	client, err := NewClient(spec.ContainerNamespace)
+	client, err := utils.NewClient(spec.ContainerNamespace)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -111,7 +111,7 @@ func TestRemoveContainer(t *testing.T) {
 	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
 	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
 	time.Sleep(time.Second * 2)
-	client, err := NewClient(spec.ContainerNamespace)
+	client, err := utils.NewClient(spec.ContainerNamespace)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -154,31 +154,15 @@ func TestRemoveContainer(t *testing.T) {
 		t.Fatalf("remove container failed")
 	}
 	time.Sleep(time.Second)
-	client, err = NewClient(spec.ContainerNamespace)
+	client, err = utils.NewClient(spec.ContainerNamespace)
 	containers, _ = client.Containers(ctx)
 	if len(containers) > 0 {
 		t.Fatalf("rm container failed,%v:%v", c.ID(), GetContainerStatus(ctx, c))
 	}
 }
 
-func TestPadImageName(t *testing.T) {
-	answer := "docker.io/library/ubuntu:latest"
-	if PadImageName("ubuntu") != answer {
-		t.Fatalf("pad image name wrong")
-	}
-	if PadImageName("ubuntu:latest") != answer {
-		t.Fatalf("pad image name wrong")
-	}
-	if PadImageName("docker.io/library/ubuntu") != answer {
-		t.Fatalf("pad image name wrong")
-	}
-	if PadImageName(answer) != answer {
-		t.Fatalf("pad image name wrong")
-	}
-}
-
 func TestGetContainerStatus(t *testing.T) {
-	client, err := NewClient("testpod18")
+	client, err := utils.NewClient("test")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -194,7 +178,7 @@ func TestGetContainerStatus(t *testing.T) {
 }
 
 func TestRemoveOneContainer(t *testing.T) {
-	client, err := NewClient("testpod1")
+	client, err := utils.NewClient("testpod1")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -210,7 +194,7 @@ func TestRemoveOneContainer(t *testing.T) {
 }
 
 func TestContainerFilter(t *testing.T) {
-	client, err := NewClient("default")
+	client, err := utils.NewClient("default")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -225,7 +209,7 @@ func TestContainerFilter(t *testing.T) {
 }
 
 func TestContainerMetric(t *testing.T) {
-	client, err := NewClient("default")
+	client, err := utils.NewClient("default")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -289,7 +273,25 @@ func TestContainerMetric(t *testing.T) {
 		preCPU = data.CPU.Usage.Total
 		preTime = curTime
 		time.Sleep(time.Second)
-
+	}
+}
+func TestUseLocalImage(t *testing.T) {
+	ctx := context.Background()
+	spec := ContainerSpec{
+		Image:              "master:5000/gpu-server:latest",
+		Name:               "test-local-image",
+		ContainerNamespace: "default",
+		Mounts: map[string]string{
+			"/home/test_mount": "/root/test_mount",
+		},
+		CmdLine: []string{"sleep", "100"}, //test_cpu test_memory
+	}
+	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
+	//time.Sleep(time.Second * 2)
+	container := CreateContainer(ctx, spec)
+	if container == nil {
+		t.Fatalf("create container failed")
 	}
 
 }

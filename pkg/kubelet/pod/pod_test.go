@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"minik8s/pkg/apiobject"
-	"minik8s/pkg/kubelet/container"
 	"minik8s/pkg/kubelet/utils"
 	"testing"
 	"time"
@@ -92,7 +91,7 @@ func TestPod(t *testing.T) {
 		t.Fatalf("delete pod failed")
 	}
 	time.Sleep(time.Second)
-	client, err := container.NewClient(namespace)
+	client, err := utils.NewClient(namespace)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -192,7 +191,7 @@ func TestPodCommunication(t *testing.T) {
 		t.Fatalf("delete pod failed")
 	}
 	time.Sleep(time.Second)
-	client, err := container.NewClient(namespace)
+	client, err := utils.NewClient(namespace)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

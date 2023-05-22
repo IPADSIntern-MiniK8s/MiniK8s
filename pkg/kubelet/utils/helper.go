@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"github.com/containerd/containerd"
 	"os/exec"
 	"strings"
 )
@@ -26,4 +27,8 @@ func GetInfo(namespace, containerName, fields string) (string, error) {
 	}
 	//remove the last \n
 	return output[:len(output)-1], nil
+}
+
+func NewClient(namespace string) (*containerd.Client, error) {
+	return containerd.New("/run/containerd/containerd.sock", containerd.WithDefaultNamespace(namespace))
 }

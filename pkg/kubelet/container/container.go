@@ -6,6 +6,8 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/oci"
+	"minik8s/pkg/kubelet/image"
+	"minik8s/pkg/kubelet/utils"
 	"syscall"
 )
 
@@ -23,19 +25,18 @@ type ContainerSpec struct {
 
 func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Container {
 	//must add tag and host
-	client, err := NewClient(spec.ContainerNamespace)
+	client, err := utils.NewClient(spec.ContainerNamespace)
 	if err != nil {
 		fmt.Println("new client failed")
 		return nil
 	}
 
-	image, err := client.Pull(ctx, PadImageName(spec.Image), containerd.WithPullUnpack)
-	if err != nil {
-		fmt.Println(err.Error())
+	im := image.EnsureImage(spec.ContainerNamespace, client, spec.Image)
+	if im == nil {
+		fmt.Println("get image failed")
 		return nil
 	}
-	//fmt.Println("pull image success")
-	opts := []oci.SpecOpts{oci.WithImageConfig(image), GenerateHostnameSpec(spec.Name)}
+	opts := []oci.SpecOpts{oci.WithImageConfig(im), GenerateHostnameSpec(spec.Name)}
 	if spec.Mounts != nil && len(spec.Mounts) > 0 {
 		opts = append(opts, GenerateMountSpec(spec.Mounts))
 	}
@@ -58,8 +59,8 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	}
 	newContainer, err := client.NewContainer(
 		ctx,
-		spec.Name, //container name
-		containerd.WithNewSnapshot(spec.Name, image), //rootfs?
+		spec.Name,                                 //container name
+		containerd.WithNewSnapshot(spec.Name, im), //rootfs?
 		containerd.WithNewSpec(opts...),
 	)
 	if err != nil {
