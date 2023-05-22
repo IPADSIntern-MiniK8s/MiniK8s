@@ -67,6 +67,9 @@ type PodTemplateSpec struct {
 type ReplicationControllerStatus struct {
 	// Replicas is the number of actual replicas.
 	Replicas int32 `json:"replicas"`
+	// Used for replica controlled by HPA
+	Scale          int32          `json:"scale"`
+	OwnerReference OwnerReference `json:"ownerReference,omitempty"`
 }
 
 func (r *ReplicationController) UnMarshalJSON(data []byte) error {

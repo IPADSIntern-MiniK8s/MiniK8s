@@ -3,6 +3,7 @@ package pod
 import (
 	"context"
 	"fmt"
+	"github.com/containerd/containerd"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubelet/container"
 	"minik8s/pkg/kubelet/utils"
@@ -220,6 +221,9 @@ func generateContainerName(containerName string, podName string, isPause bool) s
 	}
 	return fmt.Sprintf("%s-%s", podName, containerName)
 }
+func belongsToPod(containerName, podName string) bool {
+	return strings.HasPrefix(containerName, podName)
+}
 
 func addCoreDns(path, apiserverAddr string) bool {
 	originalData, err := os.ReadFile(path)
@@ -237,4 +241,20 @@ func addCoreDns(path, apiserverAddr string) bool {
 		return false
 	}
 	return true
+}
+
+func GetPodMetrics(namespace, podName string) *apiobject.PodMetrics {
+	client, err := utils.NewClient(namespace)
+	if err != nil {
+		return nil
+	}
+	ctx := context.Background()
+	containers, err := client.Containers(ctx)
+	cs := make([]containerd.Container, 0, 0)
+	for _, c := range containers {
+		if belongsToPod(c.ID(), podName) {
+			cs = append(cs, c)
+		}
+	}
+	return container.GetContainersMetrics(cs)
 }

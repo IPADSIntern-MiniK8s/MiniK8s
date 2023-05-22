@@ -3,11 +3,9 @@ package container
 import (
 	"context"
 	"fmt"
-	v1 "github.com/containerd/cgroups/stats/v1"
 	"github.com/containerd/containerd"
-	"github.com/gogo/protobuf/proto"
+	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubelet/utils"
-	"reflect"
 	"testing"
 	"time"
 )
@@ -221,58 +219,14 @@ func TestContainerMetric(t *testing.T) {
 	if len(containers) == 0 {
 		return
 	}
-	c := containers[0]
-	fmt.Println(c.ID())
-	task, err := c.Task(ctx, nil)
-	if err != nil {
-		t.Fatalf(err.Error())
+	metrics := GetContainersMetrics(containers)
+	if metrics == nil {
+		t.Fatalf("get metrics failed")
 	}
-	fmt.Println(task.Pid())
-	var data v1.Metrics
-	var v interface{}
-
-	var preTime time.Time
-	var curTime time.Time
-	var preCPU uint64 = 0
-	var curCPU uint64 = 0
-	for i := 0; i < 5; i++ {
-		metrics, err := task.Metrics(ctx)
-		if err != nil {
-			continue
-		}
-		curTime = time.Now()
-
-		//can not use Unmarshall, strange
-		//fmt.Println(typeurl.UnmarshalAny(metrics.Data))
-		//fmt.Println(typeurl.UnmarshalByTypeURL(metrics.Data.TypeUrl, metrics.Data.Value))
-		v = reflect.New(reflect.TypeOf(data)).Interface()
-		err = proto.Unmarshal(metrics.Data.Value, v.(proto.Message))
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		switch value := v.(type) {
-		case *v1.Metrics:
-			data = *value
-		default:
-			return
-		}
-		if preCPU == 0 {
-			preTime = curTime
-			preCPU = data.CPU.Usage.Total
-			continue
-		}
-
-		fmt.Println("memory:", data.Memory.Usage.Usage)
-		fmt.Println("CPU:", data.CPU.Usage.Total)
-		curCPU = data.CPU.Usage.Total
-		cpuDelta := curCPU - preCPU
-
-		timeDelta := curTime.Sub(preTime)
-		cpuPercent := float64(cpuDelta) / float64(timeDelta.Nanoseconds()) * 100.0
-		fmt.Println("cpuPercent:", cpuPercent)
-		preCPU = data.CPU.Usage.Total
-		preTime = curTime
-		time.Sleep(time.Second)
+	for _, mi := range metrics.Containers {
+		fmt.Println(mi.Name)
+		fmt.Println(mi.Usage[apiobject.ResourceCPU])
+		fmt.Println(mi.Usage[apiobject.ResourceMemory])
 	}
 }
 func TestUseLocalImage(t *testing.T) {
@@ -293,5 +247,4 @@ func TestUseLocalImage(t *testing.T) {
 	if container == nil {
 		t.Fatalf("create container failed")
 	}
-
 }

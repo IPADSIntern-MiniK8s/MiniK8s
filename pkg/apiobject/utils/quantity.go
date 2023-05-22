@@ -12,4 +12,4 @@ cpu  ： k8s的1000 = cpu的一个核
 
 	同理 1024MI /1024 = 1G
 */
-type Quantity int
+type Quantity uint64

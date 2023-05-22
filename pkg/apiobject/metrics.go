@@ -83,3 +83,25 @@ func (p *PodMetrics) UnMarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+func (n *NodeMetrics) MarshalJSON() ([]byte, error) {
+	type Alias NodeMetrics
+	return json.Marshal(&struct {
+		*Alias
+	}{
+		Alias: (*Alias)(n),
+	})
+}
+
+func (n *NodeMetrics) UnMarshalJSON(data []byte) error {
+	type Alias NodeMetrics
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(n),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	return nil
+}

@@ -55,7 +55,7 @@ func Run(config Config) {
 	headers.Set("X-Source", "scheduler")
 
 	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial("ws://"+utils.ApiServerIp+"/api/v1/watch/pods", headers)
+	conn, _, err := dialer.Dial("ws://"+config.ApiServerIp+"/api/v1/watch/pods", headers)
 	if err != nil {
 		log.Error("[Run] scheduler websocket connect fail")
 		return
@@ -64,7 +64,7 @@ func Run(config Config) {
 
 	// create http client for ask api server
 	httpMethod := "GET"
-	httpUrl := "http://" + utils.ApiServerIp + "/api/v1/nodes"
+	httpUrl := "http://" + config.ApiServerIp + "/api/v1/nodes"
 
 	// keep reading from websocket
 	for {
