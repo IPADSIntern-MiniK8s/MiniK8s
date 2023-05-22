@@ -183,6 +183,7 @@ func GetContainersMetrics(cs []containerd.Container) *apiobject.PodMetrics {
 	for _, c := range cs {
 		task, err := c.Task(ctx, nil)
 		if err != nil {
+			fmt.Println(err.Error())
 			return nil
 		}
 		collection.tasks = append(collection.tasks, task)
