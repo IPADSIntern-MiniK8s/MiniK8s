@@ -207,7 +207,7 @@ func TestContainerFilter(t *testing.T) {
 }
 
 func TestContainerMetric(t *testing.T) {
-	client, err := utils.NewClient("default")
+	client, err := utils.NewClient("test-metrics")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -247,4 +247,6 @@ func TestUseLocalImage(t *testing.T) {
 	if container == nil {
 		t.Fatalf("create container failed")
 	}
+	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
 }
