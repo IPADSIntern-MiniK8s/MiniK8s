@@ -2,10 +2,9 @@ package eventfilter
 
 import (
 	"fmt"
+	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/serverless/activator"
-	"minik8s/utils"
-
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
@@ -16,7 +15,7 @@ import (
 
 func Sync(target string) {
 	// 建立WebSocket连接
-	url := fmt.Sprintf("ws://%s/api/v1/watch/%s", utils.ApiServerIp, target)
+	url := fmt.Sprintf("ws://%s/api/v1/watch/%s", config.ApiServerIp, target)
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		fmt.Println("WebSocket connect fail", err)

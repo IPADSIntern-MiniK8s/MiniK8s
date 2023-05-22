@@ -182,7 +182,7 @@ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ser
 输出结果：`172.17.0.3`
 - 测试
 ```shell
-curl -X POST -H "Content-Type: application/json" -d '{"x": 3, "y": 5}' http://172.17.0.3:8081/
+curl -v -X POST -H "Content-Type: application/json" -d '{"x": 3, "y": 5}' http://172.17.0.3:8081/
 ```
 
 ### 具体实现
@@ -194,7 +194,60 @@ curl -X POST -H "Content-Type: application/json" -d '{"x": 3, "y": 5}' http://17
 2. http trigger
 用户发送`http trigger`的请求，`apiserver`会将请求转发给`serverless`，`serverless`会查找是否有合适的pod，向对应的pod发送请求，如果没有合适的pod，首先修改replicaSet的replica数量，当合适的pod被创建以后，向pod发送请求
 
-
+3. replicaset的标准格式，假定对应的function名称为`test`
+```txt
+{
+   "kind": "ReplicaSet",
+   "apiVersion": "apps/v1",
+   "metadata": {
+         "name": "test",
+         "namespace": "serverless"
+   },
+   "spec": {
+         "replicas": 0,
+         "selector": {
+            "app": "test"
+         },
+         "template": {
+            "metadata": {
+               "name": "test",
+               "namespace": "serverless",
+               "labels": {
+                     "app": "test"
+               }
+            },
+            "spec": {
+               "containers": [
+                     {
+                        "name": "test",
+                        "image": "master:5000/test:latest",
+                        "resources": {
+                           "limits": {},
+                           "requests": {}
+                        },
+                        "ports": [
+                           {
+                                 "containerPort": 8081,
+                                 "name": "p1",
+                                 "protocol": "TCP"
+                           }
+                        ]
+                     }
+               ]
+            }
+         }
+   },
+   "status": {
+         "replicas": 0,
+         "scale": 0,
+         "ownerReference": {
+            "kind": "functions",
+            "name": "test"
+            "controller": true,
+         }
+   }
+}
+```
 > 注意事项：
 > 1. serverless对应的pod和replicaSet的名称是一致的，并且都在`serverless`的命名空间下
 > 2. serverless对应的pod和replicaSet的名称是`function`的名称，所以`function`的名称不能重复

@@ -159,7 +159,7 @@ func (e *EtcdStorage) Watch(ctx context.Context, key string, callback func(strin
 func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData interface{}) error {
 	for {
 		// Get the current version of the data to update
-
+		var existingData interface{}
 		resp, err := e.client.Get(ctx, key)
 		if err != nil {
 			return err
@@ -167,6 +167,10 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 		if resp.Kvs == nil || len(resp.Kvs) == 0 {
 			return fmt.Errorf("key not found: %s", key)
 		}
+		if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+			return err
+		}
+
 
 		// Compare the current data to the new data to see if an update is needed
 		if existingData == newData {

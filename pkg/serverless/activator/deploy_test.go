@@ -29,3 +29,6 @@ func TestGenerateReplicaSet(t *testing.T) {
 
 	t.Logf("replicaSet: %s", replicaJson)
 }
+
+
+

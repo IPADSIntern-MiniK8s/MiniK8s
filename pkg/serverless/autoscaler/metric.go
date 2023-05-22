@@ -3,6 +3,7 @@ package autoscaler
 import (
 	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
+	"minik8s/config"
 	"minik8s/utils"
 	"time"
 )
@@ -10,7 +11,7 @@ import (
 // query the pod ips of the replicaSet
 func QueryPodIps() (map[string][]string, error) {
 	// find all the pods of the replicaSet
-	podUrl := "http://" + utils.ApiServerIp + "/api/v1/namespaces/serverless/pods"
+	podUrl := "http://" + config.ApiServerIp + "/api/v1/namespaces/serverless/pods"
 	response, err := utils.SendRequest("GET", nil, podUrl)
 	if err != nil {
 		log.Error("[QueryPodIps] error getting pods: ", err)
@@ -41,7 +42,7 @@ func QueryPodIps() (map[string][]string, error) {
 func PeriodicMetric(timeInterval int) {
 	for {
 		// get all replicas
-		replicaUrl := "http://" + utils.ApiServerIp + "/api/v1/namespaces/serverless/replicas"
+		replicaUrl := "http://" + config.ApiServerIp + "/api/v1/namespaces/serverless/replicas"
 		response, err := utils.SendRequest("GET", nil, replicaUrl)
 		if err != nil {
 			log.Error("[PeriodicMetric] error getting replicas: ", err)
@@ -79,11 +80,11 @@ func PeriodicMetric(timeInterval int) {
 			} else {
 				// if the call times is 0, scale to zero
 				// scale according to the call times
-				replica.Spec.Replicas = record.CallCount
+				replica.Status.Scale = record.CallCount
 				
 				// update the replicaset
-				if replica.Spec.Replicas != replica.Status.Replicas {
-					replicaUrl := "http://" + utils.ApiServerIp + "/api/v1/namespaces/serverless/replicas/" + replica.Data.Name + "/update"
+				if replica.Status.Scale != replica.Status.Replicas {
+					replicaUrl := "http://" + config.ApiServerIp + "/api/v1/namespaces/serverless/replicas/" + replica.Data.Name + "/update"
 					replicaJson, err := replica.MarshalJSON()
 					if err != nil {
 						log.Error("[PeriodicMetric] error marshalling replicas: ", err)

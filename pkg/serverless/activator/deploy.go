@@ -3,6 +3,7 @@ package activator
 import (
 	"bytes"
 	"errors"
+	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/controller"
 	"minik8s/pkg/serverless/autoscaler"
@@ -15,7 +16,7 @@ import (
 )
 
 const retryTimes = 3
-const serverIp = "192.168.1.13"
+const serverIp = "master"
 
 
 
@@ -36,6 +37,9 @@ func GenerateReplicaSet(name string, namespace string, image string, replicas in
 				Data: apiobject.MetaData{
 					Name:      name,
 					Namespace: namespace,
+					Labels: map[string]string {
+						"app": name,
+					},
 				}, 
 				Spec: apiobject.PodSpec {
 					Containers: []apiobject.Container {
@@ -52,6 +56,15 @@ func GenerateReplicaSet(name string, namespace string, image string, replicas in
 						},
 					},
 				},
+			},
+		},
+		Status: apiobject.ReplicationControllerStatus {
+			Replicas: 0,
+			Scale: 0,
+			OwnerReference: apiobject.OwnerReference {
+				Kind: config.FUNCTION,
+				Name: name,
+				Controller: true,
 			},
 		},
 	}
@@ -72,7 +85,7 @@ func getPodIpList(pods []*apiobject.Pod) []string {
 // return the pod ips
 func CheckPrepare(name string) ([]string, error) {
 	// 1. find the according replicaSet
-	replicaUrl := "http://" + utils.ApiServerIp + "/api/v1/namespaces/serverless/replicas/" + name
+	replicaUrl := "http://" + config.ApiServerIp + "/api/v1/namespaces/serverless/replicas/" + name
 	response, err := utils.SendRequest("GET", nil, replicaUrl)
 	if err != nil {
 		log.Error("[CheckPrepare] error getting replicas: ", err)
@@ -102,8 +115,8 @@ func CheckPrepare(name string) ([]string, error) {
 					pods := controller.GetPodListFromRS(replicaSet)
 					if len(pods) == 0 {
 						// deployed it now
-						replicaSet.Spec.Replicas = 1
-						utils.UpdateObject(replicaSet, utils.REPLICA, replicaSet.Data.Namespace, replicaSet.Data.Name)
+						replicaSet.Status.Scale = 1
+						utils.UpdateObject(replicaSet, config.REPLICA, replicaSet.Data.Namespace, replicaSet.Data.Name)
 					} else {
 						// generate the pod ip list
 						podIps := getPodIpList(pods)
@@ -125,7 +138,7 @@ func CheckPrepare(name string) ([]string, error) {
 							// if the call count is larger than the threshold, scale up
 							if record.CallCount > record.Replicas {
 								replicaSet.Status.Scale = record.CallCount + 1
-								utils.UpdateObject(replicaSet, utils.REPLICA, replicaSet.Data.Namespace, replicaSet.Data.Name)
+								utils.UpdateObject(replicaSet, config.REPLICA, replicaSet.Data.Namespace, replicaSet.Data.Name)
 							} else {
 								autoscaler.RecordMutex.Unlock()
 								return podIps, nil
@@ -182,7 +195,7 @@ func InitFunc(name string, path string) error {
 	}
 	autoscaler.RecordMutex.Unlock()
 
-	utils.CreateObject(replicaSet, utils.REPLICA, replicaSet.Data.Namespace)
+	utils.CreateObject(replicaSet, config.REPLICA, replicaSet.Data.Namespace)
 	return nil
 }
 
@@ -260,7 +273,7 @@ func TriggerFunc(name string, params []byte) ([]byte, error) {
 func DeleteFunc(name string) error {
 	// TODO: how to delete replicaset?
 	// 1. delete the replicaset
-	replicaUrl := "http://" + utils.ApiServerIp + "/api/v1/namespaces/serverless/replicas/" + name
+	replicaUrl := "http://" + config.ApiServerIp + "/api/v1/namespaces/serverless/replicas/" + name
 	_, err := utils.SendRequest("DELETE", nil, replicaUrl)
 	if err != nil {
 		log.Error("[DeleteFunc] delete replicas error: ", err)

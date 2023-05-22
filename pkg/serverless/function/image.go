@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-const serverIp = "192.168.1.13"
+const serverIp = "localhost"
 
 // CreateImage to create image for function
 func CreateImage(path string, name string) error {
@@ -63,17 +63,10 @@ func CreateImage(path string, name string) error {
 func SaveImage(name string) error {
 	// 1. tag the image
 	imageName := serverIp + ":5000/" + name + ":latest"
-	tag  := "serverless/" + name
-	cmd := exec.Command("docker", "tag", tag, imageName)
-	err := cmd.Run()
-	if err != nil {
-		log.Error("[SaveImage] tag image error: ", err)
-		return err
-	}
-
+	
 	// 2. push the image into the registry
-	cmd = exec.Command("docker", "push", imageName)
-	err = cmd.Run()
+	cmd := exec.Command("docker", "push", imageName)
+	err := cmd.Run()
 	if err != nil {
 		log.Error("[SaveImage] push image error: ", err)
 		return err
@@ -85,7 +78,7 @@ func SaveImage(name string) error {
 
 // DeleteImage to delete image for function
 func DeleteImage(name string) error {
-	imageName := "localhost:5000/" + name + ":latest"
+	imageName := serverIp + ":5000/" + name + ":latest"
 	cmd := exec.Command("docker", "rmi", imageName)
 	err := cmd.Run()
 	if err != nil {

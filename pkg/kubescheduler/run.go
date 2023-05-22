@@ -6,6 +6,7 @@ import (
 	"minik8s/pkg/apiobject"
 	filter2 "minik8s/pkg/kubescheduler/filter"
 	"minik8s/pkg/kubescheduler/policy"
+	config2 "minik8s/config"
 	"minik8s/utils"
 	"net/http"
 )
@@ -55,7 +56,7 @@ func Run(config Config) {
 	headers.Set("X-Source", "scheduler")
 
 	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial("ws://"+config.ApiServerIp+"/api/v1/watch/pods", headers)
+	conn, _, err := dialer.Dial("ws://"+config2.ApiServerIp+"/api/v1/watch/pods", headers)
 	if err != nil {
 		log.Error("[Run] scheduler websocket connect fail")
 		return
@@ -64,7 +65,7 @@ func Run(config Config) {
 
 	// create http client for ask api server
 	httpMethod := "GET"
-	httpUrl := "http://" + config.ApiServerIp + "/api/v1/nodes"
+	httpUrl := "http://" + config2.ApiServerIp + "/api/v1/nodes"
 
 	// keep reading from websocket
 	for {

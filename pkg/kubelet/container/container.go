@@ -40,6 +40,7 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 		fmt.Println(err.Error())
 		return nil
 	}
+	
 	//fmt.Println("pull image success")
 	opts := []oci.SpecOpts{oci.WithImageConfig(image), GenerateHostnameSpec(spec.Name)}
 	if spec.Mounts != nil && len(spec.Mounts) > 0 {
