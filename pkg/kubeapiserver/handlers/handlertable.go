@@ -24,15 +24,28 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/endpoints/:name", Method: "DELETE", Handler: DeleteEndpointHandler},     // DELETE, delete a endpoint
 	{Path: "api/v1/namespaces/:namespace/endpoints/:name/update", Method: "POST", Handler: UpdateEndpointHandler}, // POST, update a endpoint
 
-	{Path: "api/v1/dns", Method: "POST", Handler: CreateDNSRecordHandler},              // POST, create a dns
-	{Path: "api/v1/dns/:name", Method: "GET", Handler: GetDNSRecordHandler},            // GET, get a dns
-	{Path: "api/v1/dns", Method: "GET", Handler: GetDNSRecordsHandler},                 // GET, list all dns records
-	{Path: "api/v1/dns/:name", Method: "DELETE", Handler: DeleteDNSRecordHandler},      // DELETE, delete a dns record
-	{Path: "api/v1/dns/:name/update", Method: "POST", Handler: UpdateDNSRecordHandler}, // POST, update a dns record
+	{Path: "/api/v1/dns", Method: "POST", Handler: CreateDNSRecordHandler},              // POST, create a dns
+	{Path: "/api/v1/dns/:name", Method: "GET", Handler: GetDNSRecordHandler},            // GET, get a dns
+	{Path: "/api/v1/dns", Method: "GET", Handler: GetDNSRecordsHandler},                 // GET, list all dns records
+	{Path: "/api/v1/dns/:name", Method: "DELETE", Handler: DeleteDNSRecordHandler},      // DELETE, delete a dns record
+	{Path: "/api/v1/dns/:name/update", Method: "POST", Handler: UpdateDNSRecordHandler}, // POST, update a dns record
 
 	{Path: "/api/v1/namespaces/:namespace/replicas", Method: "POST", Handler: CreateReplicaHandler},             // POST, create a replica
 	{Path: "/api/v1/namespaces/:namespace/replicas/:name", Method: "GET", Handler: GetReplicaHandler},           // GET, get a replica
 	{Path: "/api/v1/namespaces/:namespace/replicas", Method: "GET", Handler: GetReplicasHandler},                // GET, list all replicas
 	{Path: "/api/v1/namespaces/:namespace/replicas/:name", Method: "DELETE", Handler: DeleteReplicaHandler},     // DELETE, delete a replica
 	{Path: "api/v1/namespaces/:namespace/replicas/:name/update", Method: "POST", Handler: UpdateReplicaHandler}, // POST, update a replica
+
+
+	{Path: "/api/v1/functions", Method: "POST", Handler: UploadFunctionHandler},        						// POST, create a function
+	{Path: "/api/v1/functions/:name", Method: "GET", Handler: GetFunctionHandler},      						// GET, get a function
+	{Path: "/api/v1/functions/:name", Method: "DELETE", Handler: DeleteFunctionHandler}, 						// DELETE, delete a function
+	{Path: "/api/v1/functions/:name/update", Method: "POST", Handler: UpdateFunctionHandler}, 					// POST, update a function
+
+	{Path: "/api/v1/namespaces/:namespace/hpas", Method: "POST", Handler: CreateHpaHandler},             	// POST, create a hpa
+	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "GET", Handler: GetHpaHandler},           	// GET, get a hpa
+	{Path: "/api/v1/namespaces/:namespace/hpas", Method: "GET", Handler: GetHpasHandler},                	// GET, list all hpas
+	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "DELETE", Handler: DeleteHpaHandler},     	// DELETE, delete a hpa
+	{Path: "api/v1/namespaces/:namespace/hpas/:name/update", Method: "POST", Handler: UpdateHpaHandler}, 	// POST, update a hpa
+	{Path: "api/v1/hpas", Method: "GET", Handler: GetAllHpaHandler}, 										// GET, get all hpas
 }

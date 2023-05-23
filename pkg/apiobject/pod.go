@@ -117,7 +117,7 @@ type Volume struct {
 }
 
 type PodStatus struct {
-	Phase          PhaseLabel     `json:"phase,omitempty""`
+	Phase          PhaseLabel     `json:"phase,omitempty"`
 	HostIp         string         `json:"hostIP,omitempty"`
 	PodIp          string         `json:"podIP,omitempty"`
 	OwnerReference OwnerReference `json:"ownerReference,omitempty"`
@@ -133,8 +133,13 @@ type PhaseLabel string
 
 const (
 	Pending     PhaseLabel = "Pending"
+<<<<<<< HEAD
 	Scheduled   PhaseLabel = "Scheduled"
 	Running     PhaseLabel = "Running"
+=======
+	Running     PhaseLabel = "Scheduled"
+	Succeeded   PhaseLabel = "Running"
+>>>>>>> d4d01195022ee03bc1ce1730af9714606c203e3f
 	Failed      PhaseLabel = "Failed"
 	Finished    PhaseLabel = "Finished"
 	Terminating PhaseLabel = "Terminating"
