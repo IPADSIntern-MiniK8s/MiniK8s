@@ -176,3 +176,15 @@ func (p *Pod) UnMarshalJsonList(data []byte) ([]Pod, error) {
 	}
 	return pods, nil
 }
+
+func (p *Pod) Union(other *Pod) {
+	if p.Status.Phase == "" {
+		p.Status.Phase = other.Status.Phase
+	}
+	if p.Status.HostIp == "" {
+		p.Status.HostIp = other.Status.HostIp
+	}
+	if p.Status.PodIp == "" {
+		p.Status.PodIp = other.Status.PodIp
+	}
+}

@@ -43,6 +43,7 @@ spec:
 	      emptyDir: {} # 数据卷类型
 */
 type ReplicationController struct {
+	Kind       string                      `json:"kind,omitempty"`
 	APIVersion string                      `json:"apiVersion,omitempty"`
 	Data       MetaData                    `json:"metadata"`
 	Spec       ReplicationControllerSpec   `json:"spec,omitempty"`
@@ -92,4 +93,20 @@ func (r *ReplicationController) MarshalJSON() ([]byte, error) {
 	}{
 		Alias: (*Alias)(r),
 	})
+}
+
+
+func (r *ReplicationController) Union(other *ReplicationController) {
+	if r.Status.Replicas == 0 {
+		r.Status.Replicas = other.Status.Replicas
+	}
+}
+
+
+func (r *ReplicationController) UnMarshalJSONList(data []byte) ([]ReplicationController, error) {
+	var list []ReplicationController
+	if err := json.Unmarshal(data, &list); err != nil {
+		return nil, err
+	}
+	return list, nil
 }

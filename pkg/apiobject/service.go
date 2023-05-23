@@ -141,3 +141,12 @@ func (s *Service) MarshalJSON() ([]byte, error) {
 		Alias: (*Alias)(s),
 	})
 }
+
+func (s *Service) Union(other *Service) {
+	if s.Status.Phase == "" {
+		s.Status.Phase = other.Status.Phase
+	}
+	if s.Status.ClusterIP == "" {
+		s.Status.ClusterIP = other.Status.ClusterIP
+	}
+}

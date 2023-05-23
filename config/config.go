@@ -13,4 +13,5 @@ const (
 	ENDPOINT ObjType = "endpoints"
 	REPLICA  ObjType = "replicas"
 	HPA      ObjType = "hpas"
+	FUNCTION ObjType = "functions"
 )
