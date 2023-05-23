@@ -5,9 +5,7 @@ import (
 	"minik8s/pkg/serverless/eventfilter"
 )
 
-
-
 func Run() {
-	go eventfilter.Sync("functions")
+	eventfilter.FunctionSync("functions")
 	go autoscaler.PeriodicMetric(10)
 }

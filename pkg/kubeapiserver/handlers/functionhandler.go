@@ -78,8 +78,24 @@ func UploadFunctionHandler(c *gin.Context) {
 	}
 
 	// 4. create the image for the function through watch
+	handler, ok := watch.WatchTable["function"]
+	if !ok {
+		// watch table error
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "no according function handler",
+		})
+		return
+	}
 
-	c.JSON(http.StatusOK, function)
+	response, err := handler.Read()
+	if err != nil {
+		// read response error
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+	}
+
+	c.JSON(http.StatusOK, string(response))
 }
 	
 

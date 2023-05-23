@@ -8,12 +8,16 @@ import (
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/serverless/activator"
+	"net/http"
 )
 
-func Sync(target string) {
+func FunctionSync(target string) {
 	// 建立WebSocket连接
 	url := fmt.Sprintf("ws://%s/api/v1/watch/%s", config.ApiServerIp, target)
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	log.Info("[FunctionSync] url: ", url)
+	headers := http.Header{}
+	headers.Set("X-Source", "function")
+	conn, _, err := websocket.DefaultDialer.Dial(url, headers)
 	if err != nil {
 		fmt.Println("WebSocket connect fail", err)
 		return
@@ -23,6 +27,7 @@ func Sync(target string) {
 	defer conn.Close()
 
 	// 不断地接收消息并处理
+	log.Info("[FunctionSync] start to receive user message")
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -34,24 +39,24 @@ func Sync(target string) {
 		}
 		fmt.Printf("[client %s] %s\n", target, message)
 
-		op := gjson.Get(string(message), "metadata.resourcesVersion")
+		op := gjson.Get(string(message), "status")
 		// function trigger
-		if op.Exists() {
-			go FunctionTriggerHandler(message, conn)
+		if !op.Exists() {
+			FunctionTriggerHandler(message, conn)
 			continue
 		}
 		switch op.String() {
 		case "create":
 			{
-				go FuntionCreateHandler(message, conn)
+				FuntionCreateHandler(message, conn)
 			}
 		case "delete":
 			{
-				go FunctionDeleteHandler(message, conn)
+				FunctionDeleteHandler(message, conn)
 			}
 		case "update":
 			{
-				go FunctionUpdateHandler(message, conn)
+				FunctionUpdateHandler(message, conn)
 			}
 		}
 	}

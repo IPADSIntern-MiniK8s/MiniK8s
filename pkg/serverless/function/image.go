@@ -3,8 +3,8 @@ package function
 import (
 	log "github.com/sirupsen/logrus"
 	"io"
-	"os/exec"
 	"os"
+	"os/exec"
 )
 
 const serverIp = "localhost"
@@ -20,13 +20,13 @@ func CreateImage(path string, name string) error {
 	}
 	defer srcFile.Close()
 
-	dstFile, err := os.OpenFile("../imagedata/func.py", os.O_RDWR | os.O_CREATE | os.O_TRUNC, 0666)
+	dstFile, err := os.OpenFile("/home/mini-k8s/pkg/serverless/imagedata/func.py", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		log.Error("[CreateImage] open dst file error: ", err)
 		return err
 	}
 	defer dstFile.Close()
-	
+
 	_, err = io.Copy(dstFile, srcFile)
 	if err != nil {
 		log.Error("[CreateImage] copy file error: ", err)
@@ -42,7 +42,7 @@ func CreateImage(path string, name string) error {
 		return err
 	}
 
-	cmd = exec.Command("docker", "tag", name, serverIp + ":5000/" + name + ":latest")
+	cmd = exec.Command("docker", "tag", name, serverIp+":5000/"+name+":latest")
 	err = cmd.Run()
 	if err != nil {
 		log.Error("[CreateImage] tag image error: ", err)
@@ -63,7 +63,7 @@ func CreateImage(path string, name string) error {
 func SaveImage(name string) error {
 	// 1. tag the image
 	imageName := serverIp + ":5000/" + name + ":latest"
-	
+
 	// 2. push the image into the registry
 	cmd := exec.Command("docker", "push", imageName)
 	err := cmd.Run()
@@ -71,10 +71,9 @@ func SaveImage(name string) error {
 		log.Error("[SaveImage] push image error: ", err)
 		return err
 	}
-	
+
 	return nil
 }
-
 
 // DeleteImage to delete image for function
 func DeleteImage(name string) error {
@@ -88,12 +87,11 @@ func DeleteImage(name string) error {
 	return nil
 }
 
-
 // RunImage to run image for function
 // TODO: need change to containerd
 func RunImage(name string) error {
 	// 1. run the image
-	cmd := exec.Command("docker", "run", "-d", "--name", name, "localhost:5000/" + name + ":latest")
+	cmd := exec.Command("docker", "run", "-d", "--name", name, "localhost:5000/"+name+":latest")
 	err := cmd.Run()
 	if err != nil {
 		log.Error("[RunImage] run image error: ", err)

@@ -8,12 +8,15 @@ import (
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/serverless/workflow"
+	"net/http"
 )
 
 func WorkFlowSync(target string) {
 	// establish WebSocket connection
 	url := fmt.Sprintf("ws://%s/api/v1/watch/%s", config.ApiServerIp, target)
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	headers := http.Header{}
+	headers.Set("X-Source", "workflow")
+	conn, _, err := websocket.DefaultDialer.Dial(url, headers)
 	if err != nil {
 		fmt.Println("WebSocket connect fail", err)
 		return
@@ -33,13 +36,12 @@ func WorkFlowSync(target string) {
 			continue
 		}
 		fmt.Printf("[client %s] %s\n", target, message)
-		
+
 		workFlow := gjson.Get(string(message), "workFlow")
 		if !workFlow.Exists() {
 			conn.WriteMessage(websocket.TextMessage, []byte("the workFlow is not exist"))
 		}
 		workFlowStr := workFlow.String()
-
 
 		params := gjson.Get(string(message), "params")
 		if !params.Exists() {
@@ -49,8 +51,7 @@ func WorkFlowSync(target string) {
 
 		go WorkFlowTriggerHandler([]byte(workFlowStr), []byte(paramsStr), conn)
 	}
-} 
-
+}
 
 func WorkFlowTriggerHandler(workFlow []byte, paramsStr []byte, conn *websocket.Conn) {
 	// parse the workFlow
@@ -67,4 +68,3 @@ func WorkFlowTriggerHandler(workFlow []byte, paramsStr []byte, conn *websocket.C
 	}
 	conn.WriteMessage(websocket.TextMessage, result)
 }
-	

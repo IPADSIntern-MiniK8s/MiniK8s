@@ -15,55 +15,57 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const retryTimes = 3
+const retryTimes = 10
 const serverIp = "master"
 
-
-
 func GenerateReplicaSet(name string, namespace string, image string, replicas int32) *apiobject.ReplicationController {
-	return &apiobject.ReplicationController {
+	return &apiobject.ReplicationController{
 		Kind:       "ReplicaSet",
 		APIVersion: "apps/v1",
 		Data: apiobject.MetaData{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: apiobject.ReplicationControllerSpec {
+		Spec: apiobject.ReplicationControllerSpec{
 			Replicas: replicas,
-			Selector: map[string]string {
+			Selector: map[string]string{
 				"app": name,
 			},
-			Template: &apiobject.PodTemplateSpec {
+			Template: &apiobject.PodTemplateSpec{
 				Data: apiobject.MetaData{
 					Name:      name,
 					Namespace: namespace,
-					Labels: map[string]string {
+					Labels: map[string]string{
 						"app": name,
 					},
-				}, 
-				Spec: apiobject.PodSpec {
-					Containers: []apiobject.Container {
+				},
+				Spec: apiobject.PodSpec{
+					Containers: []apiobject.Container{
 						{
 							Name:  name,
 							Image: image,
-							Ports: []apiobject.Port {
+							Ports: []apiobject.Port{
 								{
 									ContainerPort: 8081,
-									Name: "p1",
-									Protocol: "TCP",
+									Name:          "p1",
+									Protocol:      "TCP",
 								},
+							},
+							Command: []string{
+								"python3",
+								"server.py",
 							},
 						},
 					},
 				},
 			},
 		},
-		Status: apiobject.ReplicationControllerStatus {
+		Status: apiobject.ReplicationControllerStatus{
 			Replicas: 0,
-			Scale: 0,
-			OwnerReference: apiobject.OwnerReference {
-				Kind: config.FUNCTION,
-				Name: name,
+			Scale:    0,
+			OwnerReference: apiobject.OwnerReference{
+				Kind:       config.FUNCTION,
+				Name:       name,
 				Controller: true,
 			},
 		},
@@ -72,8 +74,13 @@ func GenerateReplicaSet(name string, namespace string, image string, replicas in
 
 func getPodIpList(pods []*apiobject.Pod) []string {
 	result := make([]string, 0)
+	if pods == nil {
+		return result
+	}
 	for _, pod := range pods {
-		result = append(result, pod.Status.PodIp)
+		if pod.Status.Phase != apiobject.Pending && pod.Status.PodIp != "" {
+			result = append(result, pod.Status.PodIp)
+		}
 	}
 	return result
 }
@@ -102,31 +109,31 @@ func CheckPrepare(name string) ([]string, error) {
 	// retry for 3 times
 	retry := retryTimes
 	for retry > 0 {
-		timer := time.NewTimer(10 * time.Minute)
+		timer := time.NewTimer(1 * time.Minute)
 		deployed := false
 
 		for {
 			select {
-			case <- timer.C:
+			case <-timer.C:
 				break
 			default:
 				if !deployed {
 					// the first time, check if the function is deployed
 					pods := controller.GetPodListFromRS(replicaSet)
-					if len(pods) == 0 {
+					// generate the pod ip list
+					podIps := getPodIpList(pods)
+					if len(podIps) == 0 {
 						// deployed it now
 						replicaSet.Status.Scale = 1
 						utils.UpdateObject(replicaSet, config.REPLICA, replicaSet.Data.Namespace, replicaSet.Data.Name)
 					} else {
-						// generate the pod ip list
-						podIps := getPodIpList(pods)
 						autoscaler.RecordMutex.Lock()
-						record:= autoscaler.GetRecord(name)
+						record := autoscaler.GetRecord(name)
 						if record == nil {
-							autoscaler.RecordMap[name] = &autoscaler.Record {
-								Name : name,
-								Replicas: replicaSet.Status.Replicas,
-								PodIps: make(map[string]int32),
+							autoscaler.RecordMap[name] = &autoscaler.Record{
+								Name:      name,
+								Replicas:  replicaSet.Status.Scale,
+								PodIps:    make(map[string]int32),
 								CallCount: 1,
 							}
 							autoscaler.RecordMutex.Unlock()
@@ -146,6 +153,7 @@ func CheckPrepare(name string) ([]string, error) {
 						}
 						autoscaler.RecordMutex.Unlock()
 					}
+					deployed = true
 				} else {
 					// check whether the function is deployed and the replica number is correct
 					pods := controller.GetPodListFromRS(replicaSet)
@@ -154,26 +162,31 @@ func CheckPrepare(name string) ([]string, error) {
 					autoscaler.RecordMutex.RUnlock()
 					if record == nil {
 						return nil, errors.New("record not found")
-					} 
-					
-					if int32(len(pods)) == record.Replicas {
+					}
+
+					if int32(len(pods)) >= record.Replicas {
+						// update the replica count
+						record.Replicas = int32(len(pods))
+						autoscaler.RecordMutex.Lock()
+						autoscaler.RecordMap[name] = record
+						autoscaler.RecordMutex.Unlock()
+
 						podsIp := getPodIpList(pods)
 						return podsIp, nil
 					}
 				}
 
-				time.Sleep(3 * time.Second)
+				time.Sleep(5 * time.Second)
 			}
 			retry--
 		}
 	}
-	
+
 	// get the current pod ip list and return
 	pods := controller.GetPodListFromRS(replicaSet)
 	podsIp := getPodIpList(pods)
 	return podsIp, nil
 }
-
 
 // InitFunc init the function, initialize the replicaSet and generate the image
 func InitFunc(name string, path string) error {
@@ -185,12 +198,12 @@ func InitFunc(name string, path string) error {
 	ImageName := serverIp + ":5000/" + name + ":latest"
 	replicaSet := GenerateReplicaSet(name, "serverless", ImageName, 0)
 
-	// create the record 
+	// create the record
 	autoscaler.RecordMutex.Lock()
-	autoscaler.RecordMap[name] = &autoscaler.Record {
-		Name : name,
-		Replicas: 0,
-		PodIps: make(map[string]int32),
+	autoscaler.RecordMap[name] = &autoscaler.Record{
+		Name:      name,
+		Replicas:  0,
+		PodIps:    make(map[string]int32),
 		CallCount: 0,
 	}
 	autoscaler.RecordMutex.Unlock()
@@ -198,7 +211,6 @@ func InitFunc(name string, path string) error {
 	utils.CreateObject(replicaSet, config.REPLICA, replicaSet.Data.Namespace)
 	return nil
 }
-
 
 // LoadBalance choose a pod ip to trigger the function
 func LoadBalance(name string, podIps []string) (string, error) {
@@ -211,7 +223,7 @@ func LoadBalance(name string, podIps []string) (string, error) {
 	record := autoscaler.GetRecord(name)
 	autoscaler.RecordMutex.RUnlock()
 
-	if record == nil { 
+	if record == nil {
 		log.Error("[LoadBalance] record not found")
 		return "", errors.New("record not found")
 	}
@@ -234,10 +246,9 @@ func LoadBalance(name string, podIps []string) (string, error) {
 	autoscaler.RecordMutex.Lock()
 	autoscaler.RecordMap[name] = record
 	autoscaler.RecordMutex.Unlock()
-	
+
 	return chosenPodIp, nil
 }
-
 
 // TriggerFunc trigger the function with some parameters
 // if the function is not deployed, deploy it first
@@ -264,10 +275,9 @@ func TriggerFunc(name string, params []byte) ([]byte, error) {
 		log.Error("[TriggerFunc] send request error: ", err)
 		return nil, err
 	}
-	
+
 	return result, err
 }
-
 
 // DeleteFunc delete the function
 func DeleteFunc(name string) error {

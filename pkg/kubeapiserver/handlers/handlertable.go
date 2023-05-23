@@ -36,16 +36,16 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/replicas/:name", Method: "DELETE", Handler: DeleteReplicaHandler},     // DELETE, delete a replica
 	{Path: "api/v1/namespaces/:namespace/replicas/:name/update", Method: "POST", Handler: UpdateReplicaHandler}, // POST, update a replica
 
+	{Path: "/api/v1/functions", Method: "POST", Handler: UploadFunctionHandler},                // POST, create a function
+	{Path: "/api/v1/functions/:name", Method: "GET", Handler: GetFunctionHandler},              // GET, get a function
+	{Path: "/api/v1/functions/:name", Method: "DELETE", Handler: DeleteFunctionHandler},        // DELETE, delete a function
+	{Path: "/api/v1/functions/:name/update", Method: "POST", Handler: UpdateFunctionHandler},   // POST, update a function
+	{Path: "/api/v1/functions/:name/trigger", Method: "POST", Handler: TriggerFunctionHandler}, // POST, trigger a function
 
-	{Path: "/api/v1/functions", Method: "POST", Handler: UploadFunctionHandler},        						// POST, create a function
-	{Path: "/api/v1/functions/:name", Method: "GET", Handler: GetFunctionHandler},      						// GET, get a function
-	{Path: "/api/v1/functions/:name", Method: "DELETE", Handler: DeleteFunctionHandler}, 						// DELETE, delete a function
-	{Path: "/api/v1/functions/:name/update", Method: "POST", Handler: UpdateFunctionHandler}, 					// POST, update a function
-
-	{Path: "/api/v1/namespaces/:namespace/hpas", Method: "POST", Handler: CreateHpaHandler},             	// POST, create a hpa
-	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "GET", Handler: GetHpaHandler},           	// GET, get a hpa
-	{Path: "/api/v1/namespaces/:namespace/hpas", Method: "GET", Handler: GetHpasHandler},                	// GET, list all hpas
-	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "DELETE", Handler: DeleteHpaHandler},     	// DELETE, delete a hpa
-	{Path: "api/v1/namespaces/:namespace/hpas/:name/update", Method: "POST", Handler: UpdateHpaHandler}, 	// POST, update a hpa
-	{Path: "api/v1/hpas", Method: "GET", Handler: GetAllHpaHandler}, 										// GET, get all hpas
+	{Path: "/api/v1/namespaces/:namespace/hpas", Method: "POST", Handler: CreateHpaHandler},             // POST, create a hpa
+	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "GET", Handler: GetHpaHandler},           // GET, get a hpa
+	{Path: "/api/v1/namespaces/:namespace/hpas", Method: "GET", Handler: GetHpasHandler},                // GET, list all hpas
+	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "DELETE", Handler: DeleteHpaHandler},     // DELETE, delete a hpa
+	{Path: "api/v1/namespaces/:namespace/hpas/:name/update", Method: "POST", Handler: UpdateHpaHandler}, // POST, update a hpa
+	{Path: "api/v1/hpas", Method: "GET", Handler: GetAllHpaHandler},                                     // GET, get all hpas
 }

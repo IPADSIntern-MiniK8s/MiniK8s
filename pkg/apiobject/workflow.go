@@ -108,6 +108,7 @@ type WorkFlow struct {
 	APIVersion 	string `json:"apiVersion,omitempty"`
 
 	Name 		string `json:"name"`
+	Status 		VersionLabel `json:"status,omitempty"`
 	StartAt 	string `json:"startAt"`
 
 	States 		map[string]State `json:"states"`
