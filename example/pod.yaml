@@ -6,14 +6,20 @@ metadata:
     app: pod-practice
 spec:
   containers:
-    - name: fileserver
-      image: hejingkai/fileserver:latest
+    - name: server
+      image: docker.io/mcastelino/nettools
       ports:
         - name: p1 # 端口名称
           containerPort: 8080  # 容器端口
+      command:
+        - /root/test_mount/test_network
+      env:
+        - name: port
+          value: '8080'
       volumeMounts:
-        - name: download
+        - name: data
           mountPath: /usr/share/files
-  volumes: # 定义数据卷
-    - name: download # 数据卷名称
-      emptyDir: {} # 数据卷类型
+  volumes:
+    - name: data
+      hostPath:
+        path: /data
