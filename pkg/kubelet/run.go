@@ -2,6 +2,7 @@ package kubelet
 
 import (
 	"fmt"
+	"minik8s/config"
 	"time"
 )
 
@@ -13,8 +14,9 @@ type Config struct {
 	ListenAddr    string //localhost:10250
 }
 
-func Run(config Config) {
-	kl := NewKubelet(config)
+func Run(c Config) {
+	config.ApiServerIp = c.ApiserverAddr
+	kl := NewKubelet(c)
 	kl.register()
 	time.Sleep(time.Second * 5)
 	go kl.watchPod()
