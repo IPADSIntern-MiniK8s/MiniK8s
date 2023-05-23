@@ -249,6 +249,7 @@ func TestPodMetrics(t *testing.T) {
 	if !success {
 		t.Fatalf("create pod failed")
 	}
+	defer DeletePod(pod)
 	time.Sleep(time.Second)
 	metrics := GetPodMetrics(namespace, podName)
 	if metrics == nil {
@@ -267,5 +268,4 @@ func TestPodMetrics(t *testing.T) {
 			}
 		}
 	}
-	DeletePod(pod)
 }
