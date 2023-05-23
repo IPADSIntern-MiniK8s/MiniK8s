@@ -24,8 +24,8 @@ spec:
               value: '8080'
           volumeMounts:
             - name: data
-              mountPath: /usr/share/files
+              mountPath: /root/test_mount
       volumes:
         - name: data
           hostPath:
-            path: /data
+            path: /home/test_mount

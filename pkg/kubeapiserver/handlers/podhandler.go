@@ -83,7 +83,7 @@ func keepSchedule(podKey string, nodes []apiobject.Node) {
 			continue
 		}
 
-		if pod.Status.Phase != apiobject.Running {
+		if pod.Status.Phase != apiobject.Scheduled {
 			break
 		}
 
@@ -164,7 +164,7 @@ func CreatePodHandler(c *gin.Context) {
 	//		if ok && node.Status.Addresses != nil && len(node.Status.Addresses) != 0 {
 	//			// TODO: the message format should be defined later
 	//			log.Info("[CreatePod] choose the node")
-	//			pod.Status.Phase = apiobject.Running
+	//			pod.Status.Phase = apiobject.Scheduled
 	//			pod.Status.HostIp = node.Status.Addresses[0].Address
 	//			jsonBytes, err := pod.MarshalJSON()
 	//			err = watcher.Write(jsonBytes)
@@ -210,7 +210,7 @@ func CreatePodHandler(c *gin.Context) {
 		// for convenience, api server take the duty of binding the pod to the node
 		err = bind(pod, &selectedNodes[0])
 		// change to running status
-		pod.Status.Phase = apiobject.Running
+		pod.Status.Phase = apiobject.Scheduled
 		if err != nil {
 			log.Error("[CreatePodHandler] bind the pod to the node failed")
 		}
@@ -297,7 +297,7 @@ func DeletePodHandler(c *gin.Context) {
 		return
 	}
 
-	if pod.Status.Phase == apiobject.Running {
+	if pod.Status.Phase == apiobject.Scheduled {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "the pod is running, can not delete"})
 		return
 	}

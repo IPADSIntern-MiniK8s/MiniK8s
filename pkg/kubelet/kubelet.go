@@ -1,9 +1,9 @@
 package kubelet
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubelet/metricsserver"
 	kubeletPod "minik8s/pkg/kubelet/pod"
@@ -70,35 +70,33 @@ func (kl *Kubelet) watchPod() {
 		panic(err)
 	}
 	defer conn.Close()
-	var pod apiobject.Pod
 	for {
+		pod := &apiobject.Pod{}
 		_, msgjson, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
-
-		json.Unmarshal(msgjson, &pod)
-		fmt.Println(pod.Status.Phase)
+		pod.UnMarshalJSON(msgjson)
 		if pod.Status.HostIp != kl.IP {
 			continue
 		}
 		switch pod.Status.Phase {
-		case apiobject.Running:
+		case apiobject.Scheduled:
 			{
-				success, ip := kubeletPod.CreatePod(pod, kl.ApiserverAddr)
+				success, ip := kubeletPod.CreatePod(*pod, kl.ApiserverAddr)
 				fmt.Println(success)
 				if !success {
 					continue
 				}
 
 				pod.Status.PodIp = ip
-				pod.Status.Phase = apiobject.Succeeded
+				pod.Status.Phase = apiobject.Running
 				break
 			}
 		case apiobject.Terminating:
 			{
-				success := kubeletPod.DeletePod(pod)
+				success := kubeletPod.DeletePod(*pod)
 				if !success {
 					continue
 				}
@@ -108,13 +106,13 @@ func (kl *Kubelet) watchPod() {
 		default:
 			continue
 		}
-		//utils.UpdateObject(&pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
+		utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
 		//time.Sleep(time.Millisecond * 200)
-		podjson, err := pod.MarshalJSON()
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", kl.ApiserverAddr, pod.Data.Namespace, pod.Data.Name))
+		//podjson, err := pod.MarshalJSON()
+		//if err != nil {
+		//	fmt.Println(err)
+		//	continue
+		//}
+		//utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", kl.ApiserverAddr, pod.Data.Namespace, pod.Data.Name))
 	}
 }

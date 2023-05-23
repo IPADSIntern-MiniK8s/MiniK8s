@@ -3,7 +3,7 @@ kind: Pod
 metadata:
   name: pod-practice
   labels:
-    app: pod-practice
+    app: replica-practice
 spec:
   containers:
     - name: server
@@ -12,14 +12,14 @@ spec:
         - name: p1 # 端口名称
           containerPort: 8080  # 容器端口
       command:
-        - /root/test_mount/test_network
+        - /root/test_mount/simple_http_server
       env:
         - name: port
           value: '8080'
       volumeMounts:
         - name: data
-          mountPath: /usr/share/files
+          mountPath: /root/test_mount
   volumes:
     - name: data
       hostPath:
-        path: /data
+        path: /home/test_mount
