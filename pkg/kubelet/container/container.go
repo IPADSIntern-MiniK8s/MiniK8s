@@ -10,6 +10,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/apiobject/utils"
+	"minik8s/pkg/kubelet/image"
+	kubeletutils "minik8s/pkg/kubelet/utils"
 	"reflect"
 	"syscall"
 	"time"
@@ -29,20 +31,18 @@ type ContainerSpec struct {
 
 func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Container {
 	//must add tag and host
-	client, err := NewClient(spec.ContainerNamespace)
+	client, err := kubeletutils.NewClient(spec.ContainerNamespace)
 	if err != nil {
 		fmt.Println("new client failed")
 		return nil
 	}
 
-	image, err := client.Pull(ctx, PadImageName(spec.Image), containerd.WithPullUnpack)
-	if err != nil {
-		fmt.Println(err.Error())
+	im := image.EnsureImage(spec.ContainerNamespace, client, spec.Image)
+	if im == nil {
+		fmt.Println("get image failed")
 		return nil
 	}
-	
-	//fmt.Println("pull image success")
-	opts := []oci.SpecOpts{oci.WithImageConfig(image), GenerateHostnameSpec(spec.Name)}
+	opts := []oci.SpecOpts{oci.WithImageConfig(im), GenerateHostnameSpec(spec.Name)}
 	if spec.Mounts != nil && len(spec.Mounts) > 0 {
 		opts = append(opts, GenerateMountSpec(spec.Mounts))
 	}
@@ -66,7 +66,7 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 	newContainer, err := client.NewContainer(
 		ctx,
 		spec.Name, //container name
-		containerd.WithNewSnapshot(spec.Name, image), //rootfs?
+		containerd.WithNewSnapshot(spec.Name, im), //rootfs?
 		containerd.WithNewSpec(opts...),
 	)
 	if err != nil {
@@ -183,6 +183,7 @@ func GetContainersMetrics(cs []containerd.Container) *apiobject.PodMetrics {
 	for _, c := range cs {
 		task, err := c.Task(ctx, nil)
 		if err != nil {
+			fmt.Println(err.Error())
 			return nil
 		}
 		collection.tasks = append(collection.tasks, task)
@@ -231,6 +232,8 @@ func GetContainersMetrics(cs []containerd.Container) *apiobject.PodMetrics {
 				time.Sleep(podMetrics.Window.Duration)
 				continue
 			}
+			collection.memorys[ti] += data.Memory.Usage.Usage
+			collection.memorys[ti] /= 2
 
 			//fmt.Println("memory:", data.Memory.Usage.Usage)
 			//fmt.Println("CPU:", data.CPU.Usage.Total)
