@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
+	"minik8s/pkg/kubeapiserver/watch"
 	"net/http"
 )
 var functionStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
@@ -189,4 +190,69 @@ func UpdateFunctionHandler(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, function)
+}
+
+
+// TriggerFunctionHandler the url format is POST /api/v1/functions/:name/trigger
+// the body is the parameters of the function
+func TriggerFunctionHandler(c *gin.Context) {
+	// 1. parse the request to get the function object
+	name := c.Param("name")
+
+	// 2. check whether the function exists
+	key := "/registry/functions/" + name
+	var function apiobject.Function
+	err := functionStorageTool.Get(context.Background(), key, &function)
+	if err != nil {
+		// get function error
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// 3. trigger the function
+	handler, ok := watch.WatchTable["function"]
+	if !ok {
+		// watch table error
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "no according handler",
+		})
+		return
+	}
+
+	params, err := c.GetRawData()
+
+	// the request format for trigger function is {"name": "function name", "params": "function params"}
+	request := `{"name": "` + name + `", "params": "` + string(params) + `"}`
+	log.Info("[TriggerFunctionHandler] request: ", request)
+	if err != nil {
+		// get raw data error
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// 3.1 send the function trigger request to the handler
+	err = handler.Write([]byte(request))
+	if err != nil {
+		// send request error
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// wait for the result
+	response, err := handler.Read()
+	if err != nil {
+		// read response error
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
 }
