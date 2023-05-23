@@ -232,6 +232,8 @@ func GetContainersMetrics(cs []containerd.Container) *apiobject.PodMetrics {
 				time.Sleep(podMetrics.Window.Duration)
 				continue
 			}
+			collection.memorys[ti] += data.Memory.Usage.Usage
+			collection.memorys[ti] /= 2
 
 			//fmt.Println("memory:", data.Memory.Usage.Usage)
 			//fmt.Println("CPU:", data.CPU.Usage.Total)
