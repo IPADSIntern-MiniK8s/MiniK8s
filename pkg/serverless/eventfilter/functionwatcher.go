@@ -2,16 +2,13 @@ package eventfilter
 
 import (
 	"fmt"
-	"minik8s/config"
-	"minik8s/pkg/apiobject"
-	"minik8s/pkg/serverless/activator"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
+	"minik8s/config"
+	"minik8s/pkg/apiobject"
+	"minik8s/pkg/serverless/activator"
 )
-
-
-
 
 func Sync(target string) {
 	// 建立WebSocket连接
@@ -42,7 +39,7 @@ func Sync(target string) {
 		if op.Exists() {
 			go FunctionTriggerHandler(message, conn)
 			continue
-		} 
+		}
 		switch op.String() {
 		case "create":
 			{
@@ -65,11 +62,11 @@ func FuntionCreateHandler(message []byte, conn *websocket.Conn) {
 	function := &apiobject.Function{}
 	function.UnMarshalJSON(message)
 	log.Info("[FuntionCreateHandler] function: ", function)
-	
+
 	// check the parameters
 	if function.Name == "" {
 		conn.WriteMessage(websocket.TextMessage, []byte("function name is empty"))
-		return 
+		return
 	}
 
 	if function.Path == "" {
@@ -84,8 +81,7 @@ func FuntionCreateHandler(message []byte, conn *websocket.Conn) {
 	}
 }
 
-
-// the trigger format: {"name": "function name", "params": "function params"}
+// FunctionTriggerHandler the trigger format: {"name": "function name", "params": "function params"}
 func FunctionTriggerHandler(message []byte, conn *websocket.Conn) {
 	nameField := gjson.Get(string(message), "name")
 	if !nameField.Exists() {
@@ -110,7 +106,6 @@ func FunctionTriggerHandler(message []byte, conn *websocket.Conn) {
 	conn.WriteMessage(websocket.TextMessage, result)
 }
 
-
 func FunctionDeleteHandler(message []byte, conn *websocket.Conn) {
 	function := &apiobject.Function{}
 	function.UnMarshalJSON(message)
@@ -119,7 +114,7 @@ func FunctionDeleteHandler(message []byte, conn *websocket.Conn) {
 	// check the parameters
 	if function.Name == "" {
 		conn.WriteMessage(websocket.TextMessage, []byte("function name is empty"))
-		return 
+		return
 	}
 
 	err := activator.DeleteFunc(function.Name)
@@ -150,4 +145,3 @@ func FunctionUpdateHandler(message []byte, conn *websocket.Conn) {
 		conn.WriteMessage(websocket.TextMessage, []byte("function update success"))
 	}
 }
-

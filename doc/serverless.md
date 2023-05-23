@@ -15,7 +15,7 @@ Activator 是 Knative 中的另一个组件，用于处理请求的激活和暂�
 ### 实现
 1. 在`apiobject`中增加`function`抽象
 2. 当`apiserver`接收到`function`注册的请求以后，会使用相应的代码文件制作镜像
-3. `apiserver`会将镜像推送到`registry`中, 于此同时，`apiserver`会将`function`的信息存储到`etcd`中
+3. `apiserver`会将镜像推送到`registry`中, 于此同时，`apiserver`会将`function`的信息存储到`etcd`
 
 ### 坏境搭建
 #### docker registry
@@ -251,6 +251,125 @@ curl -v -X POST -H "Content-Type: application/json" -d '{"x": 3, "y": 5}' http:/
 > 注意事项：
 > 1. serverless对应的pod和replicaSet的名称是一致的，并且都在`serverless`的命名空间下
 > 2. serverless对应的pod和replicaSet的名称是`function`的名称，所以`function`的名称不能重复
+
+## workflow
+### 实现思路
+1. 主要参考了`AWS StepFunction`的实现思路，以下是`AWS StepFunction`的中可以参考的设计
+   - Choice
+     - 确定状态机接下来转换为什么状态。在选择规则中使用比较运算符将输入变量与特定值进行比较。例如，使用选择规则，您可以比较输入变量是否大于或小于 100。 运行Choice状态时，它会将每个 “选择规则” 评估为真或假。根据评估结果，Step Functions 会过渡到工作流中的下一个状态。
+     - 一个Choice状态必须有一个值为非空数组的Choices字段。此数组中的每个元素都是一个名为 Choice Rule 的对象，其中包含以下内容：
+       - 比较-两个字段，用于指定要比较的输入变量、比较的类型以及要将变量与之比较的值。选择规则支持两个变量之间的比较。在选择规则中，可以通过附加到支持的比较运算符的名称Path来将变量的值与状态输入中的另一个值进行比较。 
+       - Next段-此字段的值必须与状态机中的状态名称相匹配
+       - 例子：
+      ```text
+         {
+         "Variable": "$.foo",
+         "NumericEquals": 1,
+         "Next": "FirstMatchState"
+         }
+      ```
+      - 支持下列比较运算符：
+      ```
+      And
+
+      BooleanEquals,BooleanEqualsPath
+
+      IsBoolean
+
+      IsNull
+
+      IsNumeric
+
+      IsPresent
+
+      IsString
+
+      IsTimestamp
+
+      Not
+
+      NumericEquals,NumericEqualsPath
+
+      NumericGreaterThan,NumericGreaterThanPath
+
+      NumericGreaterThanEquals,NumericGreaterThanEqualsPath
+
+      NumericLessThan,NumericLessThanPath
+
+      NumericLessThanEquals,NumericLessThanEqualsPath
+
+      Or
+
+      StringEquals,StringEqualsPath
+
+      StringGreaterThan,StringGreaterThanPath
+
+      StringGreaterThanEquals,StringGreaterThanEqualsPath
+
+      StringLessThan,StringLessThanPath
+
+      StringLessThanEquals,StringLessThanEqualsPath
+
+      StringMatches
+
+      TimestampEquals,TimestampEqualsPath
+
+      TimestampGreaterThan,TimestampGreaterThanPath
+
+      TimestampGreaterThanEquals,TimestampGreaterThanEqualsPath
+
+      TimestampLessThan,TimestampLessThanPath
+
+      TimestampLessThanEquals,TimestampLessThanEqualsPath
+      ```
+   - input和output: https://docs.aws.amazon.com/zh_cn/step-functions/latest/dg/input-output-inputpath-params.html#input-output-inputpath
+   - state machine的定义格式：https://docs.aws.amazon.com/zh_cn/step-functions/latest/dg/amazon-states-language-state-machine-structure.html
+   - input和output参数举例：
+   当使用 InputPath 来选择输入参数时，可以通过提供一个 JSONPath 表达式来指定需要的参数。以下是一个示例：
+
+      假设有一个状态机，输入参数是一个包含订单信息的 JSON 对象，如下所示：
+
+      ```json
+      {
+      "orderId": "12345",
+      "items": ["item1", "item2", "item3"],
+      "customer": {
+         "name": "John Doe",
+         "email": "johndoe@example.com"
+      }
+      }
+      ```
+
+      现在，假设我们想在状态机中使用 `orderId` 和 `customer` 的值。我们可以使用 InputPath 来选择这些参数。
+
+      状态机定义可以如下所示：
+
+      ```yaml
+      States:
+      MyState:
+         Type: Pass
+         InputPath: "$.orderId, $.customer"
+         ResultPath: "$.myResult"
+         End: true
+      ```
+
+      在上述示例中，我们使用了 InputPath `"$.orderId, $.customer"`。这意味着我们选择了输入参数中的 `orderId` 和 `customer` 字段。
+
+      执行状态机后，`MyState` 状态将会被执行，并且在其执行完成后，将会生成一个结果对象，如下所示：
+
+      ```json
+      {
+      "myResult": {
+         "orderId": "12345",
+         "customer": {
+            "name": "John Doe",
+            "email": "johndoe@example.com"
+         }
+      }
+      }
+      ```
+
+      在上述结果对象中，我们可以看到 `myResult` 字段包含了我们选择的参数。
 
 
 ### 参考资料
