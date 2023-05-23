@@ -2,6 +2,7 @@ package activator
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
@@ -269,7 +270,17 @@ func TriggerFunc(name string, params []byte) ([]byte, error) {
 
 	// 3. trigger the function
 	url := "http://" + podIp + ":8081/"
+	var data interface{}
+	err = json.Unmarshal(params, &data)
+	prettyJSON, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		log.Error("[TriggerFunc] marshal params error: ", err)
+	}
+	log.Info ("[TriggerFunc] prettyJSON: ", string(prettyJSON))
+
+
 	ret, err := utils.SendRequest("POST", params, url)
+	log.Info("[TriggerFunc] ret: ", string(ret))
 	result := bytes.NewBufferString(ret).Bytes()
 	if err != nil {
 		log.Error("[TriggerFunc] send request error: ", err)

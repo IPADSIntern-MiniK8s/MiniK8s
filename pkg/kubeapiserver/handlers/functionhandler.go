@@ -2,12 +2,15 @@ package handlers
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	"encoding/json"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
 	"minik8s/pkg/kubeapiserver/watch"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
+	
 )
 var functionStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
 
@@ -240,8 +243,15 @@ func TriggerFunctionHandler(c *gin.Context) {
 	params, err := c.GetRawData()
 
 	// the request format for trigger function is {"name": "function name", "params": "function params"}
-	request := `{"name": "` + name + `", "params": "` + string(params) + `"}`
-	log.Info("[TriggerFunctionHandler] request: ", request)
+	request := struct {
+		Name   string          `json:"name"`
+		Params json.RawMessage `json:"params"`
+	}{
+		Name:   name,
+		Params: params,
+	}
+
+	reqStr, err := json.Marshal(request)
 	if err != nil {
 		// get raw data error
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -250,8 +260,10 @@ func TriggerFunctionHandler(c *gin.Context) {
 		return
 	}
 
+	log.Info("[TriggerFunctionHandler] reqStr: ", string(reqStr))
+
 	// 3.1 send the function trigger request to the handler
-	err = handler.Write([]byte(request))
+	err = handler.Write(reqStr)
 	if err != nil {
 		// send request error
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -270,5 +282,6 @@ func TriggerFunctionHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	log.Info("[TriggerFunctionHandler] response: ", string(response))
+	c.JSON(http.StatusOK, string(response))
 }

@@ -102,6 +102,7 @@ func FunctionTriggerHandler(message []byte, conn *websocket.Conn) {
 	}
 
 	params := paramsField.String()
+	log.Info("[FunctionTriggerHandler] name: ", name, ", params: ", params)
 	result, err := activator.TriggerFunc(name, []byte(params))
 	if err != nil {
 		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
