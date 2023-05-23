@@ -130,8 +130,8 @@ func GetHpasHandler(c *gin.Context) {
 
 	// 2. get the hpa information from the storage
 	key := "/registry/hpas/" + namespace
-	var hpas []*apiobject.HorizontalPodAutoscaler
-	err := hpaStorageTool.GetList(context.Background(), key, hpas)
+	var hpas []apiobject.HorizontalPodAutoscaler
+	err := hpaStorageTool.GetList(context.Background(), key, &hpas)
 	if err != nil {
 		log.Error("[GetHpasHandler] get hpa error: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -247,4 +247,19 @@ func DeleteHpaHandler(c *gin.Context) {
 
 	// 3. return the hpa object
 	c.JSON(http.StatusOK, hpa)
+}
+
+// GetAllHpaHandler the url format is GET /api/v1/hpas
+func GetAllHpaHandler(c *gin.Context) {
+	key := "/registry/hpas"
+	var hpas []apiobject.HorizontalPodAutoscaler
+	err := hpaStorageTool.GetList(context.Background(), key, &hpas)
+	if err != nil {
+		log.Error("[GetAllHpaHandler] get hpa error: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. return the hpa object
+	c.JSON(http.StatusOK, hpas)
 }

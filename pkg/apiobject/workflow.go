@@ -1,5 +1,7 @@
 package apiobject
 
+import "encoding/json"
+
 // example:
 // {
 //   "Comment": "An example of the Amazon States Language using a choice state.",
@@ -74,7 +76,7 @@ type FailState struct {
 type ChoiceState struct {
 	Type StateType `json:"type"`
 	Choices []ChoiceItem `json:"choices"`
-	Default string `json:"default"`
+	Default string `json:"default,omitempty"`
 }
 
 type ChoiceItem struct {
@@ -111,4 +113,28 @@ type WorkFlow struct {
 	States 		map[string]State `json:"states"`
 
 	Comment 	string `json:"comment,omitempty"`
+}
+
+
+func (w *WorkFlow) MarshalJSON() ([]byte, error) {
+	type Alias WorkFlow
+	return json.Marshal(&struct {
+		*Alias
+	}{
+		Alias: (*Alias)(w),
+	})
+}
+
+
+func (w *WorkFlow) UnMarshalJSON(data []byte) error {
+	type Alias WorkFlow
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(w),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	return nil
 }
