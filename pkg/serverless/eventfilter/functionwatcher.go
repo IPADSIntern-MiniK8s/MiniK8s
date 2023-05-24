@@ -42,21 +42,21 @@ func FunctionSync(target string) {
 		op := gjson.Get(string(message), "status")
 		// function trigger
 		if !op.Exists() {
-			FunctionTriggerHandler(message, conn)
+			go FunctionTriggerHandler(message, conn)
 			continue
 		}
 		switch op.String() {
 		case "create":
 			{
-				FuntionCreateHandler(message, conn)
+				go FuntionCreateHandler(message, conn)
 			}
 		case "delete":
 			{
-				FunctionDeleteHandler(message, conn)
+				go FunctionDeleteHandler(message, conn)
 			}
 		case "update":
 			{
-				FunctionUpdateHandler(message, conn)
+				go FunctionUpdateHandler(message, conn)
 			}
 		}
 	}

@@ -4,19 +4,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"math"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/serverless/activator"
 	"minik8s/utils"
-	"strings"
 	"reflect"
+	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/tidwall/gjson"
 )
 
+var epsilon = 1e-9
+
 // CheckNode check the node is valid or not by checking the function
 func CheckNode(nodeName string) bool {
-	funcUrl := "http://localhost:8080/api/v1/namespaces/serverless/functions/" + nodeName
+	funcUrl := "http://localhost:8080/api/v1/functions/" + nodeName
 	_, err :=  utils.SendRequest("GET", nil, funcUrl)
 	if err != nil {
 		return false
@@ -24,7 +28,10 @@ func CheckNode(nodeName string) bool {
 	return true
 }
 
-func parseParams(params []byte, inputPath string) ([]byte, error) {
+
+
+// ParseParams fileter the params by the inputPath or resultPath
+func ParseParams(params []byte, inputPath string) ([]byte, error) {
 	wanted := strings.Split(inputPath, ",")
 
 	filterdParams := make(map[string]interface{})
@@ -32,6 +39,7 @@ func parseParams(params []byte, inputPath string) ([]byte, error) {
 		name := elem[2:]
 		value := gjson.Get(string(params), name)
 		if !value.Exists() {
+			log.Error("[ParseParams] the params is not valid, the name is: ", name, ", the params is: ", string(params))
 			return nil, errors.New("the params is not valid")
 		}
 		filterdParams[name] = value.Value()
@@ -44,17 +52,18 @@ func parseParams(params []byte, inputPath string) ([]byte, error) {
 	return jsonData, nil
 }
 
-// hasField check the field is in the struct or not
-func hasField(obj interface{}, fieldName string) bool {
-	t := reflect.TypeOf(obj)
-	_, found := t.FieldByName(fieldName)
-	return found
+// HasField check the field is in the struct or not
+func HasField(obj interface{}, fieldName string) bool {
+	t := reflect.ValueOf(obj)
+	value := t.FieldByName(fieldName)
+	return value.Kind() == reflect.Ptr && !value.IsNil()
 }
 
 
 // isNumeric check whether the variable's type is numeric
 func isNumeric(variable interface{}) bool {
 	switch variable.(type) {
+		// actually, if use gjson to get the value, the type is float64 default
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64,	complex64, complex128:
 		return true
 	default:
@@ -72,6 +81,18 @@ func isString(variable interface{}) bool {
 	}
 }
 
+
+// replaceSingleQuotesWithDoubleQuotes: replace the single quotes with double quotes
+func replaceSingleQuotesWithDoubleQuotes(str string) string {
+	// the default string in dict is single quotes, need to replace it with double quotes
+	bytes := []byte(str)
+	for i := 0; i < len(bytes); i++ {
+		if bytes[i] == '\'' {
+			bytes[i] = '"'
+		}
+	}
+	return string(bytes)
+}
 
 func ExecuteWorkFlow(workflow *apiobject.WorkFlow, params []byte) ([]byte, error) {
 	// traverse the workflow
@@ -105,13 +126,13 @@ func ExecuteWorkFlow(workflow *apiobject.WorkFlow, params []byte) ([]byte, error
 			currentName = currentNode.(apiobject.TaskState).Next
 		}
 		case apiobject.ChoiceState: {
-			currentName, err = ExecuteChoice(currentNode.(*apiobject.ChoiceState), params)
+			currentName, err = ExecuteChoice(currentNode.(apiobject.ChoiceState), params)
 			if err != nil {
 				return nil, err
 			}
 		}
 		case apiobject.FailState: {
-			result := ExecuteFail(currentNode.(*apiobject.FailState))
+			result := ExecuteFail(currentNode.(apiobject.FailState))
 			return []byte(result), nil
 		}
 		default: {
@@ -150,7 +171,7 @@ func ExecuteTask(task apiobject.TaskState, functionName string, params []byte) (
 	inputParams := params
 	err := error(nil)
 	if task.InputPath != "" {
-		inputParams, err = parseParams(params, task.InputPath)
+		inputParams, err = ParseParams(params, task.InputPath)
 		if err != nil {
 			return nil, err
 		}
@@ -160,10 +181,16 @@ func ExecuteTask(task apiobject.TaskState, functionName string, params []byte) (
 	if err != nil {
 		return nil, err
 	}
+	
+	// python's dict is single quotes, need to replace it with double quotes
+	paramsStr := string(result)
+	paramsStr = replaceSingleQuotesWithDoubleQuotes(paramsStr)
+	result = []byte(paramsStr)
 
 	// if the ResultPath is not empty, need to parse the result to abstract the output
 	if task.ResultPath != "" {
-		result, err = parseParams(result, task.ResultPath)
+		result, err = ParseParams(result, task.ResultPath)
+
 		if err != nil {
 			return nil, err
 		}
@@ -173,63 +200,67 @@ func ExecuteTask(task apiobject.TaskState, functionName string, params []byte) (
 
 
 // ExecuteChoice TODO: need to 'AND' and 'OR' later
-func ExecuteChoice(choice *apiobject.ChoiceState, params []byte) (string, error) {
+func ExecuteChoice(choice apiobject.ChoiceState, params []byte) (string, error) {
 	// get the val of the variable
 	for _, chElem := range(choice.Choices) {
-		variable := gjson.Get(string(params), chElem.Variable)
+		variable := gjson.Get(string(params), chElem.Variable[2:])
 		if !variable.Exists() {
 			return "", errors.New("the variable is not exist")
 		}
 		value := variable.Value()
 		log.Info("[ExecuteChoice] value: ", value)
 		// judge the condition
-		if hasField(chElem, "NumericEquals") {
-			if isNumeric(value) && chElem.NumericEquals == value {
+		if HasField(chElem, "NumericEquals") {
+			val, ok := value.(float64)
+			if ok && math.Abs(float64(*chElem.NumericEquals) - val) < epsilon {
+				log.Info("[ExecuteChoice] return")
 				return chElem.Next, nil
 			}
-		} else if hasField(chElem, "StringEquals") {
-			if isString(value) && chElem.StringEquals == value {
+		} else if HasField(chElem, "StringEquals") {
+			if isString(value) && *chElem.StringEquals == value {
 				return chElem.Next, nil
 			}
-		} else if hasField(chElem, "NumericNotEquals") {	
-			if isNumeric(value) && chElem.NumericNotEquals != value {
+		} else if HasField(chElem, "NumericNotEquals") {
+			val, ok := value.(float64)
+			if ok && math.Abs(float64(*chElem.NumericNotEquals) - val) > epsilon {
 				return chElem.Next, nil
 			}
-		} else if hasField(chElem, "StringNotEquals") {
-			if isString(value) && chElem.StringNotEquals != value {
+		} else if HasField(chElem, "StringNotEquals") {
+			
+			if isString(value) && *chElem.StringNotEquals != value {
 				return chElem.Next, nil
 			}
-		} else if hasField(chElem, "NumericLessThan") {
-			val, ok := value.(int)
-			if ok && chElem.NumericLessThan > val {
+		} else if HasField(chElem, "NumericLessThan") {
+			val, ok := value.(float64)
+			if ok && float64(*chElem.NumericLessThan) > val {
 				return chElem.Next, nil
 			}
-		} else if hasField(chElem, "StringLessThan") {
+		} else if HasField(chElem, "StringLessThan") {
 			val, ok := value.(string)
-			if ok && chElem.StringLessThan > val {
+			if ok && *chElem.StringLessThan > val {
 				return chElem.Next, nil
 			}
-		} else if hasField(chElem, "NumericGreaterThan") {
-			val, ok := value.(int)
-			if ok && chElem.NumericGreaterThan < val {
+		} else if HasField(chElem, "NumericGreaterThan") {
+			val, ok := value.(float64)
+			if ok && float64(*chElem.NumericGreaterThan) < val {
 				return chElem.Next, nil
 			}
-		} else if hasField(chElem, "StringGreaterThan") {
+		} else if HasField(chElem, "StringGreaterThan") {
 			val, ok := value.(string)
-			if ok && chElem.StringGreaterThan < val {
+			if ok && *chElem.StringGreaterThan < val {
 				return chElem.Next, nil
-			}
-		} else {
-			if choice.Default != "" {
-				return choice.Default, nil
 			}
 		}
+	}
+	log.Info("[ExecuteChoice] default: ", choice.Default)
+	if choice.Default != "" {
+		return choice.Default, nil
 	}
 	return "", errors.New("the choice is not valid")
 }
 
 
-func ExecuteFail(fail *apiobject.FailState) string {
+func ExecuteFail(fail apiobject.FailState) string {
 	result := fmt.Sprintf("Fail: %s, Cause: %s", fail.Error, fail.Cause)
 	return result
 }

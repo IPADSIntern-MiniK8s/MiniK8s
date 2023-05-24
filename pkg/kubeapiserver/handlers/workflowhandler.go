@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
@@ -23,9 +24,16 @@ func updateWorkflow(workflow *apiobject.WorkFlow, key string) error {
 
 // UploadWorkflowHandler the url format is POST /api/v1/workflows
 func UploadWorkflowHandler(c *gin.Context) {
-	var workflow *apiobject.WorkFlow
-	if err := c.Bind(&workflow); err != nil {
+	var workflow = &apiobject.WorkFlow{}
+	data, err := c.GetRawData()
+	if err != nil {
 		log.Error("[UploadWorkflowHandler] parse body error: ", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	err = workflow.UnMarshalJSON(data)
+	if err != nil {
+		log.Error("[UploadWorkflowHandler] unmarshal body error: ", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -45,7 +53,7 @@ func UploadWorkflowHandler(c *gin.Context) {
 
 	// check whether it is a real create workflow request
 	var prevWorkflow apiobject.WorkFlow
-	err := workFlowStorageTool.Get(context.Background(), key, &prevWorkflow)
+	err = workFlowStorageTool.Get(context.Background(), key, &prevWorkflow)
 	if err == nil {
 		// the workflow already exists
 		err = updateWorkflow(workflow, key)
@@ -171,7 +179,7 @@ func TriggerWorkflowHandler(c *gin.Context) {
 	log.Info("[TriggerWorkflowHandler] workflowData: ", string(workflowData))
 
 	// 3. trigger the workflow
-	handler, ok := watch.WatchTable[workflow.Name]
+	handler, ok := watch.WatchTable["workflows"]
 	if !ok {
 		log.Error("[TriggerWorkflowHandler] workflow handler not found")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "workflow handler not found"})
@@ -181,11 +189,18 @@ func TriggerWorkflowHandler(c *gin.Context) {
 
 
 	// the request format for trigger function is {"name": "function name", "params": "function params"}
-	request := `{"name": "` + string(workflowData)  + `", "params": ` + string(params) + `}`
-	log.Info("[TriggerWorkflowHandler] request: ", request)
+	request := struct {
+		WorkFlow   	apiobject.WorkFlow      `json:"workflow"`
+		Params 		json.RawMessage 		`json:"params"`
+	}{
+		WorkFlow:   workflow,
+		Params: 	params,
+	}
+	
+	reqStr, err := json.Marshal(request)
 
 	// 3.1 send the workflow to the handler
-	err = handler.Write([]byte(request))
+	err = handler.Write(reqStr)
 	if err != nil {
 		log.Error("[TriggerWorkflowHandler] trigger workflow error: ", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -193,21 +208,45 @@ func TriggerWorkflowHandler(c *gin.Context) {
 	}
 
 	// 3.2 wait for the result
-	response, err := handler.Read()
-	if err != nil {
-		// read response error
-		log.Error("[TriggerWorkflowHandler] read response error: ", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, response)
+	getWatchFeedback(c, "execute:", "workflows")
 }
 
 // UpdateWorkflowHandler the url format is POST /api/v1/workflows/:name/update
 func UpdateWorkflowHandler(c *gin.Context) {
 	// 1. parse the request to get the workflow name
-	// name := c.Param("name")
+	name := c.Param("name")
+
+	var workflow = &apiobject.WorkFlow{}
+	data, err := c.GetRawData()
+	if err != nil {
+		log.Error("[UploadWorkflowHandler] parse body error: ", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	err = workflow.UnMarshalJSON(data)
+	if err != nil {
+		log.Error("[UploadWorkflowHandler] unmarshal body error: ", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	// 2. get the workflow information in the storage
+	key := "/registry/workflows/" + name
+	var prevWorkflow apiobject.WorkFlow
+	err = workFlowStorageTool.Get(context.Background(), key, &prevWorkflow)
+	if err != nil {
+		log.Error("[UpdateWorkflowHandler] get workflow error: ", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
+	// 3. update the workflow information in the storage
+	err = updateWorkflow(workflow, key)
+	if err != nil {
+		log.Error("[UpdateWorkflowHandler] update workflow error: ", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, workflow)
 }

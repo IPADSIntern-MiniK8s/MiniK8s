@@ -25,8 +25,8 @@ func updateFunction(function *apiobject.Function, key string) error {
 }
 
 // getWatchFeedback get the watch feedback
-func getWatchFeedback(c *gin.Context, prefix string) {
-	handler, ok := watch.WatchTable["function"]
+func getWatchFeedback(c *gin.Context, prefix string, name string) {
+	handler, ok := watch.WatchTable[name]
 	if !ok {
 		// watch table error
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -37,7 +37,7 @@ func getWatchFeedback(c *gin.Context, prefix string) {
 
 	for {
 		response, err := handler.Read()
-		log.Info("[UploadFunctionHandler] watch response: ", string(response))
+		log.Info("[getWatchFeedback] watch response: ", string(response))
 		if err != nil {
 			// read response error
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -46,7 +46,7 @@ func getWatchFeedback(c *gin.Context, prefix string) {
 		}
 
 		if strings.Contains(string(response), prefix) {
-			log.Info("[UploadFunctionHandler] response: ", string(response))
+			log.Info("[getWatchFeedback] response: ", string(response))
 			c.JSON(http.StatusOK, string(response))
 			break
 		}
@@ -91,7 +91,7 @@ func UploadFunctionHandler(c *gin.Context) {
 				"error": err.Error(),
 			})	
 		} else {
-			getWatchFeedback(c, "update:")
+			getWatchFeedback(c, "update:", "function")
 		}
 		return
 	}
@@ -110,7 +110,7 @@ func UploadFunctionHandler(c *gin.Context) {
 	}
 
 	// 4. create the image for the function through watch
-	getWatchFeedback(c, "create:")
+	getWatchFeedback(c, "create:", "function")
 }
 	
 
@@ -184,7 +184,7 @@ func DeleteFunctionHandler(c *gin.Context) {
 		return
 	}
 
-	getWatchFeedback(c, "delete:")
+	getWatchFeedback(c, "delete:", "function")
 }
 
 // UpdateFunctionHandler the url format is POST /api/v1/functions/:name/update
@@ -220,7 +220,7 @@ func UpdateFunctionHandler(c *gin.Context) {
 		return
 	}
 
-	getWatchFeedback(c, "update:")
+	getWatchFeedback(c, "update:", "function")
 }
 
 

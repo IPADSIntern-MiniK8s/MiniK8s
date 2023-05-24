@@ -1,0 +1,4 @@
+kind: Function
+apiVersion: app/v1
+name: GetSum
+path: /home/mini-k8s/example/serverless/add.py

@@ -6,6 +6,7 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/pods", Method: "GET", Handler: GetPodsHandler},                       // GET, list all pods
 	{Path: "/api/v1/namespaces/:namespace/pods/:name", Method: "DELETE", Handler: DeletePodHandler},            // DELETE, delete a pod
 	{Path: "/api/v1/namespaces/:namespace/pods/:name/update", Method: "POST", Handler: UpdatePodStatusHandler}, // POST, update a pod
+	{Path: "/api/v1/pods", Method: "GET", Handler: GetAllPodsHandler},                                          // GET, get all pods
 
 	{Path: "/api/v1/nodes", Method: "POST", Handler: RegisterNodeHandler},                         // POST, register a node
 	{Path: "/api/v1/watch/:resource/:namespaces/:name", Method: "GET", Handler: NodeWatchHandler}, // GET, watch a resource
@@ -49,4 +50,11 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "DELETE", Handler: DeleteHpaHandler},     // DELETE, delete a hpa
 	{Path: "api/v1/namespaces/:namespace/hpas/:name/update", Method: "POST", Handler: UpdateHpaHandler}, // POST, update a hpa
 	{Path: "api/v1/hpas", Method: "GET", Handler: GetAllHpaHandler},                                     // GET, get all hpas
+
+	{Path: "/api/v1/workflows", Method: "POST", Handler: UploadWorkflowHandler},             // POST, create a workflow
+	{Path: "/api/v1/workflows/:name", Method: "GET", Handler: GetWorkflowHandler},           // GET, get a workflow
+	{Path: "/api/v1/workflows", Method: "GET", Handler: GetWorkflowsHandler},                // GET, list all workflows
+	{Path: "/api/v1/workflows/:name", Method: "DELETE", Handler: DeleteWorkflowHandler},     // DELETE, delete a workflow
+	{Path: "/api/v1/workflows/:name/update", Method: "POST", Handler: UpdateWorkflowHandler}, // POST, update a workflow
+	{Path: "/api/v1/workflows/:name/trigger", Method: "POST", Handler: TriggerWorkflowHandler}, // POST, trigger a workflow
 }

@@ -382,3 +382,17 @@ func UpdatePodStatusHandler(c *gin.Context) {
 	// 3. return the result to the client
 	c.JSON(http.StatusOK, pod)
 }
+
+
+
+// GetAllPodHandler the url format is GET /api/v1/pods
+func GetAllPodsHandler(c *gin.Context) {
+	key := "/registry/pods"
+	var pods []apiobject.Pod
+	err := podStorageTool.GetList(context.Background(), key, &pods)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, pods)
+}

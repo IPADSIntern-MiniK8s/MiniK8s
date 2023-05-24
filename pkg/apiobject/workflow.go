@@ -1,6 +1,10 @@
 package apiobject
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/tidwall/gjson"
+)
 
 // example:
 // {
@@ -56,7 +60,6 @@ import "encoding/json"
 // }
 
 type State interface {
-
 }
 
 type TaskState struct {
@@ -73,22 +76,24 @@ type FailState struct {
 	Cause string `json:"cause"`
 }
 
+
 type ChoiceState struct {
 	Type StateType `json:"type"`
 	Choices []ChoiceItem `json:"choices"`
 	Default string `json:"default,omitempty"`
 }
 
+
 type ChoiceItem struct {
 	Variable 			string `json:"variable"`
-	NumericEquals 		int `json:"NumericEquals,omitempty"`
-	NumericNotEquals 	int `json:"NumericNotEquals,omitempty"`
-	NumericLessThan 	int `json:"NumericLessThan,omitempty"`
-	NumericGreaterThan 	int `json:"NumericGreaterThan,omitempty"`
-	StringEquals 		string `json:"StringEquals,omitempty"`
-	StringNotEquals		string `json:"StringNotEquals,omitempty"`
-	StringLessThan 		string `json:"StringLessThan,omitempty"`
-	StringGreaterThan 	string `json:"StringGreaterThan,omitempty"`
+	NumericEquals 		*int `json:"NumericEquals,omitempty"`
+	NumericNotEquals 	*int `json:"NumericNotEquals,omitempty"`
+	NumericLessThan 	*int `json:"NumericLessThan,omitempty"`
+	NumericGreaterThan 	*int `json:"NumericGreaterThan,omitempty"`
+	StringEquals 		*string `json:"StringEquals,omitempty"`
+	StringNotEquals		*string `json:"StringNotEquals,omitempty"`
+	StringLessThan 		*string `json:"StringLessThan,omitempty"`
+	StringGreaterThan 	*string `json:"StringGreaterThan,omitempty"`
 	Next 				string `json:"next"`
 }
 
@@ -105,6 +110,7 @@ const (
 )
 
 type WorkFlow struct {
+	Kind 		string `json:"kind,omitempty"`
 	APIVersion 	string `json:"apiVersion,omitempty"`
 
 	Name 		string `json:"name"`
@@ -128,14 +134,58 @@ func (w *WorkFlow) MarshalJSON() ([]byte, error) {
 
 
 func (w *WorkFlow) UnMarshalJSON(data []byte) error {
-	type Alias WorkFlow
-	aux := &struct {
-		*Alias
-	}{
-		Alias: (*Alias)(w),
+	// type Alias WorkFlow
+	// aux := &struct {
+	// 	*Alias
+	// }{
+	// 	Alias: (*Alias)(w),
+	// }
+	
+	// if err := json.Unmarshal(data, &aux); err != nil {
+	// 	return err
+	// }
+	w.Kind = "Workflow"
+	w.APIVersion = gjson.Get(string(data), "apiVersion").String()
+	w.Name = gjson.Get(string(data), "name").String()
+	status := gjson.Get(string(data), "status")
+	if status.Exists() {
+		w.Status = VersionLabel(status.String())
 	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
+	w.StartAt = gjson.Get(string(data), "startAt").String()
+	comment := gjson.Get(string(data), "comment")
+	if comment.Exists() {
+		w.Comment = comment.String()
 	}
+	states := gjson.Get(string(data), "states")
+	if states.Exists() {
+		w.States = make(map[string]State)
+		states.ForEach(func(key, value gjson.Result) bool {
+			stateType := gjson.Get(value.String(), "type").String()
+			switch stateType {
+			case "Task":
+				var taskState TaskState
+				err := json.Unmarshal([]byte(value.String()), &taskState)
+				if err != nil {
+					return false
+				}
+				w.States[key.String()] = taskState
+			case "Choice":
+				var choiceState ChoiceState
+				err := json.Unmarshal([]byte(value.String()), &choiceState)
+				if err != nil {
+					return false
+				}
+				w.States[key.String()] = choiceState
+			case "Fail":
+				var failState FailState
+				err := json.Unmarshal([]byte(value.String()), &failState)
+				if err != nil {
+					return false
+				}
+			}
+			return true
+		})
+	}
+
 	return nil
 }
