@@ -20,5 +20,11 @@ func Run() {
 	go utils.Sync(hs)
 	go regularCheck()
 
+	var jc jobPodHandler
+	var jh jobHandler
+	go utils.Sync(jc)
+	go utils.Sync(jh)
+
+
 	utils.WaitForever()
 }
