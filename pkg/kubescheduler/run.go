@@ -87,11 +87,13 @@ func Run(c Config) {
 			conn.WriteMessage(websocket.TextMessage, []byte{})
 		}
 		if pod == nil {
+			log.Error("[Run] scheduler websocket pod is nil")
 			conn.WriteMessage(websocket.TextMessage, []byte{})
 		}
 
 		// check whether pod is need to be scheduled
-		if pod == nil || pod.Status.Phase != apiobject.Pending {
+		if pod.Status.Phase != apiobject.Pending {
+			log.Error("[Run] scheduler websocket pod is nil or pod is not pending, the pod phase is: ", pod.Status.Phase)
 			conn.WriteMessage(websocket.TextMessage, []byte{})
 		}
 
@@ -117,6 +119,11 @@ func Run(c Config) {
 
 		// marshal the nodes that pod will be scheduled to and send to api server
 		jsonBytes, err := apiobject.MarshalJSONList(nodeCandidates)
+		if err != nil {
+			log.Error("[Run] scheduler marshal nodes fail, the error message is: ", err)
+		} else {
+			log.Info("[Run] the node candidate  count is: ", len(nodeCandidates))
+		}
 		conn.WriteMessage(websocket.TextMessage, jsonBytes)
 	}
 

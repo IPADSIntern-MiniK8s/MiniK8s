@@ -10,6 +10,7 @@ import (
 	"minik8s/pkg/serverless/autoscaler"
 	"minik8s/pkg/serverless/function"
 	"minik8s/utils"
+	"net"
 	"sort"
 	"time"
 
@@ -86,12 +87,31 @@ func getPodIpList(pods []*apiobject.Pod) []string {
 	return result
 }
 
+
+// CheckConnection check if the connection is ok
+func CheckConnection(ip string) {
+	for {
+		// try to connect to the ip
+		address := ip + ":8081"
+		conn, err := net.DialTimeout("tcp", address, time.Second)
+		if err != nil {
+			continue
+		}
+
+		defer conn.Close()
+
+		log.Info("[CheckConnection] Connection is ok")
+		break
+	}
+}
+
 // CheckPrepare check if the function is deployed
 // if not, deploy it
 // if yes, return the pod ip
 // wait until the function is deployed or timeout
 // return the pod ips
 func CheckPrepare(name string) ([]string, error) {
+	log.Info("[CheckPrepare] check prepare for function: ", name)
 	// 1. find the according replicaSet
 	replicaUrl := "http://" + config.ApiServerIp + "/api/v1/namespaces/serverless/replicas/" + name
 	response, err := utils.SendRequest("GET", nil, replicaUrl)
@@ -109,51 +129,53 @@ func CheckPrepare(name string) ([]string, error) {
 	// 2. check the deployment status
 	// retry for 3 times
 	retry := retryTimes
+	theFirstTime := true
 	for retry > 0 {
-		timer := time.NewTimer(1 * time.Minute)
+		timer := time.NewTimer(60 * time.Second)
 		deployed := false
-
+		retry -= 1
 		for {
 			select {
 			case <-timer.C:
+				log.Info("[CheckPrepare] timeout")
 				break
 			default:
 				if !deployed {
 					// the first time, check if the function is deployed
+					log.Info("the first time, check if the function is deployed")
 					pods := controller.GetPodListFromRS(replicaSet)
 					// generate the pod ip list
 					podIps := getPodIpList(pods)
-					if len(podIps) == 0 {
-						// deployed it now
-						replicaSet.Status.Scale = 1
+
+					autoscaler.RecordMutex.Lock()
+					record := autoscaler.GetRecord(name)
+					if record == nil {
+						autoscaler.RecordMap[name] = &autoscaler.Record{
+							Name:      name,
+							Replicas:  int32(len(podIps)),
+							PodIps:    make(map[string]int32),
+							CallCount: 1,
+						}
+						record = autoscaler.RecordMap[name]
+					} else {
+						if theFirstTime {
+							record.CallCount++
+							theFirstTime = false
+						}
+						record.Replicas = int32(len(podIps))
+						autoscaler.RecordMap[name] = record
+					}
+					// if the call count is larger than the threshold, scale up
+					log.Info("[CheckPrepare] record found, the call count: ", record.CallCount, "the replica number: ", record.Replicas)
+					if record.CallCount > replicaSet.Status.Scale {
+						replicaSet.Status.Scale = record.CallCount
+						log.Info("[CheckPrepare] scale up the function: ", name, "the replica number: ", replicaSet.Status.Scale)
 						utils.UpdateObject(replicaSet, config.REPLICA, replicaSet.Data.Namespace, replicaSet.Data.Name)
 					} else {
-						autoscaler.RecordMutex.Lock()
-						record := autoscaler.GetRecord(name)
-						if record == nil {
-							autoscaler.RecordMap[name] = &autoscaler.Record{
-								Name:      name,
-								Replicas:  replicaSet.Status.Scale,
-								PodIps:    make(map[string]int32),
-								CallCount: 1,
-							}
-							autoscaler.RecordMutex.Unlock()
-							return podIps, nil
-						} else {
-							record.CallCount++
-							record.Replicas = int32(len(podIps))
-							autoscaler.RecordMap[name] = record
-							// if the call count is larger than the threshold, scale up
-							if record.CallCount > record.Replicas {
-								replicaSet.Status.Scale = record.CallCount + 1
-								utils.UpdateObject(replicaSet, config.REPLICA, replicaSet.Data.Namespace, replicaSet.Data.Name)
-							} else {
-								autoscaler.RecordMutex.Unlock()
-								return podIps, nil
-							}
-						}
 						autoscaler.RecordMutex.Unlock()
+						return podIps, nil
 					}
+					autoscaler.RecordMutex.Unlock()
 					deployed = true
 				} else {
 					// check whether the function is deployed and the replica number is correct
@@ -162,28 +184,31 @@ func CheckPrepare(name string) ([]string, error) {
 					record := autoscaler.GetRecord(name)
 					autoscaler.RecordMutex.RUnlock()
 					if record == nil {
+						log.Error("[CheckPrepare] record not found")
 						return nil, errors.New("record not found")
 					}
 
-					if int32(len(pods)) >= record.Replicas {
+					podsIp := getPodIpList(pods)
+					log.Info("[CheckPrepare] the pod ip list in second time or later: ", podsIp)
+					log.Info("the replica number: ", int32(len(podsIp)), " the call count: ", record.CallCount)
+					if (int32(len(podsIp)) >= record.CallCount && len(podsIp) > 0) {
 						// update the replica count
 						record.Replicas = int32(len(pods))
 						autoscaler.RecordMutex.Lock()
 						autoscaler.RecordMap[name] = record
 						autoscaler.RecordMutex.Unlock()
-
-						podsIp := getPodIpList(pods)
+						log.Info("[CheckPrepare] the replica number is correct: ", int32(len(podsIp)), record.CallCount)
 						return podsIp, nil
 					}
 				}
 
-				time.Sleep(5 * time.Second)
+				time.Sleep(500 * time.Millisecond)
 			}
-			retry--
 		}
 	}
 
 	// get the current pod ip list and return
+	log.Info("[CheckPrepare] get the current pod ip list and return")
 	pods := controller.GetPodListFromRS(replicaSet)
 	podsIp := getPodIpList(pods)
 	return podsIp, nil
@@ -200,6 +225,7 @@ func InitFunc(name string, path string) error {
 	replicaSet := GenerateReplicaSet(name, "serverless", ImageName, 0)
 
 	// create the record
+	log.Info("[InitFunc] create the record")
 	autoscaler.RecordMutex.Lock()
 	autoscaler.RecordMap[name] = &autoscaler.Record{
 		Name:      name,
@@ -208,6 +234,7 @@ func InitFunc(name string, path string) error {
 		CallCount: 0,
 	}
 	autoscaler.RecordMutex.Unlock()
+	log.Info("[InitFunc] create the record successfully")
 
 	utils.CreateObject(replicaSet, config.REPLICA, replicaSet.Data.Namespace)
 	return nil
@@ -255,6 +282,7 @@ func LoadBalance(name string, podIps []string) (string, error) {
 // if the function is not deployed, deploy it first
 func TriggerFunc(name string, params []byte) ([]byte, error) {
 	// 1. check if the function is deployed
+	log.Info("[TriggerFunc] trigger function: ", name)
 	podIps, err := CheckPrepare(name)
 	if err != nil {
 		log.Error("[TriggerFunc] check prepare error: ", err)
@@ -278,6 +306,9 @@ func TriggerFunc(name string, params []byte) ([]byte, error) {
 	}
 	log.Info ("[TriggerFunc] prettyJSON: ", string(prettyJSON))
 
+	// 4. send the request
+	// first check the connection
+	CheckConnection(podIp)
 
 	ret, err := utils.SendRequest("POST", params, url)
 	log.Info("[TriggerFunc] ret: ", string(ret))
@@ -302,9 +333,12 @@ func DeleteFunc(name string) error {
 	}
 
 	// 2. delete the record from the record map
+	log.Info("[DEleteFunc] delete record from record map")
 	autoscaler.RecordMutex.Lock()
-	delete(autoscaler.RecordMap, name)
+	autoscaler.DeleteRecord(name)
 	autoscaler.RecordMutex.Unlock()
+
+	log.Info("[DeleteFunc] delete record from record map")
 
 	// 3. delete the image
 	err = function.DeleteImage(name)

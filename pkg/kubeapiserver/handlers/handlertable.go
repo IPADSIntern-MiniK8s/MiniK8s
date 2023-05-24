@@ -41,6 +41,7 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/functions/:name", Method: "DELETE", Handler: DeleteFunctionHandler},        // DELETE, delete a function
 	{Path: "/api/v1/functions/:name/update", Method: "POST", Handler: UpdateFunctionHandler},   // POST, update a function
 	{Path: "/api/v1/functions/:name/trigger", Method: "POST", Handler: TriggerFunctionHandler}, // POST, trigger a function
+	{Path: "/api/v1/functions", Method: "GET", Handler: GetFunctionsHandler},                   // GET, list all functions
 
 	{Path: "/api/v1/namespaces/:namespace/hpas", Method: "POST", Handler: CreateHpaHandler},             // POST, create a hpa
 	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "GET", Handler: GetHpaHandler},           // GET, get a hpa

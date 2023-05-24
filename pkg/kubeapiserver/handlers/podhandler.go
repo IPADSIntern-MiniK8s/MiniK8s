@@ -79,7 +79,7 @@ func keepSchedule(podKey string, nodes []apiobject.Node) {
 		var pod apiobject.Pod
 		err := podStorageTool.Get(context.Background(), podKey, &pod)
 		if err != nil {
-			log.Error("[keepSchedule] get pod failed, the key: ", podKey, "the error message: ", err.Error())
+			log.Warn("[keepSchedule] get pod failed, the key: ", podKey, "the error message: ", err.Error())
 			continue
 		}
 
@@ -149,8 +149,6 @@ func CreatePodHandler(c *gin.Context) {
 		return
 	}
 
-	scheduled := false
-
 	//for _, node := range nodeList {
 	//	if node.Status.Conditions[0].Status == "Ready" {
 	//		nodeKey = node.Data.Name
@@ -201,33 +199,42 @@ func CreatePodHandler(c *gin.Context) {
 		if err != nil {
 			log.Error("[CreatePodHandler] unmarshal the response failed")
 		}
+
 		if selectedNodes == nil || len(selectedNodes) == 0 {
 			log.Error("[CreatePodHandler] no available node")
+			if len(nodeList) == 0 {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "no available node"})
+				return
+			} else {
+				err = bind(pod, &nodeList[0])
+			}
 		} else {
-			scheduled = true
+			// for convenience, api server take the duty of binding the pod to the node
+			err = bind(pod, &selectedNodes[0])
 		}
 
-		// for convenience, api server take the duty of binding the pod to the node
-		err = bind(pod, &selectedNodes[0])
+		
 		// change to running status
-		pod.Status.Phase = apiobject.Running
 		if err != nil {
 			log.Error("[CreatePodHandler] bind the pod to the node failed")
 		}
+		pod.Status.Phase = apiobject.Running
+		
 
 		// write the pod to the node
-		nodeKey := selectedNodes[0].Data.Name
-		sendPodToNode(pod, nodeKey)
+		if selectedNodes == nil || len (selectedNodes) == 0 {
+			nodeKey := nodeList[0].Data.Name
+			sendPodToNode(pod, nodeKey)
+		} else {
+			nodeKey := selectedNodes[0].Data.Name
+			sendPodToNode(pod, nodeKey)
+		}
+		
 
 		// keep check and resend to the next node if necessary
 		if len(selectedNodes) > 1 {
 			go keepSchedule(key, selectedNodes)
 		}
-	}
-
-	if !scheduled {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "no available node"})
-		return
 	}
 
 	// 4. return the pod to the client

@@ -7,10 +7,10 @@ import (
 	"minik8s/pkg/kubeapiserver/storage"
 	"minik8s/pkg/kubeapiserver/watch"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	
 )
 var functionStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
 
@@ -24,6 +24,35 @@ func updateFunction(function *apiobject.Function, key string) error {
 	return nil
 }
 
+// getWatchFeedback get the watch feedback
+func getWatchFeedback(c *gin.Context, prefix string) {
+	handler, ok := watch.WatchTable["function"]
+	if !ok {
+		// watch table error
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "no according function handler",
+		})
+		return
+	}
+
+	for {
+		response, err := handler.Read()
+		log.Info("[UploadFunctionHandler] watch response: ", string(response))
+		if err != nil {
+			// read response error
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+		}
+
+		if strings.Contains(string(response), prefix) {
+			log.Info("[UploadFunctionHandler] response: ", string(response))
+			c.JSON(http.StatusOK, string(response))
+			break
+		}
+	}
+	
+}
 
 // UploadFunctionHandler the url format is POST /api/v1/functions
 func UploadFunctionHandler(c *gin.Context) {
@@ -60,9 +89,9 @@ func UploadFunctionHandler(c *gin.Context) {
 			// update function error
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
-			})
+			})	
 		} else {
-			c.JSON(http.StatusOK, function)
+			getWatchFeedback(c, "update:")
 		}
 		return
 	}
@@ -81,24 +110,7 @@ func UploadFunctionHandler(c *gin.Context) {
 	}
 
 	// 4. create the image for the function through watch
-	handler, ok := watch.WatchTable["function"]
-	if !ok {
-		// watch table error
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "no according function handler",
-		})
-		return
-	}
-
-	response, err := handler.Read()
-	if err != nil {
-		// read response error
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-	}
-
-	c.JSON(http.StatusOK, string(response))
+	getWatchFeedback(c, "create:")
 }
 	
 
@@ -172,7 +184,7 @@ func DeleteFunctionHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, function)
+	getWatchFeedback(c, "delete:")
 }
 
 // UpdateFunctionHandler the url format is POST /api/v1/functions/:name/update
@@ -207,8 +219,8 @@ func UpdateFunctionHandler(c *gin.Context) {
 		})
 		return
 	}
-	
-	c.JSON(http.StatusOK, function)
+
+	getWatchFeedback(c, "update:")
 }
 
 
@@ -273,15 +285,38 @@ func TriggerFunctionHandler(c *gin.Context) {
 	}
 
 	// wait for the result
-	response, err := handler.Read()
+	for {
+		response, err := handler.Read()
+		if err != nil {
+			// read response error
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		log.Info("[TriggerFunctionHandler] watch response: ", string(response))
+		if strings.Contains(string(response), "execute:") {
+			log.Info("[TriggerFunctionHandler] response: ", string(response))
+			c.JSON(http.StatusOK, string(response))
+			break
+		}
+	}
+	
+}
+
+
+// GetFunctionsHandler the url format is GET /api/v1/functions
+func GetFunctionsHandler(c *gin.Context) {
+	// 1. parse the request to get the function object
+	var functions []apiobject.Function
+	err := functionStorageTool.GetList(context.Background(), "/registry/functions/", &functions)
 	if err != nil {
-		// read response error
+		// get function error
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	log.Info("[TriggerFunctionHandler] response: ", string(response))
-	c.JSON(http.StatusOK, string(response))
+	c.JSON(http.StatusOK, functions)
 }

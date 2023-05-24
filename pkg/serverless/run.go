@@ -6,6 +6,7 @@ import (
 )
 
 func Run() {
+	go autoscaler.PeriodicMetric(30)
 	eventfilter.FunctionSync("functions")
-	go autoscaler.PeriodicMetric(10)
+	
 }

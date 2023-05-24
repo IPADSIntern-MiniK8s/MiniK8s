@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"go.etcd.io/etcd/clientv3"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/watch"
 	"reflect"
 	"strings"
+	log "github.com/sirupsen/logrus"
+	"go.etcd.io/etcd/clientv3"
 )
 
 type EtcdStorage struct {
@@ -171,9 +171,10 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 			return err
 		}
 
-
 		// Compare the current data to the new data to see if an update is needed
-		if existingData == newData {
+		t := reflect.TypeOf(newData)
+		functionType := reflect.TypeOf(&apiobject.Function{})
+		if existingData == newData && t != functionType {
 			return nil // No update needed
 		}
 
