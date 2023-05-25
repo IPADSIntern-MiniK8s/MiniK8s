@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"minik8s/pkg/apiobject"
-	"minik8s/pkg/kubectl/utils"
+	ctlutils "minik8s/pkg/kubectl/utils"
 	"minik8s/utils"
 	"strconv"
 	"strings"
@@ -116,7 +116,7 @@ func get(cmd *cobra.Command, args []string) {
 		}
 	case "replica":
 		{
-			table, _ := gotable.Create("NAME", "DESIRED", "CURRENT", "READY")
+			table, _ := gotable.Create("NAME", "DESIRED", "READY")
 			rsList := gjson.Parse(_json).Array()
 			for _, p := range rsList {
 				rs := &apiobject.ReplicationController{}

@@ -39,7 +39,7 @@ func SendJsonObject(method string, jsonObject []byte, url string) {
 func SendRequest(method string, str []byte, url string) (string, error) {
 	request, err := http.NewRequest(method, url, bytes.NewBuffer(str))
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	request.Header.Set("content-type", "application/json")
 

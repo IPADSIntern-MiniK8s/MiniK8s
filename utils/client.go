@@ -2,11 +2,13 @@ package utils
 
 import (
 	"fmt"
+	"minik8s/config"
+	"minik8s/pkg/apiobject"
+	"time"
+
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
-	"minik8s/config"
-	"minik8s/pkg/apiobject"
 )
 
 type SyncFunc interface {
@@ -17,15 +19,30 @@ type SyncFunc interface {
 }
 
 func Sync(syncFunc SyncFunc) {
-	// 建立WebSocket连接
+
 	url := fmt.Sprintf("ws://%s/api/v1/watch/%s", config.ApiServerIp, syncFunc.GetType())
+	for {
+		err := connect(url, syncFunc)
+		if err != nil {
+			fmt.Println("WebSocket连接错误:", err)
+		}
+
+		fmt.Println("连接中断，等待重新连接...")
+		time.Sleep(5 * time.Second) // 等待5秒后进行重连
+	}
+
+}
+
+func connect(url string, syncFunc SyncFunc) error {
+	// 建立WebSocket连接
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		fmt.Println("WebSocket连接失败：", err)
-		return
+		return err
 	} else {
 		fmt.Println("WebSocket连接成功")
 	}
+
 	defer conn.Close()
 
 	// 不断地接收消息并处理
@@ -33,7 +50,7 @@ func Sync(syncFunc SyncFunc) {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("读取消息失败：", err)
-			return
+			return err
 		}
 		if len(message) == 0 {
 			continue
@@ -120,8 +137,8 @@ func GetObject(ty config.ObjType, ns string, name string) string {
 
 	var str []byte
 	if info, err := SendRequest("GET", str, url); err != nil {
-		log.Error("get object ", info)
-		return info
+		log.Error("[get obj]", info)
+		return ""
 	} else {
 		return info
 	}
