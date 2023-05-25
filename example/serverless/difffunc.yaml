@@ -1,0 +1,4 @@
+kind: Function
+apiVersion: app/v1
+name: getdiff
+path: /home/mini-k8s/example/serverless/diff.py

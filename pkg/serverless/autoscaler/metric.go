@@ -72,6 +72,7 @@ func PeriodicMetric(timeInterval int) {
 				record = &Record{
 					Name:      replica.Data.Name,
 					Replicas:  replica.Status.Replicas,
+					PodIps: make(map[string]int32),
 					CallCount: 0,
 				}
 				RecordMutex.Lock()
@@ -90,14 +91,16 @@ func PeriodicMetric(timeInterval int) {
 						log.Error("[PeriodicMetric] error marshalling replicas: ", err)
 						continue
 					}
-					_, err = utils.SendRequest("PUT", replicaJson, replicaUrl)
+					_, err = utils.SendRequest("POST", replicaJson, replicaUrl)
+					log.Info("[PeriodicMetric] scale replicas to ", replica.Status.Scale, " for ", replica.Data.Name)
 					if err != nil {
 						log.Error("[PeriodicMetric] error updating replicas: ", err)
 						continue
 					}
 				}
 
-				record.Replicas = replica.Status.Replicas
+				// the replica count in expection
+				record.Replicas = record.CallCount
 				record.CallCount = 0
 
 				RecordMutex.Lock()

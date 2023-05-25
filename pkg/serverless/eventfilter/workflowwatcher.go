@@ -8,12 +8,15 @@ import (
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/serverless/workflow"
+	"net/http"
 )
 
 func WorkFlowSync(target string) {
 	// establish WebSocket connection
 	url := fmt.Sprintf("ws://%s/api/v1/watch/%s", config.ApiServerIp, target)
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	headers := http.Header{}
+	headers.Set("X-Source", "workflows")
+	conn, _, err := websocket.DefaultDialer.Dial(url, headers)
 	if err != nil {
 		fmt.Println("WebSocket connect fail", err)
 		return
@@ -33,24 +36,24 @@ func WorkFlowSync(target string) {
 			continue
 		}
 		fmt.Printf("[client %s] %s\n", target, message)
-		
-		workFlow := gjson.Get(string(message), "workFlow")
+
+		workFlow := gjson.Get(string(message), "workflow")
 		if !workFlow.Exists() {
-			conn.WriteMessage(websocket.TextMessage, []byte("the workFlow is not exist"))
+			conn.WriteMessage(websocket.TextMessage, []byte("execute: " + "the workFlow is not exist"))
 		}
 		workFlowStr := workFlow.String()
-
+		log.Info("[WorkFlowSync] workFlow: ", workFlowStr)
 
 		params := gjson.Get(string(message), "params")
 		if !params.Exists() {
-			conn.WriteMessage(websocket.TextMessage, []byte("the params is not exist"))
+			conn.WriteMessage(websocket.TextMessage, []byte("execute: " + "the params is not exist"))
 		}
 		paramsStr := params.String()
 
 		go WorkFlowTriggerHandler([]byte(workFlowStr), []byte(paramsStr), conn)
+		// WorkFlowTriggerHandler([]byte(workFlowStr), []byte(paramsStr), conn)
 	}
-} 
-
+}
 
 func WorkFlowTriggerHandler(workFlow []byte, paramsStr []byte, conn *websocket.Conn) {
 	// parse the workFlow
@@ -58,13 +61,13 @@ func WorkFlowTriggerHandler(workFlow []byte, paramsStr []byte, conn *websocket.C
 	err := currentWorkFlow.UnMarshalJSON(workFlow)
 	if err != nil {
 		log.Error("[WorkFlowTriggerHandler] unmarshal workFlow error: ", err)
-		conn.WriteMessage(websocket.TextMessage, []byte("unmarshal workFlow error"))
+		conn.WriteMessage(websocket.TextMessage, []byte("execute: " + "unmarshal workFlow error"))
 	}
 	result, err := workflow.ExecuteWorkFlow(currentWorkFlow, paramsStr)
 	if err != nil {
 		log.Error("[WorkFlowTriggerHandler] execute workFlow error: ", err)
-		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		conn.WriteMessage(websocket.TextMessage, []byte("execute: " + err.Error()))
 	}
-	conn.WriteMessage(websocket.TextMessage, result)
+	conn.WriteMessage(websocket.TextMessage, []byte("execute: " + string(result)))
 }
-	
+
