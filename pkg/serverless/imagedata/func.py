@@ -1,6 +1,2 @@
-def run(x, y):
-    z = x + y
-    x = x - y
-    y = y - x
-    print(z)
-    return x, y, z
+def run(z):
+    return {"str" : "the sum of the two numbers is: " + str(z)}

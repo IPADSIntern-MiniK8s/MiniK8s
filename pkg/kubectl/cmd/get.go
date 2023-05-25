@@ -131,7 +131,7 @@ func get(cmd *cobra.Command, args []string) {
 		}
 	case "replica":
 		{
-			table, _ := gotable.Create("NAME", "DESIRED", "CURRENT")
+			table, _ := gotable.Create("NAME", "DESIRED", "CURRENT", "READY")
 			rsList := gjson.Parse(_json).Array()
 			for _, p := range rsList {
 				rs := &apiobject.ReplicationController{}
@@ -139,12 +139,34 @@ func get(cmd *cobra.Command, args []string) {
 				table.AddRow(map[string]string{
 					"NAME":    rs.Data.Name,
 					"DESIRED": strconv.Itoa(int(rs.Spec.Replicas)),
-					"CURRENT": strconv.Itoa(int(rs.Status.Replicas)),
+					"READY":   strconv.Itoa(int(rs.Status.ReadyReplicas)),
+				})
+			}
+			fmt.Println(table)
+		}
+	case "hpa":
+		{
+			table, _ := gotable.Create("NAME", "REFERENCE", "TARGETS", "MINPODS", "MAXPODS")
+			hpaList := gjson.Parse(_json).Array()
+			for _, p := range hpaList {
+				hpa := &apiobject.HorizontalPodAutoscaler{}
+				hpa.UnMarshalJSON([]byte(p.String()))
+				target := ""
+				for i, m := range hpa.Spec.Metrics {
+					target += strconv.Itoa(hpa.GetStatusValue(&hpa.Status.CurrentMetrics[i])) + "/" + strconv.Itoa(hpa.GetTargetValue(&m)) + ","
+				}
+				table.AddRow(map[string]string{
+					"NAME":      hpa.Data.Name,
+					"REFERENCE": string(hpa.Spec.ScaleTargetRef.Kind) + "/" + hpa.Spec.ScaleTargetRef.Name,
+					"TARGETS":   target,
+					"MINPODS":   strconv.Itoa(int(hpa.Spec.MinReplicas)),
+					"MAXPODS":   strconv.Itoa(int(hpa.Spec.MaxReplicas)),
 				})
 			}
 			fmt.Println(table)
 		}
 	}
+
 	if err != nil {
 		//log.Fatal(err)
 		/* 解析info，错误判断pod名字是否存在 */

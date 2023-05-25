@@ -3,6 +3,7 @@ module minik8s
 go 1.19
 
 require (
+	bou.ke/monkey v1.0.2
 	github.com/containerd/cgroups v1.1.0
 	github.com/containerd/containerd v1.7.0
 	github.com/ghodss/yaml v1.0.0

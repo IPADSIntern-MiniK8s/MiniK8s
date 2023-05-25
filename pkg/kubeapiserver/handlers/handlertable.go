@@ -6,6 +6,7 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/pods", Method: "GET", Handler: GetPodsHandler},                       // GET, list all pods
 	{Path: "/api/v1/namespaces/:namespace/pods/:name", Method: "DELETE", Handler: DeletePodHandler},            // DELETE, delete a pod
 	{Path: "/api/v1/namespaces/:namespace/pods/:name/update", Method: "POST", Handler: UpdatePodStatusHandler}, // POST, update a pod
+	{Path: "/api/v1/pods", Method: "GET", Handler: GetAllPodsHandler},                                          // GET, get all pods
 
 	{Path: "/api/v1/nodes", Method: "POST", Handler: RegisterNodeHandler},                         // POST, register a node
 	{Path: "/api/v1/watch/:resource/:namespaces/:name", Method: "GET", Handler: NodeWatchHandler}, // GET, watch a resource
@@ -42,10 +43,12 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/jobs/:name", Method: "DELETE", Handler: DeleteJobHandler},     // DELETE, delete a Job
 	{Path: "api/v1/namespaces/:namespace/jobs/:name/update", Method: "POST", Handler: UpdateJobHandler}, // POST, update a Job
 
-	{Path: "/api/v1/functions", Method: "POST", Handler: UploadFunctionHandler},              // POST, create a function
-	{Path: "/api/v1/functions/:name", Method: "GET", Handler: GetFunctionHandler},            // GET, get a function
-	{Path: "/api/v1/functions/:name", Method: "DELETE", Handler: DeleteFunctionHandler},      // DELETE, delete a function
-	{Path: "/api/v1/functions/:name/update", Method: "POST", Handler: UpdateFunctionHandler}, // POST, update a function
+	{Path: "/api/v1/functions", Method: "POST", Handler: UploadFunctionHandler},                // POST, create a function
+	{Path: "/api/v1/functions/:name", Method: "GET", Handler: GetFunctionHandler},              // GET, get a function
+	{Path: "/api/v1/functions/:name", Method: "DELETE", Handler: DeleteFunctionHandler},        // DELETE, delete a function
+	{Path: "/api/v1/functions/:name/update", Method: "POST", Handler: UpdateFunctionHandler},   // POST, update a function
+	{Path: "/api/v1/functions/:name/trigger", Method: "POST", Handler: TriggerFunctionHandler}, // POST, trigger a function
+	{Path: "/api/v1/functions", Method: "GET", Handler: GetFunctionsHandler},                   // GET, list all functions
 
 	{Path: "/api/v1/namespaces/:namespace/hpas", Method: "POST", Handler: CreateHpaHandler},             // POST, create a hpa
 	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "GET", Handler: GetHpaHandler},           // GET, get a hpa
@@ -53,4 +56,11 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/hpas/:name", Method: "DELETE", Handler: DeleteHpaHandler},     // DELETE, delete a hpa
 	{Path: "api/v1/namespaces/:namespace/hpas/:name/update", Method: "POST", Handler: UpdateHpaHandler}, // POST, update a hpa
 	{Path: "api/v1/hpas", Method: "GET", Handler: GetAllHpaHandler},                                     // GET, get all hpas
+
+	{Path: "/api/v1/workflows", Method: "POST", Handler: UploadWorkflowHandler},             // POST, create a workflow
+	{Path: "/api/v1/workflows/:name", Method: "GET", Handler: GetWorkflowHandler},           // GET, get a workflow
+	{Path: "/api/v1/workflows", Method: "GET", Handler: GetWorkflowsHandler},                // GET, list all workflows
+	{Path: "/api/v1/workflows/:name", Method: "DELETE", Handler: DeleteWorkflowHandler},     // DELETE, delete a workflow
+	{Path: "/api/v1/workflows/:name/update", Method: "POST", Handler: UpdateWorkflowHandler}, // POST, update a workflow
+	{Path: "/api/v1/workflows/:name/trigger", Method: "POST", Handler: TriggerWorkflowHandler}, // POST, trigger a workflow
 }

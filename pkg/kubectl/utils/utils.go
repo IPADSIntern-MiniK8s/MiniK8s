@@ -2,14 +2,15 @@ package ctlutils
 
 import (
 	"fmt"
-	"github.com/tidwall/gjson"
 	"minik8s/config"
 	"strings"
+
+	"github.com/tidwall/gjson"
 )
 
 //var apiServerIp = "http://192.168.1.13:8080"
 
-var Resources = []string{"pod", "service", "endpoint", "replica","job"}
+var Resources = []string{"pod", "service", "endpoint", "replica", "job","hpa", "function"}
 
 func ParseUrlFromJson(_json []byte) string {
 	// operation: create/apply. eg: POST "/api/v1/namespaces/{namespace}/pods"
