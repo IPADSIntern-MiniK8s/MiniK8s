@@ -71,6 +71,8 @@ type ReplicationControllerStatus struct {
 	// Used for replica controlled by HPA
 	Scale          int32          `json:"scale"`
 	OwnerReference OwnerReference `json:"ownerReference,omitempty"`
+	// the truly ready replicas.
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 }
 
 func (r *ReplicationController) UnMarshalJSON(data []byte) error {
