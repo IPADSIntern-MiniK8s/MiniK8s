@@ -8,5 +8,5 @@ import (
 func Run() {
 	go autoscaler.PeriodicMetric(30)
 	go eventfilter.FunctionSync("functions")
-	eventfilter.WorkFlowSync("workflowexecutors")
+	go eventfilter.WorkFlowSync("workflowexecutors")
 }

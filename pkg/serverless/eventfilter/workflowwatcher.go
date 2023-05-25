@@ -50,8 +50,8 @@ func WorkFlowSync(target string) {
 		}
 		paramsStr := params.String()
 
-		// go WorkFlowTriggerHandler([]byte(workFlowStr), []byte(paramsStr), conn)
-		WorkFlowTriggerHandler([]byte(workFlowStr), []byte(paramsStr), conn)
+		go WorkFlowTriggerHandler([]byte(workFlowStr), []byte(paramsStr), conn)
+		// WorkFlowTriggerHandler([]byte(workFlowStr), []byte(paramsStr), conn)
 	}
 }
 

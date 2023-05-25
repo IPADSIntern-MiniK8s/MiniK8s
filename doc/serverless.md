@@ -287,6 +287,12 @@ curl -v -X POST -H "Content-Type: application/json" -d '{"x": 3, "y": 5}' http:/
 }
 ```
 
+4. auto-scaling
+
+一个goroutine以30s作为窗口期，检查每个function对应的record调用的次数(`callCount`)，根据调用次数调整replica数量
+
+当调用函数时，检查对应的record的调用次数，如果调用次数大于record的数目，进行扩容
+
 > 注意事项：
 > 
 > 1. serverless对应的pod和replicaSet的名称是一致的，并且都在 `serverless`的命名空间下
@@ -430,7 +436,14 @@ curl -v -X POST -H "Content-Type: application/json" -d '{"x": 3, "y": 5}' http:/
      在上述结果对象中，我们可以看到 `myResult` 字段包含了我们选择的参数。
    - 
 
-#### 测试
+### 具体实现
+传递给serverless部分的参数格式是：
+```shell
+workflow: the workflow json 
+params: the input params json ({"key": "value"})
+```
+
+在function的基础上，要求function的返回值是json的形式（其实是python dict，需要手动翻译成json）
 
 ### 参考资料
 

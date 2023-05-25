@@ -9,7 +9,7 @@ apiserver:
 	go build -o $(OUTPATH)/apiserver $(CMDPATH)/apiserver.go
 
 scheduler:
-	go build -o $(OUTPATH)/apiserver $(CMDPATH)/scheduler.go
+	go build -o $(OUTPATH)/scheduler $(CMDPATH)/scheduler.go
 
 all:
 	go build -o $(OUTPATH)/kubectl $(CMDPATH)/kubectl.go

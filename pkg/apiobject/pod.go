@@ -133,8 +133,8 @@ type PhaseLabel string
 
 const (
 	Pending     PhaseLabel = "Pending"
-	Running     PhaseLabel = "Scheduled"
-	Succeeded   PhaseLabel = "Running"
+	Scheduled   PhaseLabel = "Scheduled"
+	Running     PhaseLabel = "Running"
 	Failed      PhaseLabel = "Failed"
 	Finished    PhaseLabel = "Finished"
 	Terminating PhaseLabel = "Terminating"

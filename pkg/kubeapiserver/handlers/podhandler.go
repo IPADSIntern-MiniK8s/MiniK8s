@@ -3,17 +3,68 @@ package handlers
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
 	"minik8s/pkg/kubeapiserver/watch"
+	"minik8s/utils/resourceutils"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 var podStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
+
+// checkReplicaReady check the replica's status for truly ready pod
+func checkReplicaReady(pod *apiobject.Pod) {
+	if pod.Status.OwnerReference.Controller == true && pod.Status.OwnerReference.Kind == config.REPLICA {
+		// get the previous pod
+		var previousPod apiobject.Pod
+		podKey := "registry/pods/default/" + pod.Data.Name
+		if pod.Data.Namespace != "" {
+			podKey = "registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
+		}
+		err := podStorageTool.Get(context.Background(), podKey, &previousPod)
+		if err != nil {
+			log.Warn("[checkReplicaReady] get previous pod failed, the key: ", podKey, "the error message: ", err.Error())
+			return
+		}
+		// check the previous pod's status
+		replicaInc := (previousPod.Status.Phase == apiobject.Pending || previousPod.Status.Phase == apiobject.Scheduled) && pod.Status.Phase == apiobject.Running
+		replicaDec := (previousPod.Status.Phase == apiobject.Running) && pod.Status.Phase == apiobject.Terminating
+		if replicaInc || replicaDec {
+			// get the according replica
+			var replica apiobject.ReplicationController
+			replicaKey := "registry/replicas/default/" + pod.Status.OwnerReference.Name
+			if pod.Data.Namespace != "" {
+				replicaKey = "registry/replicas/" + pod.Data.Namespace + "/" + pod.Status.OwnerReference.Name
+			}
+
+			err = podStorageTool.Get(context.Background(), replicaKey, &replica)
+			if err != nil {
+				log.Warn("[checkReplicaReady] get replica failed, the key: ", replicaKey, "the error message: ", err.Error())
+				return
+			}
+			// check the replica's status
+			if replicaInc {
+				replica.Status.ReadyReplicas++
+			} else {
+				replica.Status.ReadyReplicas--
+			}
+
+			// update the replica
+			err = podStorageTool.GuaranteedUpdate(context.Background(), replicaKey, &replica)
+			if err != nil {
+				log.Warn("[checkReplicaReady] update replica failed, the key: ", replicaKey, "the error message: ", err.Error())
+				return
+			}
+		}
+	}
+}
 
 // change the pod's resourceVersion to different value
 func changePodResourceVersion(pod *apiobject.Pod, c *gin.Context) error {
@@ -34,6 +85,113 @@ func changePodResourceVersion(pod *apiobject.Pod, c *gin.Context) error {
 		return errors.New("unsupported un idempotent method")
 	}
 	return nil
+}
+
+// release or allocate the pod's resource
+func changeNodeResource(pod *apiobject.Pod) {
+	// 1. get the previous pod
+	podKey := "registry/pods/default/" + pod.Data.Name
+	if pod.Data.Namespace != "" {
+		podKey = "registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
+	}
+
+	prevPod := &apiobject.Pod{}
+	err := podStorageTool.Get(context.Background(), podKey, prevPod)
+	if err != nil {
+		log.Warn("[releasePodResource] delete pod failed, the key: ", podKey, "the error message: ", err.Error())
+		return
+	}
+
+	action := "nothing"
+	if (prevPod.Status.Phase == apiobject.Pending || prevPod.Status.Phase == apiobject.Scheduled) && pod.Status.Phase == apiobject.Running {
+		action = "allocate"
+	} else if prevPod.Status.Phase == apiobject.Running && (pod.Status.Phase == apiobject.Terminating || pod.Status.Phase == apiobject.Finished) {
+		action = "release"
+	}
+
+	if action == "nothing" {
+		return
+	}
+
+	// if the pod not specify the resource, then return
+	cpu := 0.0
+	memory := 0.0
+	for _, container := range pod.Spec.Containers {
+		if container.Resources.Requests.Cpu != "" {
+			curCpu, err := resourceutils.ParseQuantity(container.Resources.Requests.Cpu)
+			if err != nil {
+				log.Warn("[releasePodResource] parse cpu failed, the error message: ", err.Error())
+				continue
+			}
+			cpu += curCpu
+		} 
+		if container.Resources.Requests.Memory != "" {
+			curMemory, err := resourceutils.ParseQuantity(container.Resources.Requests.Memory)
+			if err != nil {
+				log.Warn("[releasePodResource] parse memory failed, the error message: ", err.Error())
+				continue
+			}
+			memory += curMemory
+		}
+	}
+
+	// 2. get the node that the pod is running on
+	var nodes []apiobject.Node
+	err = podStorageTool.GetList(context.Background(), "registry/nodes", &nodes)
+	if err != nil {
+		log.Warn("[releasePodResource] list nodes failed, the error message: ", err.Error())
+	}
+
+	for _, node := range nodes {
+		if node.Data.Name == pod.Status.HostIp {
+			if node.Status.Allocatable["cpu"] != "" {
+				nodeCpu, err := resourceutils.ParseQuantity(node.Status.Allocatable["cpu"])
+				if err != nil {
+					log.Warn("[releasePodResource] parse node cpu failed, the error message: ", err.Error())
+					continue
+				}
+				if action == "allocate" {
+					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu - cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
+				} else {
+					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu + cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
+				}
+			}
+			if node.Status.Allocatable["memory"] != "" {
+				nodeMemory, err := resourceutils.ParseQuantity(node.Status.Allocatable["memory"])
+				if err != nil {
+					log.Warn("[releasePodResource] parse node memory failed, the error message: ", err.Error())
+					continue
+				}
+				if action == "allocate" {
+					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory - memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
+				} else {
+					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory + memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
+				}
+			}
+			if node.Status.Allocatable["pods"] != "" {
+				nodePods, err := strconv.Atoi(node.Status.Allocatable["pods"])
+				if err != nil {
+					log.Warn("[releasePodResource] parse node pods failed, the error message: ", err.Error())
+					continue
+				}
+				if action == "allocate" {
+					node.Status.Allocatable["pods"] = strconv.Itoa(nodePods - 1)
+				} else {
+					node.Status.Allocatable["pods"] = strconv.Itoa(nodePods + 1)
+				}
+			}
+
+			// 3. update the node
+			nodeKey := "registry/nodes/" + node.Data.Name
+			err = podStorageTool.GuaranteedUpdate(context.Background(), nodeKey, &node)
+			if err != nil {
+				log.Warn("[releasePodResource] update node failed, the key: ", nodeKey, "the error message: ", err.Error())
+				return
+			}
+			break
+		}
+	}
+
 }
 
 func bind(pod *apiobject.Pod, node *apiobject.Node) error {
@@ -83,7 +241,7 @@ func keepSchedule(podKey string, nodes []apiobject.Node) {
 			continue
 		}
 
-		if pod.Status.Phase != apiobject.Running {
+		if pod.Status.Phase != apiobject.Scheduled {
 			break
 		}
 
@@ -92,6 +250,21 @@ func keepSchedule(podKey string, nodes []apiobject.Node) {
 		nodeKey := nodes[pos].Data.Name
 		sendPodToNode(&pod, nodeKey)
 	}
+}
+
+// updatePod update the existing pod
+func updatePod(pod *apiobject.Pod, key string) error {
+	pod.Data.ResourcesVersion = apiobject.UPDATE
+	// check the replica for pod
+	checkReplicaReady(pod)
+	// change the node's resource
+	changeNodeResource(pod)
+
+	err := podStorageTool.GuaranteedUpdate(context.Background(), key, pod)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // CreatePodHandler the url format is POST /api/v1/namespaces/:namespace/pods
@@ -162,7 +335,7 @@ func CreatePodHandler(c *gin.Context) {
 	//		if ok && node.Status.Addresses != nil && len(node.Status.Addresses) != 0 {
 	//			// TODO: the message format should be defined later
 	//			log.Info("[CreatePod] choose the node")
-	//			pod.Status.Phase = apiobject.Running
+	//			pod.Status.Phase = apiobject.Scheduled
 	//			pod.Status.HostIp = node.Status.Addresses[0].Address
 	//			jsonBytes, err := pod.MarshalJSON()
 	//			err = watcher.Write(jsonBytes)
@@ -213,23 +386,20 @@ func CreatePodHandler(c *gin.Context) {
 			err = bind(pod, &selectedNodes[0])
 		}
 
-		
 		// change to running status
 		if err != nil {
 			log.Error("[CreatePodHandler] bind the pod to the node failed")
 		}
-		pod.Status.Phase = apiobject.Running
-		
+		pod.Status.Phase = apiobject.Scheduled
 
 		// write the pod to the node
-		if selectedNodes == nil || len (selectedNodes) == 0 {
+		if selectedNodes == nil || len(selectedNodes) == 0 {
 			nodeKey := nodeList[0].Data.Name
 			sendPodToNode(pod, nodeKey)
 		} else {
 			nodeKey := selectedNodes[0].Data.Name
 			sendPodToNode(pod, nodeKey)
 		}
-		
 
 		// keep check and resend to the next node if necessary
 		if len(selectedNodes) > 1 {
@@ -304,7 +474,7 @@ func DeletePodHandler(c *gin.Context) {
 		return
 	}
 
-	if pod.Status.Phase == apiobject.Running {
+	if pod.Status.Phase == apiobject.Scheduled {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "the pod is running, can not delete"})
 		return
 	}
@@ -316,6 +486,7 @@ func DeletePodHandler(c *gin.Context) {
 		return
 	}
 	pod.Status.Phase = apiobject.Terminating
+	checkReplicaReady(&pod)
 	err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -331,15 +502,6 @@ func DeletePodHandler(c *gin.Context) {
 
 	// 3. return the pod to the client
 	c.JSON(http.StatusOK, pod)
-}
-
-func updatePod(pod *apiobject.Pod, key string) error {
-	pod.Data.ResourcesVersion = apiobject.UPDATE
-	err := podStorageTool.GuaranteedUpdate(context.Background(), key, pod)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // UpdatePodStatusHandler the url format is POST /api/v1/nodes/{name}/update
@@ -359,23 +521,12 @@ func UpdatePodStatusHandler(c *gin.Context) {
 
 	// 2. update the pod information in etcd
 	key := "/registry/pods/" + namespace + "/" + name
-	//log.Debug("[UpdatePodStatusHandler] key: ", key)
-	//
-	//// 2.2 change the pod's status
-	//err := changePodResourceVersion(pod, c)
-	//if err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	//	return
-	//}
-	//err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
-	//if err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	//	return
-	//}
-	err := updatePod(pod, key)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	if pod.Status.Phase != apiobject.Deleted {
+		err := updatePod(pod, key)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 	log.Debug("[UpdatePodStatusHandler] key: ", key)
 
@@ -383,9 +534,7 @@ func UpdatePodStatusHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, pod)
 }
 
-
-
-// GetAllPodHandler the url format is GET /api/v1/pods
+// GetAllPodsHandler the url format is GET /api/v1/pods
 func GetAllPodsHandler(c *gin.Context) {
 	key := "/registry/pods"
 	var pods []apiobject.Pod

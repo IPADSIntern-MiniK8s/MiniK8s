@@ -85,7 +85,7 @@ func (kl *Kubelet) watchPod() {
 			continue
 		}
 		switch pod.Status.Phase {
-		case apiobject.Running:
+		case apiobject.Scheduled:
 			{
 				success, ip := kubeletPod.CreatePod(pod, kl.ApiserverAddr)
 				fmt.Println(success)
@@ -94,7 +94,7 @@ func (kl *Kubelet) watchPod() {
 				}
 
 				pod.Status.PodIp = ip
-				pod.Status.Phase = apiobject.Succeeded
+				pod.Status.Phase = apiobject.Running
 				break
 			}
 		case apiobject.Terminating:

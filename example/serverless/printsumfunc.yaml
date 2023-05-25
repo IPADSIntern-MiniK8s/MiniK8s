@@ -1,4 +1,4 @@
 kind: Function
 apiVersion: app/v1
-name: PrintSum
+name: printsum
 path: /home/mini-k8s/example/serverless/printsum.py

@@ -1,12 +1,9 @@
 package filter
 
 import (
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
-	"regexp"
-	"strconv"
-	"strings"
+	"minik8s/utils/resourceutils"
 )
 
 // ConfigFilter is a filter that filter node by config information
@@ -97,41 +94,6 @@ func (f ConfigFilter) CheckNodeSelector(pod *apiobject.Pod, nodes []*apiobject.N
 	return f.checkNodeSelector(pod, nodes)
 }
 
-// ParseQuantity parses the quantity string to float64
-func ParseQuantity(str string) (float64, error) {
-	var quantity float64
-	var err error
-
-	// 使用正则表达式分离出数值和单位
-	re := regexp.MustCompile(`^([\d\.]+)([a-zA-Z]*)$`)
-	matches := re.FindStringSubmatch(str)
-
-	if len(matches) == 3 {
-		// 将数值部分解析为float64
-		quantity, err = strconv.ParseFloat(matches[1], 64)
-		if err != nil {
-			return 0, fmt.Errorf("failed to parse quantity: %s", err.Error())
-		}
-
-		// 将单位部分转换为标准单位，如将m转换为1/1000
-		switch strings.ToLower(matches[2]) {
-		case "m":
-			quantity /= 1000
-		case "k":
-			quantity *= 1000
-		case "ki":
-			quantity *= 1024
-		case "mi":
-			quantity *= 1024 * 1024
-		default:
-			log.Info("[ParseQuantity] invalid unit: ", matches[2])
-		}
-
-		return quantity, nil
-	}
-
-	return 0, fmt.Errorf("invalid quantity string: %s", str)
-}
 
 // GetResourceRequest gets the resource that the pod needs
 func (f ConfigFilter) GetResourceRequest(pod *apiobject.Pod) (float64, float64) {
@@ -146,7 +108,7 @@ func (f ConfigFilter) GetResourceRequest(pod *apiobject.Pod) (float64, float64) 
 	for _, container := range pod.Spec.Containers {
 		if container.Resources.Requests.Cpu != "" {
 			// log.Info("get cpu request: ", container.Resources.Requests.Cpu)
-			cpuRequest, err := ParseQuantity(container.Resources.Requests.Cpu)
+			cpuRequest, err := resourceutils.ParseQuantity(container.Resources.Requests.Cpu)
 			if err != nil {
 				log.Error("parse cpu request error: ", err)
 				continue
@@ -156,7 +118,7 @@ func (f ConfigFilter) GetResourceRequest(pod *apiobject.Pod) (float64, float64) 
 		}
 		if container.Resources.Requests.Memory != "" {
 			// log.Info("get memory request: ", container.Resources.Requests.Memory)
-			memoryRequest, err := ParseQuantity(container.Resources.Requests.Memory)
+			memoryRequest, err := resourceutils.ParseQuantity(container.Resources.Requests.Memory)
 			if err != nil {
 				log.Error("parse memory request error: ", err)
 				continue
@@ -189,7 +151,7 @@ func (f ConfigFilter) checkResource(cpuRequest float64, memoryRequest float64, n
 			result = append(result, node)
 			continue
 		}
-		cpuAvailable, err := ParseQuantity(cpu)
+		cpuAvailable, err := resourceutils.ParseQuantity(cpu)
 		if err != nil {
 			log.Error("parse cpu error: ", err)
 			result = append(result, node)
@@ -205,7 +167,7 @@ func (f ConfigFilter) checkResource(cpuRequest float64, memoryRequest float64, n
 			result = append(result, node)
 			continue
 		}
-		memoryAvailable, err := ParseQuantity(memory)
+		memoryAvailable, err := resourceutils.ParseQuantity(memory)
 		if err != nil {
 			log.Error("parse memory error: ", err)
 			result = append(result, node)

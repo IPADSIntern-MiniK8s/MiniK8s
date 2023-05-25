@@ -67,7 +67,7 @@ func CreateIllegalPod() *apiobject.Pod {
 			},
 		},
 		Status: apiobject.PodStatus{
-			Phase:  apiobject.Running,
+			Phase:  apiobject.Scheduled,
 			HostIp: "",
 			PodIp:  "",
 		},
