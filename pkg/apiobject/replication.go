@@ -97,13 +97,15 @@ func (r *ReplicationController) MarshalJSON() ([]byte, error) {
 	})
 }
 
-
 func (r *ReplicationController) Union(other *ReplicationController) {
 	if r.Status.Replicas == 0 {
 		r.Status.Replicas = other.Status.Replicas
 	}
+	empty := OwnerReference{}
+	if empty == r.Status.OwnerReference {
+		r.Status.OwnerReference = other.Status.OwnerReference
+	}
 }
-
 
 func (r *ReplicationController) UnMarshalJSONList(data []byte) ([]ReplicationController, error) {
 	var list []ReplicationController

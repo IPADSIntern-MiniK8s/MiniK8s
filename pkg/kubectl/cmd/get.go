@@ -63,10 +63,12 @@ func get(cmd *cobra.Command, args []string) {
 				name := gjson.Get(p.String(), "metadata.name").String()
 				status := gjson.Get(p.String(), "status.phase").String()
 				IP := gjson.Get(p.String(), "status.podIP").String()
+				nodeIP := gjson.Get(p.String(), "status.hostIP").String()
 				table.AddRow(map[string]string{
-					"NAME":   name,
-					"POD-IP": IP,
-					"STATUS": status,
+					"NAME":    name,
+					"POD-IP":  IP,
+					"STATUS":  status,
+					"NODE-IP": nodeIP,
 				})
 			}
 			fmt.Println(table)
@@ -91,7 +93,7 @@ func get(cmd *cobra.Command, args []string) {
 					"NAME":       name,
 					"TYPE":       ty,
 					"CLUSTER-IP": ip,
-					"PORTS":      portString,
+					"PORT(S)":    portString,
 				})
 			}
 			fmt.Println(table)

@@ -245,7 +245,7 @@ func computeReplicasForResourceMetric(hpa *apiobject.HorizontalPodAutoscaler, re
 }
 
 func getMetricsFromKubelet(IP string, ns string, name string) *apiobject.PodMetrics {
-	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s", IP, ns, name)
+	url := fmt.Sprintf("http://%s:10250/%s/%s", IP, ns, name)
 	var str []byte
 	if info, err := utils.SendRequest("GET", str, url); err != nil {
 		log.Error("get object ", info)

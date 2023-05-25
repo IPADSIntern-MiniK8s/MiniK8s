@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
@@ -34,6 +35,12 @@ func apply(cmd *cobra.Command, args []string) {
 
 	kind := strings.ToLower(gjson.Get(string(_json), "kind").String())
 	namespace := gjson.Get(string(_json), "metadata.namespace").String()
+	if namespace == "" {
+		var obj map[string]interface{}
+		json.Unmarshal(_json, &obj)
+		obj["metadata"].(map[string]interface{})["namespace"] = "default"
+		_json, _ = json.Marshal(obj)
+	}
 	_url := ctlutils.ParseUrlMany(kind, namespace)
 	fmt.Printf("url:%s\n", _url)
 

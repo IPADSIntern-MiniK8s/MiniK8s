@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"minik8s/pkg/kubelet"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"minik8s/pkg/kubelet"
 )
 
 var RootCmd = &cobra.Command{
@@ -23,6 +24,14 @@ var KubeletConfig = kubelet.Config{
 	Labels:        map[string]string{},
 	ListenAddr:    "localhost:10250",
 }
+
+// var KubeletConfig = kubelet.Config{
+// 	ApiserverAddr: "192.168.1.14:8080",
+// 	FlannelSubnet: "10.2.9.1/24",
+// 	IP:            "192.168.1.14",
+// 	Labels:        map[string]string{},
+// 	ListenAddr:    "localhost:10250",
+// }
 
 func initConfig() {
 	//fmt.Println(configAddr)

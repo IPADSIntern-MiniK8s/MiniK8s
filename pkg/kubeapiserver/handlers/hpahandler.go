@@ -3,12 +3,12 @@ package handlers
 import (
 	"context"
 	"errors"
+	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
 	"net/http"
 	"strings"
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 )
 
 var hpaStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
@@ -82,7 +82,6 @@ func CreateHpaHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, hpa)
 }
 
-
 // GetHpaHandler the url format is GET /api/v1/namespaces/:namespace/hpas/:name
 func GetHpaHandler(c *gin.Context) {
 	// 1. parse the request to get the hpa object
@@ -116,7 +115,6 @@ func GetHpaHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, hpa)
 }
 
-
 // GetHpasHandler the url format is GET /api/v1/namespaces/:namespace/hpas
 func GetHpasHandler(c *gin.Context) {
 	// 1. parse the request to get the hpa object
@@ -141,7 +139,6 @@ func GetHpasHandler(c *gin.Context) {
 	// 3. return the hpa object
 	c.JSON(http.StatusOK, hpas)
 }
-
 
 func updateHpa(hpa *apiobject.HorizontalPodAutoscaler, key string) error {
 	hpa.Data.ResourcesVersion = apiobject.UPDATE
@@ -191,7 +188,6 @@ func UpdateHpaHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, hpa)
 }
 
-
 // DeleteHpaHandler the url format is DELETE /api/v1/namespaces/:namespace/hpas/:name
 func DeleteHpaHandler(c *gin.Context) {
 	// 1. parse the request to get the hpa object
@@ -211,7 +207,6 @@ func DeleteHpaHandler(c *gin.Context) {
 		})
 	}
 
-	
 	key := "/registry/hpas/" + namespace + "/" + name
 	log.Debug("[DeleteHpaHandler] key: ", key)
 	hpa := &apiobject.HorizontalPodAutoscaler{}
@@ -221,7 +216,6 @@ func DeleteHpaHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 
 	err = changeHpaResourceVersion(hpa, c)
 	if err != nil {

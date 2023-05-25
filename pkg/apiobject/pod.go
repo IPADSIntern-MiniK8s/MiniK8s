@@ -187,4 +187,8 @@ func (p *Pod) Union(other *Pod) {
 	if p.Status.PodIp == "" {
 		p.Status.PodIp = other.Status.PodIp
 	}
+	empty := OwnerReference{}
+	if empty == p.Status.OwnerReference {
+		p.Status.OwnerReference = other.Status.OwnerReference
+	}
 }
