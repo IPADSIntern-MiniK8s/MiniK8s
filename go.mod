@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/containerd/cgroups v1.1.0
-	github.com/containerd/containerd v1.5.0-rc.1
+	github.com/containerd/containerd v1.7.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/gin-gonic/gin v1.9.0
 	github.com/gogo/protobuf v1.3.2
