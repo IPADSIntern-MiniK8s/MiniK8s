@@ -102,9 +102,11 @@ func (a *APIServer) RegisterHandler(route handlers.Route) {
 	}
 }
 
+
 func (a *APIServer) Run(addr string) error {
 	for _, route := range handlers.HandlerTable {
 		a.RegisterHandler(route)
 	}
+
 	return a.HttpServer.Run(addr)
 }

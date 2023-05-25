@@ -8,12 +8,16 @@ import (
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/serverless/activator"
+	"net/http"
 )
 
-func Sync(target string) {
+func FunctionSync(target string) {
 	// 建立WebSocket连接
 	url := fmt.Sprintf("ws://%s/api/v1/watch/%s", config.ApiServerIp, target)
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	log.Info("[FunctionSync] url: ", url)
+	headers := http.Header{}
+	headers.Set("X-Source", "function")
+	conn, _, err := websocket.DefaultDialer.Dial(url, headers)
 	if err != nil {
 		fmt.Println("WebSocket connect fail", err)
 		return
@@ -23,6 +27,7 @@ func Sync(target string) {
 	defer conn.Close()
 
 	// 不断地接收消息并处理
+	log.Info("[FunctionSync] start to receive user message")
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -34,9 +39,9 @@ func Sync(target string) {
 		}
 		fmt.Printf("[client %s] %s\n", target, message)
 
-		op := gjson.Get(string(message), "metadata.resourcesVersion")
+		op := gjson.Get(string(message), "status")
 		// function trigger
-		if op.Exists() {
+		if !op.Exists() {
 			go FunctionTriggerHandler(message, conn)
 			continue
 		}
@@ -65,19 +70,22 @@ func FuntionCreateHandler(message []byte, conn *websocket.Conn) {
 
 	// check the parameters
 	if function.Name == "" {
-		conn.WriteMessage(websocket.TextMessage, []byte("function name is empty"))
+		conn.WriteMessage(websocket.TextMessage, []byte("create: " + "function name is empty"))
 		return
 	}
 
 	if function.Path == "" {
-		conn.WriteMessage(websocket.TextMessage, []byte("function path is empty"))
+		conn.WriteMessage(websocket.TextMessage, []byte("create: " + "function path is empty"))
 	}
 
 	err := activator.InitFunc(function.Name, function.Path)
+	log.Info("[FuntionCreateHandler] init function finished")
 	if err != nil {
-		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		log.Error("[FunctionCreateHandler] error: ", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("create: " +  err.Error()))
 	} else {
-		conn.WriteMessage(websocket.TextMessage, []byte("function create success"))
+		log.Info("[FunctionCreateHandler] success")
+		conn.WriteMessage(websocket.TextMessage, []byte("create: " + "function create success"))
 	}
 }
 
@@ -85,25 +93,26 @@ func FuntionCreateHandler(message []byte, conn *websocket.Conn) {
 func FunctionTriggerHandler(message []byte, conn *websocket.Conn) {
 	nameField := gjson.Get(string(message), "name")
 	if !nameField.Exists() {
-		conn.WriteMessage(websocket.TextMessage, []byte("function name is empty"))
+		conn.WriteMessage(websocket.TextMessage, []byte("execute: " + "function name is empty"))
 		return
 	}
 
 	name := nameField.String()
 	paramsField := gjson.Get(string(message), "params")
 	if !paramsField.Exists() {
-		conn.WriteMessage(websocket.TextMessage, []byte("function params is empty"))
+		conn.WriteMessage(websocket.TextMessage, []byte("execute: " + "function params is empty"))
 		return
 	}
 
 	params := paramsField.String()
+	log.Info("[FunctionTriggerHandler] name: ", name, ", params: ", params)
 	result, err := activator.TriggerFunc(name, []byte(params))
 	if err != nil {
-		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		conn.WriteMessage(websocket.TextMessage, []byte("execute: " + err.Error()))
 		return
 	}
 
-	conn.WriteMessage(websocket.TextMessage, result)
+	conn.WriteMessage(websocket.TextMessage, []byte("execute: " + string(result)))
 }
 
 func FunctionDeleteHandler(message []byte, conn *websocket.Conn) {
@@ -113,15 +122,16 @@ func FunctionDeleteHandler(message []byte, conn *websocket.Conn) {
 
 	// check the parameters
 	if function.Name == "" {
-		conn.WriteMessage(websocket.TextMessage, []byte("function name is empty"))
+		conn.WriteMessage(websocket.TextMessage, []byte("delete: " + "function name is empty"))
 		return
 	}
 
 	err := activator.DeleteFunc(function.Name)
+	log.Info("[FunctionDeleteHandler] delete function finished")
 	if err != nil {
-		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		conn.WriteMessage(websocket.TextMessage, []byte("delete: " + err.Error()))
 	} else {
-		conn.WriteMessage(websocket.TextMessage, []byte("function delete success"))
+		conn.WriteMessage(websocket.TextMessage, []byte("delete: " + "function delete success"))
 	}
 
 }
@@ -134,14 +144,16 @@ func FunctionUpdateHandler(message []byte, conn *websocket.Conn) {
 	// delete the old function and create the new function
 	err := activator.DeleteFunc(function.Name)
 	if err != nil {
-		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		conn.WriteMessage(websocket.TextMessage, []byte("update: " + err.Error()))
 		return
 	}
-
+	log.Info("[FunctionUpdateHandler] delete function finished")
 	err = activator.InitFunc(function.Name, function.Path)
+	log.Info("[FunctionUpdateHandler] update function finished")
 	if err != nil {
-		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		conn.WriteMessage(websocket.TextMessage, []byte("update: " + err.Error()))
 	} else {
-		conn.WriteMessage(websocket.TextMessage, []byte("function update success"))
+		conn.WriteMessage(websocket.TextMessage, []byte("update: function update success"))
 	}
+
 }
