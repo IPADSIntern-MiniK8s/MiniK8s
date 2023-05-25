@@ -2,15 +2,16 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/liushuochen/gotable"
-	"github.com/spf13/cobra"
-	"github.com/tidwall/gjson"
-	"github.com/wxnacy/wgo/arrays"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubectl/utils"
 	"minik8s/utils"
 	"strconv"
 	"strings"
+
+	"github.com/liushuochen/gotable"
+	"github.com/spf13/cobra"
+	"github.com/tidwall/gjson"
+	"github.com/wxnacy/wgo/arrays"
 )
 
 var GetCmd = &cobra.Command{
@@ -26,7 +27,7 @@ func get(cmd *cobra.Command, args []string) {
 	var _url string
 	var kind string
 	if len(args) == 1 {
-		/* get all resources of in certain type under specified namespace */
+		/* get all resources in certain type under specified namespace */
 		kind = strings.ToLower(args[0])
 		kind = kind[0 : len(kind)-1]
 		/* validate if `kind` is in the resource list */
@@ -57,7 +58,7 @@ func get(cmd *cobra.Command, args []string) {
 	switch kind {
 	case "pod":
 		{
-			table, _ := gotable.Create("NAME", "POD-IP", "STATUS")
+			table, _ := gotable.Create("NAME", "POD-IP", "STATUS", "NODE-IP")
 			podList := gjson.Parse(_json).Array()
 			for _, p := range podList {
 				name := gjson.Get(p.String(), "metadata.name").String()
@@ -115,7 +116,7 @@ func get(cmd *cobra.Command, args []string) {
 		}
 	case "replica":
 		{
-			table, _ := gotable.Create("NAME", "DESIRED", "CURRENT")
+			table, _ := gotable.Create("NAME", "DESIRED", "CURRENT", "READY")
 			rsList := gjson.Parse(_json).Array()
 			for _, p := range rsList {
 				rs := &apiobject.ReplicationController{}
@@ -123,12 +124,34 @@ func get(cmd *cobra.Command, args []string) {
 				table.AddRow(map[string]string{
 					"NAME":    rs.Data.Name,
 					"DESIRED": strconv.Itoa(int(rs.Spec.Replicas)),
-					"CURRENT": strconv.Itoa(int(rs.Status.Replicas)),
+					"READY":   strconv.Itoa(int(rs.Status.ReadyReplicas)),
+				})
+			}
+			fmt.Println(table)
+		}
+	case "hpa":
+		{
+			table, _ := gotable.Create("NAME", "REFERENCE", "TARGETS", "MINPODS", "MAXPODS")
+			hpaList := gjson.Parse(_json).Array()
+			for _, p := range hpaList {
+				hpa := &apiobject.HorizontalPodAutoscaler{}
+				hpa.UnMarshalJSON([]byte(p.String()))
+				target := ""
+				for i, m := range hpa.Spec.Metrics {
+					target += strconv.Itoa(hpa.GetStatusValue(&hpa.Status.CurrentMetrics[i])) + "/" + strconv.Itoa(hpa.GetTargetValue(&m)) + ","
+				}
+				table.AddRow(map[string]string{
+					"NAME":      hpa.Data.Name,
+					"REFERENCE": string(hpa.Spec.ScaleTargetRef.Kind) + "/" + hpa.Spec.ScaleTargetRef.Name,
+					"TARGETS":   target,
+					"MINPODS":   strconv.Itoa(int(hpa.Spec.MinReplicas)),
+					"MAXPODS":   strconv.Itoa(int(hpa.Spec.MaxReplicas)),
 				})
 			}
 			fmt.Println(table)
 		}
 	}
+
 	if err != nil {
 		//log.Fatal(err)
 		/* 解析info，错误判断pod名字是否存在 */

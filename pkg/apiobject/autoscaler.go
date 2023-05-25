@@ -237,14 +237,31 @@ type HorizontalPodAutoscalerStatus struct {
 	// as last calculated by the autoscaler.
 	DesiredReplicas int32 `json:"desiredReplicas"`
 
-	//// currentMetrics is the last read state of the metrics used by this autoscaler.
-	//// +optional
-	//CurrentMetrics []MetricStatus `json:"currentMetrics"`
+	// currentMetrics is the last read state of the metrics used by this autoscaler.
+	// +optional
+	CurrentMetrics []MetricValueStatus `json:"currentMetrics"`
 	//
 	//// conditions is the set of conditions required for this autoscaler to scale its target,
 	//// and indicates whether or not those conditions are met.
 	//// +optional
 	//Conditions []HorizontalPodAutoscalerCondition `json:"conditions"`
+}
+
+type MetricValueStatus struct {
+	// type represents whether the metric type is Utilization, Value, or AverageValue
+	Type MetricTargetType `json:"type"`
+	// value is the current value of the metric (as a quantity).
+	// +optional
+	Value *utils.Quantity `json:"value,omitempty"`
+	// averageValue is the current value of the average of the
+	// metric across all relevant pods (as a quantity)
+	// +optional
+	AverageValue *utils.Quantity `json:"averageValue,omitempty"`
+	// currentAverageUtilization is the current value of the average of the
+	// resource metric across all relevant pods, represented as a percentage of
+	// the requested value of the resource for the pods.
+	// +optional
+	AverageUtilization *int32 `json:"averageUtilization,omitempty"`
 }
 
 func (h *HorizontalPodAutoscaler) MarshalJSON() ([]byte, error) {
@@ -267,4 +284,82 @@ func (h *HorizontalPodAutoscaler) UnMarshalJSON(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (h *HorizontalPodAutoscaler) GetTargetValue(m *MetricSpec) int {
+	switch m.Type {
+	case ResourceMetricSourceType:
+		{
+			switch m.Resource.Target.Type {
+			case AverageValueMetricType:
+				{
+					return int(*m.Resource.Target.AverageValue)
+				}
+			case ValueMetricType:
+				{
+					return int(*m.Resource.Target.Value)
+				}
+			case UtilizationMetricType:
+				{
+					return int(*m.Resource.Target.AverageUtilization)
+				}
+
+			}
+		}
+	case PodsMetricSourceType:
+		{
+			switch m.Pods.Target.Type {
+			case AverageValueMetricType:
+				{
+					return int(*m.Pods.Target.AverageValue)
+				}
+			case ValueMetricType:
+				{
+					return int(*m.Pods.Target.Value)
+				}
+			case UtilizationMetricType:
+				{
+					return int(*m.Pods.Target.AverageUtilization)
+				}
+
+			}
+		}
+	}
+	return 0
+}
+
+func (h *HorizontalPodAutoscaler) GetStatusValue(m *MetricValueStatus) int {
+	switch m.Type {
+	case AverageValueMetricType:
+		{
+			return int(*m.AverageValue)
+		}
+	case ValueMetricType:
+		{
+			return int(*m.Value)
+		}
+	case UtilizationMetricType:
+		{
+			return int(*m.AverageUtilization)
+		}
+
+	}
+	return 0
+}
+
+func (h *HorizontalPodAutoscaler) SetStatusValue(m *MetricValueStatus, v float64) {
+	switch m.Type {
+	case AverageValueMetricType:
+		{
+			*m.AverageValue = utils.Quantity(v)
+		}
+	case ValueMetricType:
+		{
+			*m.Value = utils.Quantity(v)
+		}
+	case UtilizationMetricType:
+		{
+			*m.AverageUtilization = int32(v)
+		}
+	}
 }

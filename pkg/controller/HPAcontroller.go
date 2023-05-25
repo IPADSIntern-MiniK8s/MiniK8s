@@ -163,8 +163,8 @@ func reconcileAutoscaler(hpa *apiobject.HorizontalPodAutoscaler) {
 	// 3. calculate expected replica for each metric requirement of hpa
 	var max int32
 	max = 0
-	for _, m := range hpa.Spec.Metrics {
-		expect := computeReplicasForMetric(hpa, &m, metricList)
+	for i, m := range hpa.Spec.Metrics {
+		expect := computeReplicasForMetric(hpa, &m, i, metricList)
 		if expect > 0 {
 			max = expect
 		}
@@ -212,7 +212,7 @@ func reconcileAutoscaler(hpa *apiobject.HorizontalPodAutoscaler) {
 	}
 }
 
-func computeReplicasForMetric(hpa *apiobject.HorizontalPodAutoscaler, metric *apiobject.MetricSpec, metricList []*apiobject.PodMetrics) int32 {
+func computeReplicasForMetric(hpa *apiobject.HorizontalPodAutoscaler, metric *apiobject.MetricSpec, index int, metricList []*apiobject.PodMetrics) int32 {
 	switch metric.Type {
 	case apiobject.PodsMetricSourceType:
 		{
@@ -220,13 +220,13 @@ func computeReplicasForMetric(hpa *apiobject.HorizontalPodAutoscaler, metric *ap
 		}
 	case apiobject.ResourceMetricSourceType:
 		{
-			return computeReplicasForResourceMetric(hpa, metric, metricList)
+			return computeReplicasForResourceMetric(hpa, metric, index, metricList)
 		}
 	}
 	return 0
 }
 
-func computeReplicasForResourceMetric(hpa *apiobject.HorizontalPodAutoscaler, required *apiobject.MetricSpec, metricList []*apiobject.PodMetrics) int32 {
+func computeReplicasForResourceMetric(hpa *apiobject.HorizontalPodAutoscaler, required *apiobject.MetricSpec, index int, metricList []*apiobject.PodMetrics) int32 {
 	if required.Resource.Target.Type != apiobject.AverageValueMetricType {
 		log.Error("[HPA controller] Not implemented Metric Type for Resource MetricSourceType")
 	}
@@ -239,6 +239,7 @@ func computeReplicasForResourceMetric(hpa *apiobject.HorizontalPodAutoscaler, re
 		total += sum
 	}
 	avg := float64(total) / float64(len(metricList))
+	hpa.SetStatusValue(&hpa.Status.CurrentMetrics[index], avg)
 	scale := avg / float64(*required.Resource.Target.AverageValue)
 	expect := int32(math.Ceil(scale * float64(hpa.Status.CurrentReplicas)))
 	return expect
