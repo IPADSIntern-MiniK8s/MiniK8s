@@ -1,0 +1,52 @@
+package apiobject
+
+{
+    "apiVersion": "apps/v1",
+    "kind": "HPA",
+    "metadata": {
+        "name": "hpa-practice",
+        "namespace": "default"
+    },
+    "spec": {
+        "behavior": {
+            "scaleDown": {
+                "policies": [
+                    {
+                        "periodSeconds": 60,
+                        "type": "Percent",
+                        "value": 10
+                    }
+                ]
+            }
+        },
+        "maxReplicas": 5,
+        "metrics": [
+            {
+                "resource": {
+                    "name": "memory",
+                    "target": {
+                        "averageValue": "1000",
+                        "type": "AverageValue"
+                    }
+                },
+                "type": "Resource"
+            },
+            {
+                "resource": {
+                    "name": "cpu",
+                    "target": {
+                        "averageValue": "1000",
+                        "type": "AverageValue"
+                    }
+                },
+                "type": "Resource"
+            }
+        ],
+        "minReplicas": 2,
+        "scaleTargetRef": {
+            "apiVersion": "apps/v1",
+            "kind": "replicas",
+            "name": "replica-practice"
+        }
+    }
+}

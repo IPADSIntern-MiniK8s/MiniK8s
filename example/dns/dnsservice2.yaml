@@ -1,0 +1,14 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: dns-service2
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: dns-test2
+  ports:
+    - name: service-port2
+      port: 23456
+      targetPort: p2
+      protocol: TCP

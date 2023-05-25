@@ -24,9 +24,9 @@ func checkReplicaReady(pod *apiobject.Pod) {
 	if pod.Status.OwnerReference.Controller == true && pod.Status.OwnerReference.Kind == config.REPLICA {
 		// get the previous pod
 		var previousPod apiobject.Pod
-		podKey := "registry/pods/default/" + pod.Data.Name
+		podKey := "/registry/pods/default/" + pod.Data.Name
 		if pod.Data.Namespace != "" {
-			podKey = "registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
+			podKey = "/registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
 		}
 		err := podStorageTool.Get(context.Background(), podKey, &previousPod)
 		if err != nil {
@@ -39,9 +39,9 @@ func checkReplicaReady(pod *apiobject.Pod) {
 		if replicaInc || replicaDec {
 			// get the according replica
 			var replica apiobject.ReplicationController
-			replicaKey := "registry/replicas/default/" + pod.Status.OwnerReference.Name
+			replicaKey := "/registry/replicas/default/" + pod.Status.OwnerReference.Name
 			if pod.Data.Namespace != "" {
-				replicaKey = "registry/replicas/" + pod.Data.Namespace + "/" + pod.Status.OwnerReference.Name
+				replicaKey = "/registry/replicas/" + pod.Data.Namespace + "/" + pod.Status.OwnerReference.Name
 			}
 
 			err = podStorageTool.Get(context.Background(), replicaKey, &replica)
@@ -90,9 +90,9 @@ func changePodResourceVersion(pod *apiobject.Pod, c *gin.Context) error {
 // release or allocate the pod's resource
 func changeNodeResource(pod *apiobject.Pod) {
 	// 1. get the previous pod
-	podKey := "registry/pods/default/" + pod.Data.Name
+	podKey := "/registry/pods/default/" + pod.Data.Name
 	if pod.Data.Namespace != "" {
-		podKey = "registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
+		podKey = "/registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
 	}
 
 	prevPod := &apiobject.Pod{}
@@ -137,7 +137,7 @@ func changeNodeResource(pod *apiobject.Pod) {
 
 	// 2. get the node that the pod is running on
 	var nodes []apiobject.Node
-	err = podStorageTool.GetList(context.Background(), "registry/nodes", &nodes)
+	err = podStorageTool.GetList(context.Background(), "/registry/nodes", &nodes)
 	if err != nil {
 		log.Warn("[releasePodResource] list nodes failed, the error message: ", err.Error())
 	}
@@ -182,7 +182,7 @@ func changeNodeResource(pod *apiobject.Pod) {
 			}
 
 			// 3. update the node
-			nodeKey := "registry/nodes/" + node.Data.Name
+			nodeKey := "/registry/nodes/" + node.Data.Name
 			err = podStorageTool.GuaranteedUpdate(context.Background(), nodeKey, &node)
 			if err != nil {
 				log.Warn("[releasePodResource] update node failed, the key: ", nodeKey, "the error message: ", err.Error())
@@ -281,6 +281,8 @@ func CreatePodHandler(c *gin.Context) {
 	}
 
 	// 2. save the pod's information in the storage
+	// 2.1 set the pod status
+	pod.Status.Phase = apiobject.Pending
 	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
 	// check whether it is a real create pod request
 	var prevPod apiobject.Pod
@@ -290,29 +292,26 @@ func CreatePodHandler(c *gin.Context) {
 		err = updatePod(pod, key)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		} else {
-			c.JSON(http.StatusOK, pod)
+			return
+		} 
+	} else {
+		// 2.2 change the pod's resourceVersion
+		err = changePodResourceVersion(pod, c)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
-		return
+		err = podStorageTool.Create(context.Background(), key, &pod)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
-	// 2.1 set the pod status
-	pod.Status.Phase = apiobject.Pending
+	
 
 	log.Debug("[CreatePodHandler] key: ", key)
-
-	// 2.2 change the pod's resourceVersion
-	err = changePodResourceVersion(pod, c)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	err = podStorageTool.Create(context.Background(), key, &pod)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
+	
 	// 3. check the node information and get the node's ip
 	nodeKey := "/registry/nodes/"
 	var nodeList []apiobject.Node
