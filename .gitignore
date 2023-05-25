@@ -18,3 +18,9 @@
 .idea/
 default.etcd/
 go_build*
+
+# ignore vscode
+.vscode/
+
+# ignore log
+*.log

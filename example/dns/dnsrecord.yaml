@@ -1,0 +1,10 @@
+kind: DNS
+apiVersion: app/v1
+name: dns-test1
+namespace: default
+host: minik8s.com
+paths:
+  - service: dns-service
+    port: 22222
+  - service: dns-service2
+    port: 23456
