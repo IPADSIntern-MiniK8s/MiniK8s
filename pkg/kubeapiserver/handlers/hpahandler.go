@@ -3,12 +3,13 @@ package handlers
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 var hpaStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
@@ -58,13 +59,14 @@ func CreateHpaHandler(c *gin.Context) {
 	var prevHpa apiobject.HorizontalPodAutoscaler
 	err := hpaStorageTool.Get(context.Background(), key, &prevHpa)
 	if err == nil {
-		// already exist
-		c.JSON(http.StatusConflict, gin.H{
-			"error": "hpa already exist",
-		})
+		err = updateHpa(hpa, key)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusOK, hpa)
+		}
 		return
 	}
-
 	// change the resource version
 	if err := changeHpaResourceVersion(hpa, c); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -177,6 +179,52 @@ func UpdateHpaHandler(c *gin.Context) {
 
 	// 2. save the hpa information in the storage
 	key := "/registry/hpas/" + namespaces + "/" + name
+
+	if err := updateHpa(hpa, key); err != nil {
+		log.Error("[UpdateHpaHandler] update hpa error: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. return the hpa object
+	c.JSON(http.StatusOK, hpa)
+}
+
+// UpdateHpaStatusHandler the url format is POST /api/v1/namespaces/:namespace/hpas/:name/status
+func UpdateHpaStatusHandler(c *gin.Context) {
+	namespaces := c.Param("namespace")
+	if namespaces == "" {
+		// namespace is empty error
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "namespace is empty",
+		})
+	}
+
+	name := c.Param("name")
+	if name == "" {
+		// name is empty error
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "name is empty",
+		})
+	}
+
+	var hpa *apiobject.HorizontalPodAutoscaler
+	if err := c.Bind(&hpa); err != nil {
+		// parse body error
+		log.Error("[UpdateHpaHandler] parse body error: ", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	key := "/registry/hpas/" + namespaces + "/" + name
+	var prevhpa *apiobject.HorizontalPodAutoscaler
+	err := hpaStorageTool.Get(context.Background(), key, &prevhpa)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// 2. save the hpa information in the storage
+	hpa.Spec = prevhpa.Spec
 
 	if err := updateHpa(hpa, key); err != nil {
 		log.Error("[UpdateHpaHandler] update hpa error: ", err)

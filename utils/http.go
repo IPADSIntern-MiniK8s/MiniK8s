@@ -3,8 +3,9 @@ package utils
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func SendJsonObject(method string, jsonObject []byte, url string) {
@@ -39,7 +40,7 @@ func SendJsonObject(method string, jsonObject []byte, url string) {
 func SendRequest(method string, str []byte, url string) (string, error) {
 	request, err := http.NewRequest(method, url, bytes.NewBuffer(str))
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	request.Header.Set("content-type", "application/json")
 
@@ -48,11 +49,11 @@ func SendRequest(method string, str []byte, url string) (string, error) {
 
 	body := &bytes.Buffer{}
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	} else {
 		_, err := body.ReadFrom(resp.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 		resp.Body.Close()
 		//fmt.Println(resp.StatusCode)

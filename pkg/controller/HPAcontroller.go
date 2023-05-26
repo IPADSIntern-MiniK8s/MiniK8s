@@ -2,15 +2,16 @@ package controller
 
 import (
 	"fmt"
-	"github.com/robfig/cron"
-	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 	"math"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	apiu "minik8s/pkg/apiobject/utils"
 	"minik8s/utils"
 	"time"
+
+	"github.com/robfig/cron"
+	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 )
 
 /* 主要工作：
@@ -41,6 +42,7 @@ func (s hpaScalerHandler) HandleCreate(message []byte) {
 	switch hpa.Spec.ScaleTargetRef.Kind {
 	case config.REPLICA:
 		{
+			// update rs
 			info := utils.GetObject(hpa.Spec.ScaleTargetRef.Kind, hpa.Data.Namespace, hpa.Spec.ScaleTargetRef.Name)
 			rs := &apiobject.ReplicationController{}
 			rs.UnMarshalJSON([]byte(info))
@@ -53,6 +55,19 @@ func (s hpaScalerHandler) HandleCreate(message []byte) {
 			rs.Status.Scale = hpa.Spec.MinReplicas
 
 			utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
+
+			// update hpa and initialize status matric
+			hpa.Status.DesiredReplicas = hpa.Spec.MinReplicas
+			hpa.Status.CurrentReplicas = hpa.Spec.MinReplicas
+			hpa.Status.LastScaleTime = apiu.Now()
+			for i, m := range hpa.Spec.Metrics {
+				if i >= len(hpa.Status.CurrentMetrics) {
+					hpa.Status.CurrentMetrics = append(hpa.Status.CurrentMetrics, apiobject.MetricValueStatus{
+						Type: m.Resource.Target.Type, // No support for pod type
+					})
+				}
+			}
+			utils.UpdateObjectStatus(hpa, config.HPA, hpa.Data.Namespace, hpa.Data.Name)
 		}
 	case config.POD:
 		{
@@ -100,12 +115,14 @@ func (s hpaScalerHandler) HandleUpdate(message []byte) {
 				info := utils.GetObject(hpa.Spec.ScaleTargetRef.Kind, hpa.Data.Namespace, hpa.Spec.ScaleTargetRef.Name)
 				rs := &apiobject.ReplicationController{}
 				rs.UnMarshalJSON([]byte(info))
+
 				// update rs
 				rs.Status.Scale = hpa.Status.DesiredReplicas
 				utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
+
 				// update hpa
 				hpa.Status.CurrentReplicas = hpa.Status.DesiredReplicas
-				utils.UpdateObject(hpa, config.HPA, hpa.Data.Namespace, hpa.Data.Name)
+				utils.UpdateObjectStatus(hpa, config.HPA, hpa.Data.Namespace, hpa.Data.Name)
 			}
 		case config.POD:
 			{
@@ -188,16 +205,18 @@ func reconcileAutoscaler(hpa *apiobject.HorizontalPodAutoscaler) {
 		window = int32(300)
 		if hpa.Spec.Behavior.ScaleDown != nil {
 			res := checkScalingRules(&window, hpa.Spec.Behavior.ScaleDown, hpa, duration)
+			log.Info("[hpa cpntroller] scaling down limit ", res)
 			if hpa.Status.CurrentReplicas-res > desired {
 				desired = hpa.Status.CurrentReplicas - res
 			}
 		}
 
-	} else if desired < hpa.Status.CurrentReplicas {
+	} else if desired > hpa.Status.CurrentReplicas {
 		// scale up
 		window = int32(0)
 		if hpa.Spec.Behavior.ScaleUp != nil {
 			res := checkScalingRules(&window, hpa.Spec.Behavior.ScaleUp, hpa, duration)
+			log.Info("[hpa cpntroller] scaling up limit ", res)
 			if hpa.Status.CurrentReplicas+res < desired {
 				desired = hpa.Status.CurrentReplicas + res
 			}
@@ -208,7 +227,8 @@ func reconcileAutoscaler(hpa *apiobject.HorizontalPodAutoscaler) {
 	if duration > float64(window) {
 		hpa.Status.LastScaleTime = apiu.Now()
 		hpa.Status.DesiredReplicas = desired
-		utils.UpdateObject(hpa, config.HPA, hpa.Data.Namespace, hpa.Data.Name)
+		utils.UpdateObjectStatus(hpa, config.HPA, hpa.Data.Namespace, hpa.Data.Name)
+		log.Info("[hpa cpntroller] update desired replicas ", desired)
 	}
 }
 
@@ -242,6 +262,7 @@ func computeReplicasForResourceMetric(hpa *apiobject.HorizontalPodAutoscaler, re
 	hpa.SetStatusValue(&hpa.Status.CurrentMetrics[index], avg)
 	scale := avg / float64(*required.Resource.Target.AverageValue)
 	expect := int32(math.Ceil(scale * float64(hpa.Status.CurrentReplicas)))
+	log.Info("[hpa controller] expect hpa replica ", expect)
 	return expect
 }
 
@@ -252,6 +273,7 @@ func getMetricsFromKubelet(IP string, ns string, name string) *apiobject.PodMetr
 		log.Error("get object ", info)
 		return nil
 	} else {
+		log.Info("[hpa controller] receive metric ", info)
 		m := &apiobject.PodMetrics{}
 		m.UnMarshalJSON([]byte(info))
 		return m
@@ -261,6 +283,8 @@ func getMetricsFromKubelet(IP string, ns string, name string) *apiobject.PodMetr
 func getLimitFromScalingPolicy(p apiobject.HPAScalingPolicy, currentReplica int32, duration float64, selectPolicy apiobject.ScalingPolicySelect, currentRes int32) int32 {
 	var res int32
 	var limit float64
+	log.Debug("[hpa controller] duration %f, currentReplica %d\n", duration, currentReplica)
+	duration = 15
 	switch p.Type {
 	case apiobject.PodsScalingPolicy:
 		{
@@ -271,6 +295,7 @@ func getLimitFromScalingPolicy(p apiobject.HPAScalingPolicy, currentReplica int3
 			limit = float64(p.Value) / 100.0 * float64(currentReplica) / float64(p.PeriodSeconds) * duration
 		}
 	}
+	limit = math.Ceil(limit)
 	switch selectPolicy {
 	case apiobject.MinPolicySelect:
 		{
@@ -291,13 +316,15 @@ func getLimitFromScalingPolicy(p apiobject.HPAScalingPolicy, currentReplica int3
 func checkScalingRules(window *int32, rules *apiobject.HPAScalingRules, hpa *apiobject.HorizontalPodAutoscaler, duration float64) int32 {
 	// check the window
 	if rules.StabilizationWindowSeconds != nil {
-		*window = *hpa.Spec.Behavior.ScaleDown.StabilizationWindowSeconds
+		*window = *rules.StabilizationWindowSeconds
 	}
 
 	// check the policy
 	var selectPolicy apiobject.ScalingPolicySelect
-	if hpa.Spec.Behavior.ScaleDown.SelectPolicy == nil {
+	if rules.SelectPolicy == nil {
 		selectPolicy = apiobject.MaxPolicySelect
+	} else {
+		selectPolicy = *rules.SelectPolicy
 	}
 
 	var res int32
@@ -312,8 +339,9 @@ func checkScalingRules(window *int32, rules *apiobject.HPAScalingRules, hpa *api
 		}
 	}
 
-	for _, p := range hpa.Spec.Behavior.ScaleDown.Policies {
+	for _, p := range rules.Policies {
 		res = getLimitFromScalingPolicy(p, hpa.Status.CurrentReplicas, duration, selectPolicy, res)
 	}
+
 	return res
 }

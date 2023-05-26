@@ -3,14 +3,15 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ghodss/yaml"
-	"github.com/spf13/cobra"
-	"github.com/tidwall/gjson"
 	"log"
-	"minik8s/pkg/kubectl/utils"
+	ctlutils "minik8s/pkg/kubectl/utils"
 	"minik8s/utils"
 	"os"
 	"strings"
+
+	"github.com/ghodss/yaml"
+	"github.com/spf13/cobra"
+	"github.com/tidwall/gjson"
 )
 
 var ApplyCmd = &cobra.Command{
@@ -43,8 +44,6 @@ func apply(cmd *cobra.Command, args []string) {
 	}
 	_url := ctlutils.ParseUrlMany(kind, namespace)
 	fmt.Printf("url:%s\n", _url)
-
-	//utils.SendJsonObject("POST", _json, _url)
 	_, err = utils.SendRequest("POST", _json, _url)
 	if err != nil {
 		log.Fatal(err)

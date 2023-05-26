@@ -1,5 +1,6 @@
 CMDPATH=../cmd
 OUTPATH=./bin
+
 kubectl:
 	go build -o $(OUTPATH)/kubectl $(CMDPATH)/kubectl.go
 

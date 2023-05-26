@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"go.etcd.io/etcd/clientv3"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/watch"
 	"reflect"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"go.etcd.io/etcd/clientv3"
 )
 
 type EtcdStorage struct {
@@ -199,6 +200,14 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 		case *apiobject.ReplicationController:
 			{
 				var existingData apiobject.ReplicationController
+				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+					return err
+				}
+				value.Union(&existingData)
+			}
+		case *apiobject.HorizontalPodAutoscaler:
+			{
+				var existingData apiobject.HorizontalPodAutoscaler
 				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
 					return err
 				}

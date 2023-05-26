@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
@@ -55,6 +56,7 @@ func checkReplicaReady(pod *apiobject.Pod) {
 			} else {
 				replica.Status.ReadyReplicas--
 			}
+			fmt.Print("replica ready", replica.Status.ReadyReplicas)
 
 			// update the replica
 			err = podStorageTool.GuaranteedUpdate(context.Background(), replicaKey, &replica)
@@ -137,7 +139,7 @@ func changeNodeResource(pod *apiobject.Pod) {
 
 	// 2. get the node that the pod is running on
 	var nodes []apiobject.Node
-	err = podStorageTool.GetList(context.Background(), "/registry/nodes", &nodes)
+	err = podStorageTool.GetList(context.Background(), "registry/nodes", &nodes)
 	if err != nil {
 		log.Warn("[releasePodResource] list nodes failed, the error message: ", err.Error())
 	}
@@ -151,9 +153,9 @@ func changeNodeResource(pod *apiobject.Pod) {
 					continue
 				}
 				if action == "allocate" {
-					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu - cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
+					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu-cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
 				} else {
-					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu + cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
+					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu+cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
 				}
 			}
 			if node.Status.Allocatable["memory"] != "" {
@@ -163,9 +165,9 @@ func changeNodeResource(pod *apiobject.Pod) {
 					continue
 				}
 				if action == "allocate" {
-					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory - memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
+					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory-memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
 				} else {
-					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory + memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
+					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory+memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
 				}
 			}
 			if node.Status.Allocatable["pods"] != "" {
@@ -280,9 +282,9 @@ func CreatePodHandler(c *gin.Context) {
 		return
 	}
 
-	// 2. save the pod's information in the storage
 	// 2.1 set the pod status
 	pod.Status.Phase = apiobject.Pending
+	// 2. save the pod's information in the storage
 	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
 	// check whether it is a real create pod request
 	var prevPod apiobject.Pod
@@ -292,26 +294,30 @@ func CreatePodHandler(c *gin.Context) {
 		err = updatePod(pod, key)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		} 
-	} else {
-		// 2.2 change the pod's resourceVersion
-		err = changePodResourceVersion(pod, c)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+		} else {
+			c.JSON(http.StatusOK, pod)
 		}
-		err = podStorageTool.Create(context.Background(), key, &pod)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+		return
 	}
 
-	
+	log.Debug("[CreatePodHandler] key: ", key)
+
+	// 2.2 change the pod's resourceVersion
+	err = changePodResourceVersion(pod, c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	err = podStorageTool.Create(context.Background(), key, &pod)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+
 
 	log.Debug("[CreatePodHandler] key: ", key)
-	
+
 	// 3. check the node information and get the node's ip
 	nodeKey := "/registry/nodes/"
 	var nodeList []apiobject.Node

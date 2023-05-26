@@ -131,7 +131,7 @@ func get(cmd *cobra.Command, args []string) {
 		}
 	case "replica":
 		{
-			table, _ := gotable.Create("NAME", "DESIRED", "CURRENT", "READY")
+			table, _ := gotable.Create("NAME", "DESIRED", "READY")
 			rsList := gjson.Parse(_json).Array()
 			for _, p := range rsList {
 				rs := &apiobject.ReplicationController{}
@@ -153,7 +153,9 @@ func get(cmd *cobra.Command, args []string) {
 				hpa.UnMarshalJSON([]byte(p.String()))
 				target := ""
 				for i, m := range hpa.Spec.Metrics {
-					target += strconv.Itoa(hpa.GetStatusValue(&hpa.Status.CurrentMetrics[i])) + "/" + strconv.Itoa(hpa.GetTargetValue(&m)) + ","
+					if i < len(hpa.Status.CurrentMetrics) {
+						target += strconv.Itoa(hpa.GetStatusValue(&hpa.Status.CurrentMetrics[i])) + "/" + strconv.Itoa(hpa.GetTargetValue(&m)) + ","
+					}
 				}
 				table.AddRow(map[string]string{
 					"NAME":      hpa.Data.Name,
