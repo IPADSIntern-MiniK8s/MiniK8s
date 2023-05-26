@@ -22,7 +22,6 @@ var podStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
 
 // checkReplicaReady check the replica's status for truly ready pod
 func checkReplicaReady(pod *apiobject.Pod) {
-
 	if pod.Status.OwnerReference.Controller == true && pod.Status.OwnerReference.Kind == config.REPLICA {
 		// get the previous pod
 		var previousPod apiobject.Pod
@@ -35,7 +34,6 @@ func checkReplicaReady(pod *apiobject.Pod) {
 			log.Warn("[checkReplicaReady] get previous pod failed, the key: ", podKey, "the error message: ", err.Error())
 			return
 		}
-
 		// check the previous pod's status
 		replicaInc := (previousPod.Status.Phase == apiobject.Pending || previousPod.Status.Phase == apiobject.Scheduled) && pod.Status.Phase == apiobject.Running
 		replicaDec := (previousPod.Status.Phase == apiobject.Running) && pod.Status.Phase == apiobject.Terminating
@@ -128,7 +126,7 @@ func changeNodeResource(pod *apiobject.Pod) {
 				continue
 			}
 			cpu += curCpu
-		}
+		} 
 		if container.Resources.Requests.Memory != "" {
 			curMemory, err := resourceutils.ParseQuantity(container.Resources.Requests.Memory)
 			if err != nil {
@@ -315,6 +313,10 @@ func CreatePodHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+
+
+	log.Debug("[CreatePodHandler] key: ", key)
 
 	// 3. check the node information and get the node's ip
 	nodeKey := "/registry/nodes/"

@@ -48,7 +48,9 @@
 
 - `Withenv`  环境变量 `"a=c"` 
 
-- `WithMemoryLimit` 单位是字节，如果容器使用内存超过这个数 会被直接kill
+- `WithMemoryLimit` 单位是字节，如果容器使用内存超过这个数 会被直接kill。
+
+  莫名其妙会有bug，报cgroup的错，全网查不到信息，使用“30Mi” 没问题
 
 - CPU：
 
@@ -59,6 +61,12 @@
 - port: 仅作标识用，没有意义，所以没有对应api
 
   [k8s四种port解析：nodePort、port、targetPort、containerPort - 简书 (jianshu.com)](https://www.jianshu.com/p/4b16c995990b) 
+  
+- `WithContainerLabels`这个功能为container提供label
+
+  配合`client.Containers(ctx,fmt.Sprintf("labels.%q==%s", "pod", pod.Data.Name))`一起使用
+
+  对于apiserver维护的信息，只是自定义的container apiobject，并不是containerd的可以用来获取真实容器信息的对象，使用containerd的添加label并使用filter的方法可以很方便地拿到一个pod对应的所有containers，否则需要通过遍历容器并比较ID来判断。
 
 ### task
 

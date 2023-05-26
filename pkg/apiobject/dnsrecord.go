@@ -8,6 +8,7 @@ type DNSRecord struct {
 	Kind       string `json:"kind,omitempty"`
 	APIVersion string `json:"apiVersion,omitempty"`
 	Name       string `json:"name"`
+	NameSpace 	string `json:"namespace,omitempty"`
 	Host       string `json:"host"`
 	Paths      []Path `json:"paths"`
 }
