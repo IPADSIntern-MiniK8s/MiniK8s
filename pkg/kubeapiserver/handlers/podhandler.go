@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/storage"
@@ -21,27 +22,29 @@ var podStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
 
 // checkReplicaReady check the replica's status for truly ready pod
 func checkReplicaReady(pod *apiobject.Pod) {
+
 	if pod.Status.OwnerReference.Controller == true && pod.Status.OwnerReference.Kind == config.REPLICA {
 		// get the previous pod
 		var previousPod apiobject.Pod
-		podKey := "registry/pods/default/" + pod.Data.Name
+		podKey := "/registry/pods/default/" + pod.Data.Name
 		if pod.Data.Namespace != "" {
-			podKey = "registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
+			podKey = "/registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
 		}
 		err := podStorageTool.Get(context.Background(), podKey, &previousPod)
 		if err != nil {
 			log.Warn("[checkReplicaReady] get previous pod failed, the key: ", podKey, "the error message: ", err.Error())
 			return
 		}
+
 		// check the previous pod's status
 		replicaInc := (previousPod.Status.Phase == apiobject.Pending || previousPod.Status.Phase == apiobject.Scheduled) && pod.Status.Phase == apiobject.Running
 		replicaDec := (previousPod.Status.Phase == apiobject.Running) && pod.Status.Phase == apiobject.Terminating
 		if replicaInc || replicaDec {
 			// get the according replica
 			var replica apiobject.ReplicationController
-			replicaKey := "registry/replicas/default/" + pod.Status.OwnerReference.Name
+			replicaKey := "/registry/replicas/default/" + pod.Status.OwnerReference.Name
 			if pod.Data.Namespace != "" {
-				replicaKey = "registry/replicas/" + pod.Data.Namespace + "/" + pod.Status.OwnerReference.Name
+				replicaKey = "/registry/replicas/" + pod.Data.Namespace + "/" + pod.Status.OwnerReference.Name
 			}
 
 			err = podStorageTool.Get(context.Background(), replicaKey, &replica)
@@ -55,6 +58,7 @@ func checkReplicaReady(pod *apiobject.Pod) {
 			} else {
 				replica.Status.ReadyReplicas--
 			}
+			fmt.Print("replica ready", replica.Status.ReadyReplicas)
 
 			// update the replica
 			err = podStorageTool.GuaranteedUpdate(context.Background(), replicaKey, &replica)
@@ -90,9 +94,9 @@ func changePodResourceVersion(pod *apiobject.Pod, c *gin.Context) error {
 // release or allocate the pod's resource
 func changeNodeResource(pod *apiobject.Pod) {
 	// 1. get the previous pod
-	podKey := "registry/pods/default/" + pod.Data.Name
+	podKey := "/registry/pods/default/" + pod.Data.Name
 	if pod.Data.Namespace != "" {
-		podKey = "registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
+		podKey = "/registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
 	}
 
 	prevPod := &apiobject.Pod{}
@@ -124,7 +128,7 @@ func changeNodeResource(pod *apiobject.Pod) {
 				continue
 			}
 			cpu += curCpu
-		} 
+		}
 		if container.Resources.Requests.Memory != "" {
 			curMemory, err := resourceutils.ParseQuantity(container.Resources.Requests.Memory)
 			if err != nil {
@@ -151,9 +155,9 @@ func changeNodeResource(pod *apiobject.Pod) {
 					continue
 				}
 				if action == "allocate" {
-					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu - cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
+					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu-cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
 				} else {
-					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu + cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
+					node.Status.Allocatable["cpu"] = resourceutils.PackQuantity(nodeCpu+cpu, resourceutils.GetUnit(node.Status.Allocatable["cpu"]))
 				}
 			}
 			if node.Status.Allocatable["memory"] != "" {
@@ -163,9 +167,9 @@ func changeNodeResource(pod *apiobject.Pod) {
 					continue
 				}
 				if action == "allocate" {
-					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory - memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
+					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory-memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
 				} else {
-					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory + memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
+					node.Status.Allocatable["memory"] = resourceutils.PackQuantity(nodeMemory+memory, resourceutils.GetUnit(node.Status.Allocatable["memory"]))
 				}
 			}
 			if node.Status.Allocatable["pods"] != "" {
@@ -182,7 +186,7 @@ func changeNodeResource(pod *apiobject.Pod) {
 			}
 
 			// 3. update the node
-			nodeKey := "registry/nodes/" + node.Data.Name
+			nodeKey := "/registry/nodes/" + node.Data.Name
 			err = podStorageTool.GuaranteedUpdate(context.Background(), nodeKey, &node)
 			if err != nil {
 				log.Warn("[releasePodResource] update node failed, the key: ", nodeKey, "the error message: ", err.Error())
@@ -280,6 +284,8 @@ func CreatePodHandler(c *gin.Context) {
 		return
 	}
 
+	// 2.1 set the pod status
+	pod.Status.Phase = apiobject.Pending
 	// 2. save the pod's information in the storage
 	key := "/registry/pods/" + namespace + "/" + pod.Data.Name
 	// check whether it is a real create pod request
@@ -295,9 +301,6 @@ func CreatePodHandler(c *gin.Context) {
 		}
 		return
 	}
-
-	// 2.1 set the pod status
-	pod.Status.Phase = apiobject.Pending
 
 	log.Debug("[CreatePodHandler] key: ", key)
 

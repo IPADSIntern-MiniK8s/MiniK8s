@@ -55,7 +55,7 @@ func connect(url string, syncFunc SyncFunc) error {
 		if len(message) == 0 {
 			continue
 		}
-		fmt.Printf("[client %s] %s\n", syncFunc.GetType(), message)
+		// fmt.Printf("[client %s] %s\n", syncFunc.GetType(), message)
 
 		op := gjson.Get(string(message), "metadata.resourcesVersion")
 		switch op.String() {
@@ -81,7 +81,7 @@ func CreateObject(obj apiobject.Object, ty config.ObjType, ns string) {
 		ns = "default"
 	}
 	res, _ := obj.MarshalJSON()
-	log.Info("[create obj]", string(res))
+	// log.Info("[create obj]", string(res))
 	//POST /api/v1/namespaces/{namespace}/{resource}"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s", config.ApiServerIp, ns, ty)
 	if info, err := SendRequest("POST", res, url); err != nil {
@@ -94,11 +94,24 @@ func UpdateObject(obj apiobject.Object, ty config.ObjType, ns string, name strin
 		ns = "default"
 	}
 	res, _ := obj.MarshalJSON()
-	log.Info("[update obj]", string(res))
+	// log.Info("[update obj]", string(res))
 	//POST /api/v1/namespaces/{namespace}/{resource}/{name}/update"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s/update", config.ApiServerIp, ns, ty, name)
 	if info, err := SendRequest("POST", res, url); err != nil {
-		log.Error("uodate object ", info)
+		log.Error("update object ", info)
+	}
+}
+
+func UpdateObjectStatus(obj apiobject.Object, ty config.ObjType, ns string, name string) {
+	if ns == "" {
+		ns = "default"
+	}
+	res, _ := obj.MarshalJSON()
+	// log.Info("[update obj status]", string(res))
+	//POST /api/v1/namespaces/{namespace}/{resource}/{name}/status"
+	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s/status", config.ApiServerIp, ns, ty, name)
+	if info, err := SendRequest("POST", res, url); err != nil {
+		log.Error("update object ", info)
 	}
 }
 
@@ -106,7 +119,7 @@ func DeleteObject(ty config.ObjType, ns string, name string) {
 	if ns == "" {
 		ns = "default"
 	}
-	log.Info("[delete obj]", name)
+	// log.Info("[delete obj]", name)
 	//DELETE /api/v1/namespaces/{namespace}/{resource}"
 	url := fmt.Sprintf("http://%s/api/v1/namespaces/%s/%s/%s", config.ApiServerIp, ns, ty, name)
 	if info, err := SendRequest("DELETE", nil, url); err != nil {
@@ -118,7 +131,7 @@ func GetObject(ty config.ObjType, ns string, name string) string {
 	if ns == "" {
 		ns = "default"
 	}
-	log.Info("[get obj]", name)
+	// log.Info("[get obj]", name)
 	//GET /api/v1/pods
 	var url string
 	if ns != "nil" {

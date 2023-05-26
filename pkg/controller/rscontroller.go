@@ -1,11 +1,12 @@
 package controller
 
 import (
-	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/utils"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 )
 
 /*
@@ -82,7 +83,7 @@ func (r rsReplicaHandler) HandleUpdate(message []byte) {
 		utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 	} else if expectReplica < rs.Status.Replicas {
 		// choose  pod to delete
-		deleteFromPodList(rs, rs.Status.Replicas-rs.Spec.Replicas)
+		deleteFromPodList(rs, rs.Status.Replicas-expectReplica)
 		rs.Status.Replicas = expectReplica
 		utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 	}
@@ -165,10 +166,13 @@ func createFromPodList(rs *apiobject.ReplicationController, expect int32) int32 
 func deleteFromPodList(rs *apiobject.ReplicationController, num int32) {
 	info := utils.GetObject(config.POD, rs.Data.Namespace, "")
 	podList := gjson.Parse(info).Array()
+	dNum := num
 	for _, p := range podList {
 		pod := &apiobject.Pod{}
 		pod.UnMarshalJSON([]byte(p.String()))
 		if isPodBelongToController(pod, rs) {
+			pod.Status.OwnerReference.Controller = false
+			utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
 			utils.DeleteObject(config.POD, pod.Data.Namespace, pod.Data.Name)
 			num--
 			if num == 0 {
@@ -176,7 +180,7 @@ func deleteFromPodList(rs *apiobject.ReplicationController, num int32) {
 			}
 		}
 	}
-	log.Info("[rs controller] Delete from pod list. Delete Num:", num)
+	log.Info("[rs controller] Delete from pod list. Delete Num:", dNum)
 }
 
 func createFromTemplate(t *apiobject.PodTemplateSpec, num int32, name string, ns string) {
@@ -188,7 +192,7 @@ func createFromTemplate(t *apiobject.PodTemplateSpec, num int32, name string, ns
 		pod.Data.Name = utils.GenerateName(name, 10)
 		pod.Data.Namespace = ns
 		setController(name, pod)
-		print("name: ", pod.Data.Name, "\n")
+		print("[rs controller] name: ", pod.Data.Name, "\n")
 		utils.CreateObject(pod, config.POD, ns)
 	}
 

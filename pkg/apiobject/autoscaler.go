@@ -351,15 +351,45 @@ func (h *HorizontalPodAutoscaler) SetStatusValue(m *MetricValueStatus, v float64
 	switch m.Type {
 	case AverageValueMetricType:
 		{
+			if m.AverageValue == nil {
+				var v utils.Quantity
+				m.AverageValue = &v
+			}
 			*m.AverageValue = utils.Quantity(v)
 		}
 	case ValueMetricType:
 		{
+			if m.Value == nil {
+				var v utils.Quantity
+				m.Value = &v
+			}
 			*m.Value = utils.Quantity(v)
 		}
 	case UtilizationMetricType:
 		{
+			if m.AverageUtilization == nil {
+				var v int32
+				m.AverageUtilization = &v
+			}
 			*m.AverageUtilization = int32(v)
 		}
+	}
+}
+
+func (hpa *HorizontalPodAutoscaler) Union(other *HorizontalPodAutoscaler) {
+	if hpa.Status.ObservedGeneration == nil {
+		hpa.Status.ObservedGeneration = other.Status.ObservedGeneration
+	}
+	if hpa.Status.LastScaleTime.IsZero() {
+		hpa.Status.LastScaleTime = other.Status.LastScaleTime
+	}
+	if hpa.Status.CurrentReplicas == 0 {
+		hpa.Status.CurrentReplicas = other.Status.CurrentReplicas
+	}
+	if hpa.Status.DesiredReplicas == 0 {
+		hpa.Status.DesiredReplicas = other.Status.DesiredReplicas
+	}
+	if hpa.Status.CurrentMetrics == nil {
+		hpa.Status.CurrentMetrics = other.Status.CurrentMetrics
 	}
 }

@@ -1,5 +1,5 @@
-apiVersion: autoscaling/v2beta2
-kind: HorizontalPodAutoscaler
+apiVersion: apps/v1
+kind: HPA
 metadata:
   name: hpa-practice
 spec:
@@ -9,13 +9,13 @@ spec:
     - resource:
         name: "memory"
         target:
-          averageValue: "1000"
+          averageValue: 10000
           type: AverageValue
       type: Resource
     - resource:
         name: "cpu"
         target:
-          averageValue: "1000"
+          averageValue: 1000
           type: AverageValue
       type: Resource
   scaleTargetRef:   # 指定要控制的deploy
@@ -23,8 +23,14 @@ spec:
     kind: replicas
     name: replica-practice
   behavior:
+    scaleUp:
+      policies:
+        - type: Pods
+          value: 8
+          periodSeconds: 60 # 每分钟最多10%
     scaleDown:
       policies:
         - type: Percent
           value: 10
           periodSeconds: 60 # 每分钟最多10%
+      stabilizationWindowSeconds: 30
