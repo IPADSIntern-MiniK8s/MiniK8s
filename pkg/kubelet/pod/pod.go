@@ -89,13 +89,13 @@ func CreatePod(pod apiobject.Pod, apiserverAddr string) (bool, string) {
 		}
 		_, err = utils.Ctl(pod.Data.Namespace, "cp", "./resolv.conf", cSpec.Name+":/etc/resolv.conf")
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Printf("cp resolv failed:%v\n",err)
 			deletePause()
 			return false, ""
 		}
 		_, err = utils.Ctl(pod.Data.Namespace, "cp", "./hosts", cSpec.Name+":/etc/hosts")
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Printf("cp hosts failed:%v\n",err)
 			deletePause()
 			return false, ""
 		}
@@ -145,46 +145,42 @@ func apiContainer2Container(metaData apiobject.MetaData, volumes []apiobject.Vol
 			"ipc":     namespacePathPrefix + "ipc",
 			"uts":     namespacePathPrefix + "uts",
 		},
+		Labels: map[string]string{"pod": metaData.Name},
 	}
 	return c
 }
 
 func DeletePod(pod apiobject.Pod) bool {
-	client, err := utils.NewClient(pod.Data.Namespace)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
+	//client, err := utils.NewClient(pod.Data.Namespace)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return false
+	//}
 	ctx := context.Background()
-	containers, err := client.Containers(ctx)
-	if err != nil {
+	//containers, err := client.Containers(ctx)
+	//if err != nil {
+	//	return false
+	//}
+	//containerNames := map[string]bool{}
+
+	//for _, c := range pod.Spec.Containers {
+	//	n := generateContainerName(c.Name, pod.Data.Name, false)
+	//	containerNames[n] = true
+	//}
+	//fmt.Println(containerNames)
+
+	containers := utils.GetContainersByPod(pod)
+	if containers == nil {
 		return false
 	}
-	containerNames := map[string]bool{}
-
-	for _, c := range pod.Spec.Containers {
-		n := generateContainerName(c.Name, pod.Data.Name, false)
-		containerNames[n] = true
-		//_, err = utils.Ctl(pod.Data.Namespace, "stop", n)
-		//if err != nil {
-		//	return false
-		//}
-		//_, err = utils.Ctl(pod.Data.Namespace, "rm", n)
-		//if err != nil {
-		//	return false
-		//}
-	}
-	//fmt.Println(containerNames)
 	for _, c := range containers {
-		//fmt.Println(c.ID())
-		//fmt.Println(container.GetContainerStatus(ctx, c))
-		if _, ok := containerNames[c.ID()]; ok {
-			//fmt.Println(ok, c.ID())
-			if success := container.RemoveContainer(ctx, c); !success {
-				return false
-			}
+		//if _, ok := containerNames[c.ID()]; ok {
+		if success := container.RemoveContainer(ctx, c); !success {
+			return false
 		}
+		//}
 	}
+
 	//must delete pause at last, otherwise other containers will be stopped
 
 	pauseName := generateContainerName("", pod.Data.Name, true)
@@ -204,7 +200,7 @@ func DeletePod(pod apiobject.Pod) bool {
 	//	return false
 	//}
 
-	_, err = utils.Ctl(pod.Data.Namespace, "stop", pauseName)
+	_, err := utils.Ctl(pod.Data.Namespace, "stop", pauseName)
 	if err != nil {
 		return false
 	}
@@ -220,9 +216,6 @@ func generateContainerName(containerName string, podName string, isPause bool) s
 		return podName + "-pause"
 	}
 	return fmt.Sprintf("%s-%s", podName, containerName)
-}
-func belongsToPod(containerName, podName string) bool {
-	return strings.HasPrefix(containerName, podName)
 }
 
 func addCoreDns(path, apiserverAddr string) bool {
@@ -243,18 +236,38 @@ func addCoreDns(path, apiserverAddr string) bool {
 	return true
 }
 
-func GetPodMetrics(namespace, podName string) *apiobject.PodMetrics {
-	client, err := utils.NewClient(namespace)
-	if err != nil {
-		return nil
-	}
-	ctx := context.Background()
-	containers, err := client.Containers(ctx)
+func GetPodMetrics(namespace string, pod apiobject.Pod) *apiobject.PodMetrics {
+	containers := utils.GetContainersByPod(pod)
+
 	cs := make([]containerd.Container, 0, 0)
 	for _, c := range containers {
-		if belongsToPod(c.ID(), podName) {
-			cs = append(cs, c)
-		}
+		cs = append(cs, c)
 	}
 	return container.GetContainersMetrics(cs)
+}
+
+func GetPodPhase(pod apiobject.Pod) (apiobject.PhaseLabel, bool) {
+	finished := false
+	ctx := context.Background()
+	containers := utils.GetContainersByPod(pod)
+	if containers == nil {
+		//err
+		return apiobject.Pending, false
+	}
+	for _, c := range containers {
+		status, code := container.GetContainerStatus(ctx, c)
+		//fmt.Println(c.ID(), status, code)
+		if status == "stopped" {
+			if code == 0 {
+				finished = true
+				continue
+			}
+			return apiobject.Failed, true
+		}
+	}
+	if finished {
+		return apiobject.Finished, true
+	}
+	//do not use this phase since pod may be creating
+	return apiobject.Running, false
 }

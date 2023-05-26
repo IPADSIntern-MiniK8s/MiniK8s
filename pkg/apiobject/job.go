@@ -46,8 +46,16 @@ spec:
 type Job struct {
 	APIVersion string    `json:"apiVersion,omitempty"`
 	Data       MetaData  `json:"metadata"`
-	Spec       PodSpec   `json:"spec,omitempty"`
+	Spec       JobSpec   `json:"spec,omitempty"`
 	Status     PodStatus `json:"status,omitempty"`
+}
+
+type JobSpec struct {
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	Containers   []Container       `json:"containers"`
+	Volumes      []Volumes         `json:"volumes,omitempty"`
+	BackoffLimit int		`json:"backoffLimit"`
+	TtlSecondsAfterFinished int	`json:"ttlSecondsAfterFinished"`
 }
 
 

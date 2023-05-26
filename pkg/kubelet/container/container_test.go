@@ -73,7 +73,7 @@ func TestContainer(t *testing.T) {
 	if c.ID() != spec.Name {
 		t.Fatalf("wrong container")
 	}
-	if GetContainerStatus(ctx, c) != "running" {
+	if s,_:=GetContainerStatus(ctx, c);s != "running" {
 		t.Fatalf("container status wrong")
 	}
 
@@ -81,7 +81,7 @@ func TestContainer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if GetContainerStatus(ctx, c) != "stopped" {
+	if s,_:=GetContainerStatus(ctx, c);s != "stopped" {
 		t.Fatalf("container status wrong")
 	}
 	_, err = utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
@@ -143,7 +143,7 @@ func TestRemoveContainer(t *testing.T) {
 	if c.ID() != spec.Name {
 		t.Fatalf("wrong container")
 	}
-	if GetContainerStatus(ctx, c) != "running" {
+	if s,_:=GetContainerStatus(ctx, c);s != "running" {
 		t.Fatalf("container status wrong")
 	}
 
@@ -155,12 +155,13 @@ func TestRemoveContainer(t *testing.T) {
 	client, err = utils.NewClient(spec.ContainerNamespace)
 	containers, _ = client.Containers(ctx)
 	if len(containers) > 0 {
-		t.Fatalf("rm container failed,%v:%v", c.ID(), GetContainerStatus(ctx, c))
+		s,_:= GetContainerStatus(ctx, c)
+		t.Fatalf("rm container failed,%v:%v", c.ID(),s)
 	}
 }
 
 func TestGetContainerStatus(t *testing.T) {
-	client, err := utils.NewClient("test")
+	client, err := utils.NewClient("teststatus")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -192,18 +193,41 @@ func TestRemoveOneContainer(t *testing.T) {
 }
 
 func TestContainerFilter(t *testing.T) {
-	client, err := utils.NewClient("default")
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 	ctx := context.Background()
-	containers, err := client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "nerdctl/name", "testpod2-pause"))
+	ns:="filter"
+	spec := ContainerSpec{
+		Image:              "ubuntu",
+		Name:               "test-filter",
+		ContainerNamespace: ns,
+		CmdLine: []string{"sleep","10"},
+		Labels: map[string]string{"pod":"podname"},
+	}
+	container := CreateContainer(ctx, spec)
+	if container == nil {
+		t.Fatalf("create container failed")
+	}
+
+	client, err := utils.NewClient(ns)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	for _, c := range containers {
-		fmt.Println(c.ID())
+	containers, err := client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "pod", "podname"))
+	if err != nil {
+		t.Fatalf("%v", err)
 	}
+	if len(containers) !=1{
+		t.Fatalf("get container error")
+	}
+	containers, err = client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "pod", "wrong"))
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if len(containers) !=0{
+		t.Fatalf("get container error")
+	}
+	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
+
 }
 
 func TestContainerMetric(t *testing.T) {

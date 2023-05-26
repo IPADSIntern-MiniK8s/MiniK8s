@@ -27,6 +27,7 @@ type ContainerSpec struct {
 	CmdLine            []string
 	Envs               []string
 	LinuxNamespaces    map[string]string
+	Labels             map[string]string
 }
 
 func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Container {
@@ -63,11 +64,18 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 			opts = append(opts, GenerateNamespaceSpec(nsType, path))
 		}
 	}
+
+	copts := []containerd.NewContainerOpts{
+		containerd.WithNewSnapshot(spec.Name, im), //rootfs?
+		containerd.WithNewSpec(opts...),
+	}
+	if spec.Labels!=nil && len(spec.Labels) > 0{
+		copts = append(copts,containerd.WithContainerLabels(spec.Labels))
+	}
 	newContainer, err := client.NewContainer(
 		ctx,
 		spec.Name, //container name
-		containerd.WithNewSnapshot(spec.Name, im), //rootfs?
-		containerd.WithNewSpec(opts...),
+		copts...
 	)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -79,12 +87,12 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 func StartContainer(ctx context.Context, containerToStart containerd.Container) uint32 {
 	task, err := containerToStart.NewTask(ctx, cio.NewCreator(cio.WithStdio))
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("Newtask failed:%v\n",err)
 		return 0
 	}
 	err = task.Start(ctx)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("task start failed:%v\n",err)
 		return 0
 	}
 	return task.Pid()
@@ -146,16 +154,16 @@ func RemoveContainer(ctx context.Context, containerToRemove containerd.Container
 	return true
 }
 
-func GetContainerStatus(ctx context.Context, c containerd.Container) string {
+func GetContainerStatus(ctx context.Context, c containerd.Container) (string,uint32) {
 	task, err := c.Task(ctx, nil)
 	if err != nil {
-		return err.Error()
+		return err.Error(),0
 	}
 	status, err := task.Status(ctx)
 	if err != nil {
-		return err.Error()
+		return err.Error(),0
 	}
-	return string(status.Status)
+	return string(status.Status),status.ExitStatus
 }
 
 type metricsCollection struct {

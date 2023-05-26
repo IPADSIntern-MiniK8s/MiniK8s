@@ -20,6 +20,7 @@ func Run(c Config) {
 	kl.register()
 	time.Sleep(time.Second * 5)
 	go kl.watchPod()
+	go kl.watchContainersStatus()
 	err := kl.Server.Run(kl.ListenAddr)
 	if err != nil {
 		fmt.Println(err.Error())

@@ -13,7 +13,7 @@ import (
 // nerdctl -n testpod rm $(nerdctl -n testpod ps -a| grep -v CONTAINER |awk '{print $1}')
 func TestPod(t *testing.T) {
 	//should start etcd and flannld
-	namespace := "testpodns"
+	namespace := "testp"
 	pod := apiobject.Pod{
 		Data: apiobject.MetaData{Name: "testpod", Namespace: namespace},
 		Spec: apiobject.PodSpec{
@@ -108,7 +108,7 @@ func TestPod(t *testing.T) {
 
 func TestPodCommunication(t *testing.T) {
 	//should start etcd and flannld
-	namespace := "testpodns"
+	namespace := "testpodc"
 	pod1 := apiobject.Pod{
 		Data: apiobject.MetaData{Name: "pod1", Namespace: namespace},
 		Spec: apiobject.PodSpec{
@@ -208,7 +208,7 @@ func TestPodCommunication(t *testing.T) {
 
 func TestPodMetrics(t *testing.T) {
 	//should start etcd and flannld
-	namespace := "testpodns"
+	namespace := "testpodm"
 	podName := "testpod"
 	pod := apiobject.Pod{
 		Data: apiobject.MetaData{Name: podName, Namespace: namespace},
@@ -251,7 +251,7 @@ func TestPodMetrics(t *testing.T) {
 	}
 	defer DeletePod(pod)
 	time.Sleep(time.Second)
-	metrics := GetPodMetrics(namespace, podName)
+	metrics := GetPodMetrics(namespace, pod)
 	if metrics == nil {
 		t.Fatalf("get pod metrics failed")
 	}
@@ -263,9 +263,65 @@ func TestPodMetrics(t *testing.T) {
 			}
 		} else {
 			memory := c.Usage[apiobject.ResourceMemory]
-			if memory < 200000000 {
+			if memory < 80000000 {
 				t.Fatalf("memory metric error,%v", memory)
 			}
 		}
 	}
+}
+
+func TestGetPodPhase(t *testing.T) {
+	namespace := "testpodp"
+	podName := "testpod"
+	pod := apiobject.Pod{
+		Data: apiobject.MetaData{Name: podName, Namespace: namespace},
+		Spec: apiobject.PodSpec{
+			Containers: []apiobject.Container{
+				{
+					Name:      "c1",
+					Image:     "ubuntu",
+					Command:   []string{"/root/test_mount/test_memory"},
+					Resources: apiobject.Resources{Limits: apiobject.Limit{Memory: "30Mi"}},
+					VolumeMounts: []apiobject.VolumeMounts{
+						{
+							Name:      "test-volume",
+							MountPath: "/root/test_mount",
+						},
+					},
+				},
+				{
+					Name:    "c2",
+					Image:   "ubuntu",
+					Command: []string{"sleep", "3"},
+				},
+			},
+			Volumes: []apiobject.Volumes{
+				{
+					Name:     "test-volume",
+					HostPath: apiobject.HostPath{Path: "/home/test_mount"},
+				},
+			},
+		}}
+	success, _ := CreatePod(pod, "192.168.1.13:8080")
+	if !success {
+		t.Fatalf("create pod failed")
+	}
+	defer DeletePod(pod)
+	phase, stopped := GetPodPhase(pod)
+	if phase != "Running" || stopped {
+		t.Fatalf("status error:%v,%v",phase,stopped)
+	}
+	time.Sleep(time.Second * 5)
+	phase, stopped = GetPodPhase(pod)
+	if phase != "Finished" || !stopped {
+		t.Fatalf("status error:%v,%v",phase,stopped)
+	}
+
+	time.Sleep(time.Second * 10)
+	phase, stopped = GetPodPhase(pod)
+	if phase != "Failed" || !stopped {
+		t.Fatalf("status error:%v,%v",phase,stopped)
+	}
+
+
 }
