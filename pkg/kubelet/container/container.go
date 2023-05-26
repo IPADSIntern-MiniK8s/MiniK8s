@@ -102,44 +102,42 @@ func StartContainer(ctx context.Context, containerToStart containerd.Container) 
 // copy from nerdctl pkg/cmd/container/remove.go
 func RemoveContainer(ctx context.Context, containerToRemove containerd.Container) bool {
 	task, err := containerToRemove.Task(ctx, nil)
-	if err != nil {
-		fmt.Println(err.Error())
-		return false
-	}
-	status, err := task.Status(ctx)
-	if err != nil {
-		fmt.Println(err.Error())
-		return false
-	}
-	switch status.Status {
-	case containerd.Created, containerd.Stopped:
-		if _, err := task.Delete(ctx); err != nil {
+	if err == nil {
+		status, err := task.Status(ctx)
+		if err != nil {
 			fmt.Println(err.Error())
 			return false
 		}
-		return true
-	case containerd.Paused:
-		if _, err := task.Delete(ctx, containerd.WithProcessKill); err != nil {
-			fmt.Println(err.Error())
-			return false
-		}
-		return true
-	default:
-		//fmt.Println("default")
-		if err := task.Kill(ctx, syscall.SIGKILL); err != nil {
-			fmt.Println(err.Error())
-			return false
-		}
-		es, err := task.Wait(ctx)
-		if err == nil {
-			<-es
-		}
-		if _, err = task.Delete(ctx, containerd.WithProcessKill); err != nil {
-			fmt.Println(err.Error())
-			return false
+		switch status.Status {
+		case containerd.Created, containerd.Stopped:
+			if _, err := task.Delete(ctx); err != nil {
+				fmt.Println(err.Error())
+				return false
+			}
+			return true
+		case containerd.Paused:
+			if _, err := task.Delete(ctx, containerd.WithProcessKill); err != nil {
+				fmt.Println(err.Error())
+				return false
+			}
+			return true
+		default:
+			//fmt.Println("default")
+			if err := task.Kill(ctx, syscall.SIGKILL); err != nil {
+				fmt.Println(err.Error())
+				return false
+			}
+			es, err := task.Wait(ctx)
+			if err == nil {
+				<-es
+			}
+			if _, err = task.Delete(ctx, containerd.WithProcessKill); err != nil {
+				fmt.Println(err.Error())
+				return false
+			}
 		}
 	}
-
+	
 	var delOpts []containerd.DeleteOpts
 	if _, err := containerToRemove.Image(ctx); err == nil {
 		delOpts = append(delOpts, containerd.WithSnapshotCleanup)
