@@ -114,13 +114,11 @@ func RemoveContainer(ctx context.Context, containerToRemove containerd.Container
 				fmt.Println(err.Error())
 				return false
 			}
-			return true
 		case containerd.Paused:
 			if _, err := task.Delete(ctx, containerd.WithProcessKill); err != nil {
 				fmt.Println(err.Error())
 				return false
 			}
-			return true
 		default:
 			//fmt.Println("default")
 			if err := task.Kill(ctx, syscall.SIGKILL); err != nil {
@@ -137,7 +135,6 @@ func RemoveContainer(ctx context.Context, containerToRemove containerd.Container
 			}
 		}
 	}
-	
 	var delOpts []containerd.DeleteOpts
 	if _, err := containerToRemove.Image(ctx); err == nil {
 		delOpts = append(delOpts, containerd.WithSnapshotCleanup)
