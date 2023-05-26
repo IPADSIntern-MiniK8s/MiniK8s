@@ -132,11 +132,12 @@ type OwnerReference struct {
 type PhaseLabel string
 
 const (
+	Created     PhaseLabel = "Created"//only for job
 	Pending     PhaseLabel = "Pending"
 	Scheduled   PhaseLabel = "Scheduled"
 	Running     PhaseLabel = "Running"
-	Failed      PhaseLabel = "Failed"
-	Finished    PhaseLabel = "Finished"
+	Failed      PhaseLabel = "Failed"	//one of containers of pod return not 0
+	Finished    PhaseLabel = "Finished"	//one of containers of pod return 0
 	Terminating PhaseLabel = "Terminating"
 	Deleted     PhaseLabel = "Deleted"
 	Unknown     PhaseLabel = "Unknown"

@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"github.com/containerd/containerd"
 	"os/exec"
 	"strings"
+	"minik8s/pkg/apiobject"
 )
 
 var runtimePath, _ = exec.LookPath("nerdctl")
@@ -31,4 +33,17 @@ func GetInfo(namespace, containerName, fields string) (string, error) {
 
 func NewClient(namespace string) (*containerd.Client, error) {
 	return containerd.New("/run/containerd/containerd.sock", containerd.WithDefaultNamespace(namespace))
+}
+
+func GetContainersByPod(pod apiobject.Pod)[]containerd.Container{
+	client, err := NewClient(pod.Data.Namespace)
+	if err != nil {
+		return nil
+	}
+	ctx := context.Background()
+	containers, err := client.Containers(ctx,fmt.Sprintf("labels.%q==%s", "pod", pod.Data.Name))
+	if err!=nil{
+		return nil
+	}
+	return containers
 }

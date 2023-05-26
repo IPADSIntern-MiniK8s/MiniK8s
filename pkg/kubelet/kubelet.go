@@ -10,6 +10,8 @@ import (
 	"minik8s/utils"
 	"net/http"
 	"os"
+	"time"
+	"github.com/tidwall/gjson"
 )
 
 type Kubelet struct {
@@ -87,6 +89,8 @@ func (kl *Kubelet) watchPod() {
 				success, ip := kubeletPod.CreatePod(*pod, kl.ApiserverAddr)
 				fmt.Println(success)
 				if !success {
+					pod.Status.Phase = apiobject.Failed
+					utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
 					continue
 				}
 
@@ -114,5 +118,28 @@ func (kl *Kubelet) watchPod() {
 		//	continue
 		//}
 		//utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", kl.ApiserverAddr, pod.Data.Namespace, pod.Data.Name))
+	}
+
+}
+
+
+func(kl *Kubelet) watchContainersStatus(){
+	for{
+		time.Sleep(time.Second*10)
+
+
+		info := utils.GetObject(config.POD, "nil", "")
+		podList := gjson.Parse(info).Array()
+		for _, p := range podList {
+			pod := &apiobject.Pod{}
+			pod.UnMarshalJSON([]byte(p.String()))
+
+			phase,stopped := kubeletPod.GetPodPhase(*pod)
+			if stopped{
+				fmt.Println(pod.Data.Name,phase)
+				pod.Status.Phase = phase
+				utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
+			}
+		}
 	}
 }

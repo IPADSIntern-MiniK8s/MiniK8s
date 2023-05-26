@@ -14,4 +14,5 @@ const (
 	REPLICA  ObjType = "replicas"
 	HPA      ObjType = "hpas"
 	FUNCTION ObjType = "functions"
+	JOB      ObjType = "jobs"
 )

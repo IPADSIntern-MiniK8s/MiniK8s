@@ -37,6 +37,12 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/replicas/:name", Method: "DELETE", Handler: DeleteReplicaHandler},     // DELETE, delete a replica
 	{Path: "api/v1/namespaces/:namespace/replicas/:name/update", Method: "POST", Handler: UpdateReplicaHandler}, // POST, update a replica
 
+	{Path: "/api/v1/namespaces/:namespace/jobs", Method: "POST", Handler: CreateJobHandler},             // POST, create a Job
+	{Path: "/api/v1/namespaces/:namespace/jobs/:name", Method: "GET", Handler: GetJobHandler},           // GET, get a Job
+	{Path: "/api/v1/namespaces/:namespace/jobs", Method: "GET", Handler: GetJobsHandler},                // GET, list all Jobs
+	{Path: "/api/v1/namespaces/:namespace/jobs/:name", Method: "DELETE", Handler: DeleteJobHandler},     // DELETE, delete a Job
+	{Path: "api/v1/namespaces/:namespace/jobs/:name/update", Method: "POST", Handler: UpdateJobHandler}, // POST, update a Job
+
 	{Path: "/api/v1/functions", Method: "POST", Handler: UploadFunctionHandler},                // POST, create a function
 	{Path: "/api/v1/functions/:name", Method: "GET", Handler: GetFunctionHandler},              // GET, get a function
 	{Path: "/api/v1/functions/:name", Method: "DELETE", Handler: DeleteFunctionHandler},        // DELETE, delete a function

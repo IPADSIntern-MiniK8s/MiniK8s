@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"minik8s/pkg/apiobject"
-	"minik8s/pkg/kubectl/utils"
+	ctlutils "minik8s/pkg/kubectl/utils"
 	"minik8s/utils"
 	"strconv"
 	"strings"
@@ -60,6 +60,7 @@ func get(cmd *cobra.Command, args []string) {
 		{
 			table, _ := gotable.Create("NAME", "POD-IP", "STATUS", "NODE-IP")
 			podList := gjson.Parse(_json).Array()
+			fmt.Println(podList)
 			for _, p := range podList {
 				name := gjson.Get(p.String(), "metadata.name").String()
 				status := gjson.Get(p.String(), "status.phase").String()
@@ -70,6 +71,20 @@ func get(cmd *cobra.Command, args []string) {
 					"POD-IP":  IP,
 					"STATUS":  status,
 					"NODE-IP": nodeIP,
+				})
+			}
+		}
+	case "job":
+		{
+			table, _ := gotable.Create("NAME", "POD-NAME", "STATUS")
+			job := gjson.Parse(_json).Array()
+			for _, p := range job {
+				name := gjson.Get(p.String(), "metadata.name").String()
+				status := gjson.Get(p.String(), "status.phase").String()
+				table.AddRow(map[string]string{
+					"NAME":     name,
+					"POD-NAME": name,
+					"STATUS":   status,
 				})
 			}
 			fmt.Println(table)
