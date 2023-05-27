@@ -269,6 +269,7 @@ func updatePod(pod *apiobject.Pod, key string) error {
 	return nil
 }
 
+
 // CreatePodHandler the url format is POST /api/v1/namespaces/:namespace/pods
 // TODO: bind the pod in runtime
 func CreatePodHandler(c *gin.Context) {

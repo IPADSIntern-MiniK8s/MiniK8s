@@ -2,16 +2,29 @@ package eventfilter
 
 import (
 	"fmt"
-	"github.com/gorilla/websocket"
-	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/serverless/workflow"
 	"net/http"
+	"time"
+
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 )
 
 func WorkFlowSync(target string) {
+	for {
+		err := workflowConnect(target)
+		if err != nil {
+			log.Error("[WorkFlowSync] WebSocket connect fail: ", err)
+		}
+		time.Sleep(5 * time.Second) // wait 5 seconds to reconnect
+	}
+}
+
+
+func workflowConnect(target string) error {
 	// establish WebSocket connection
 	url := fmt.Sprintf("ws://%s/api/v1/watch/%s", config.ApiServerIp, target)
 	headers := http.Header{}
@@ -19,7 +32,7 @@ func WorkFlowSync(target string) {
 	conn, _, err := websocket.DefaultDialer.Dial(url, headers)
 	if err != nil {
 		fmt.Println("WebSocket connect fail", err)
-		return
+		return err
 	} else {
 		fmt.Println("WebSocket connect ")
 	}
@@ -30,7 +43,7 @@ func WorkFlowSync(target string) {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("read from websocket fail: ", err)
-			return
+			return err
 		}
 		if len(message) == 0 {
 			continue

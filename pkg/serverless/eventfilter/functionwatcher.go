@@ -2,17 +2,30 @@ package eventfilter
 
 import (
 	"fmt"
-	"github.com/gorilla/websocket"
-	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/serverless/activator"
 	"net/http"
+	"time"
+
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 )
 
 func FunctionSync(target string) {
-	// 建立WebSocket连接
+	// establish websocket connection
+	for {
+		err := connect(target)
+		if err != nil {
+			log.Error("[FunctionSync] WebSocket connect fail: ", err)
+		}
+		time.Sleep(5 * time.Second) // wait 5 seconds to reconnect
+	}
+}
+
+func connect(target string) error {
+	// establish websocket connection
 	url := fmt.Sprintf("ws://%s/api/v1/watch/%s", config.ApiServerIp, target)
 	log.Info("[FunctionSync] url: ", url)
 	headers := http.Header{}
@@ -20,19 +33,19 @@ func FunctionSync(target string) {
 	conn, _, err := websocket.DefaultDialer.Dial(url, headers)
 	if err != nil {
 		fmt.Println("WebSocket connect fail", err)
-		return
+		return err
 	} else {
 		fmt.Println("WebSocket connect ")
 	}
 	defer conn.Close()
 
-	// 不断地接收消息并处理
+	// continuously receive message
 	log.Info("[FunctionSync] start to receive user message")
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("read from websocket fail: ", err)
-			return
+			return err
 		}
 		if len(message) == 0 {
 			continue
@@ -62,7 +75,7 @@ func FunctionSync(target string) {
 	}
 }
 
-// TODO: need to add workflow later
+
 func FuntionCreateHandler(message []byte, conn *websocket.Conn) {
 	function := &apiobject.Function{}
 	function.UnMarshalJSON(message)

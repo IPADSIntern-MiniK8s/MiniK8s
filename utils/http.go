@@ -61,3 +61,30 @@ func SendRequest(method string, str []byte, url string) (string, error) {
 	return body.String(), err
 
 }
+
+
+func SendRequestWithHb(method string, str []byte, url string, source string) (string, error) {
+	request, err := http.NewRequest(method, url, bytes.NewBuffer(str))
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("content-type", "application/json")
+	request.Header.Set("source", source)
+
+	client := &http.Client{}
+	resp, err := client.Do(request)
+
+	body := &bytes.Buffer{}
+	if err != nil {
+		log.Error(err)
+	} else {
+		_, err := body.ReadFrom(resp.Body)
+		if err != nil {
+			log.Error(err)
+		}
+		resp.Body.Close()
+		//fmt.Println(resp.StatusCode)
+	}
+	return body.String(), err
+
+}

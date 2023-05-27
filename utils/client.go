@@ -156,3 +156,5 @@ func GetObject(ty config.ObjType, ns string, name string) string {
 		return info
 	}
 }
+
+

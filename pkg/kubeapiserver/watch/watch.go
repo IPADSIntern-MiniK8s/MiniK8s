@@ -58,24 +58,6 @@ func (s *WatchServer) Close() error {
 	return s.Conn.Close()
 }
 
-// Watch an etcd key
-//func (s *WatchServer) innerWatch(key string) error {
-//	// TODO: concurrent problem
-//	err := Storage.Watch(context.Background(), key, func(key string, value []byte) error {
-//		innerErr := s.Write(value)
-//		log.Info("[innerWatch] key: ", key, "timestamp: ")
-//		if innerErr != nil {
-//			log.Error("[Watch] Write message error: ", innerErr)
-//			return innerErr
-//		}
-//		return nil
-//	})
-//	return err
-//}
-//
-//func (s *WatchServer) Watch(key string) {
-//	go s.innerWatch(key)
-//}
 
 func ListWatch(watchKey string, value []byte) error {
 

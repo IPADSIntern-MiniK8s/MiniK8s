@@ -1,14 +1,16 @@
 package kubescheduler
 
 import (
-	"github.com/gorilla/websocket"
-	log "github.com/sirupsen/logrus"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	filter2 "minik8s/pkg/kubescheduler/filter"
 	"minik8s/pkg/kubescheduler/policy"
 	"minik8s/utils"
 	"net/http"
+	"time"
+
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -34,22 +36,7 @@ func toValueSlice(slice []*apiobject.Node) []apiobject.Node {
 	return result
 }
 
-func Run(c Config) {
-	// init scheduler and filter
-	policyName := c.Policy
-	var filter filter2.TemplateFilter
-	concreteFilter := filter2.ConfigFilter{Name: "ConfigFilter"}
-	filter = concreteFilter
-	var scheduler policy.Scheduler
-
-	if policyName == "default" || policyName == "resource" {
-		concreteScheduler := policy.NewResourceScheduler(filter)
-		scheduler = concreteScheduler
-	} else if policyName == "frequency" {
-		concreteScheduler := policy.NewLeastRequestScheduler(filter)
-		scheduler = concreteScheduler
-	}
-
+func connect(scheduler policy.Scheduler) error {
 	// create websocket connection
 	headers := http.Header{}
 	headers.Set("X-Source", "scheduler")
@@ -58,7 +45,8 @@ func Run(c Config) {
 	conn, _, err := dialer.Dial("ws://"+config.ApiServerIp+"/api/v1/watch/pods", headers)
 	if err != nil {
 		log.Error("[Run] scheduler websocket connect fail")
-		return
+		time.Sleep(5 * time.Second) // wait 5 seconds to reconnect
+		return err
 	}
 	defer conn.Close()
 
@@ -70,13 +58,13 @@ func Run(c Config) {
 	for {
 		_, message, err := conn.ReadMessage()
 
-		if len(message) == 0 {
-			continue
-		}
-
 		if err != nil {
 			log.Error("[Run] scheduler websocket read message fail")
-			conn.WriteMessage(websocket.TextMessage, []byte{})
+			return err 
+		}
+
+		if len(message) == 0 {
+			continue
 		}
 
 		// parse message
@@ -126,5 +114,32 @@ func Run(c Config) {
 		}
 		conn.WriteMessage(websocket.TextMessage, jsonBytes)
 	}
+}
 
+func Run(c Config) {
+	// init scheduler and filter
+	policyName := c.Policy
+	var filter filter2.TemplateFilter
+	concreteFilter := filter2.ConfigFilter{Name: "ConfigFilter"}
+	filter = concreteFilter
+	var scheduler policy.Scheduler
+
+	if policyName == "default" || policyName == "resource" {
+		concreteScheduler := policy.NewResourceScheduler(filter)
+		scheduler = concreteScheduler
+	} else if policyName == "frequency" {
+		concreteScheduler := policy.NewLeastRequestScheduler(filter)
+		scheduler = concreteScheduler
+	}
+
+	
+
+	for {
+		err := connect(scheduler)
+		if err != nil {
+			log.Error("[Run] scheduler connect fail, the error message is: ", err)
+		}
+		time.Sleep(5 * time.Second)
+	}
+	
 }

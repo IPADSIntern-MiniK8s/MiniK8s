@@ -127,8 +127,13 @@ func(kl *Kubelet) watchContainersStatus(){
 	for{
 		time.Sleep(time.Second*10)
 
-
-		info := utils.GetObject(config.POD, "nil", "")
+		url := fmt.Sprintf("http://%s/api/v1/pods", kl.ApiserverAddr)
+		hostname, _ := os.Hostname()
+		info, err := utils.SendRequestWithHb("GET", nil, url, hostname)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
 		podList := gjson.Parse(info).Array()
 		for _, p := range podList {
 			pod := &apiobject.Pod{}
