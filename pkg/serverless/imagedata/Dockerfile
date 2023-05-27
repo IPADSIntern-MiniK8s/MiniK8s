@@ -1,7 +1,8 @@
 # use basic image
 # refer from zhihu, it is the fastest way to build image
-FROM ubuntu:20.04
-RUN apt-get update && apt-get install -y python3 python3-pip
+# FROM ubuntu:20.04
+# RUN apt-get update && apt-get install -y python3 python3-pip
+FROM python:3.9-slim
 
 COPY . .
 # set workdir
