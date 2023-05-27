@@ -280,7 +280,12 @@ func checkHeartbeat(nodeName string) {
 		log.Warn("[checkHeartbeat] get node failed, the key: ", key, "the error message: ", err.Error())
 		return
 	}
+	
 	node.Status.Time = utils.GetCurrentTime()
+	if len(node.Status.Conditions) > 0 && node.Status.Conditions[0].Status == apiobject.NetworkUnavailable {
+		node.Status.Conditions[0].Status = apiobject.Ready
+	}
+	
 	err = podStorageTool.GuaranteedUpdate(context.Background(), key, &node)
 	if err != nil {
 		log.Warn("[checkHeartbeat] update node failed, the key: ", key, "the error message: ", err.Error())
@@ -566,7 +571,7 @@ func GetAllPodsHandler(c *gin.Context) {
 	if nodeName != "" {
 		checkHeartbeat(nodeName)
 	}
-	
+
 	key := "/registry/pods"
 	var pods []apiobject.Pod
 	err := podStorageTool.GetList(context.Background(), key, &pods)

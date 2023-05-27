@@ -28,9 +28,10 @@ func HeartBeat() {
 				timeout := utils.CheckTimeout(node.Status.Time)
 				if timeout {
 					nodeKey := "/registry/nodes/" + node.Data.Name
-					err := storageTool.Delete(context.Background(), nodeKey)
+					node.Status.Conditions[0].Status = apiobject.NetworkUnavailable
+					err := storageTool.GuaranteedUpdate(context.Background(), nodeKey, &node)
 					if err != nil {
-						log.Error("[HeartBeat] delete node error: ", err)
+						log.Info("[HeartBeat] update node error: ", err)
 					}
 				}
 			}
