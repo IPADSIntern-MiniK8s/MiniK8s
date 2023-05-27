@@ -3,14 +3,16 @@ package handlers
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"minik8s/pkg/apiobject"
+	"minik8s/pkg/apiobject/utils"
 	"minik8s/pkg/kubeapiserver/storage"
 	"minik8s/pkg/kubeapiserver/watch"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 var nodeStorageTool *storage.EtcdStorage = storage.NewEtcdStorageNoParam()
@@ -68,6 +70,9 @@ func RegisterNodeHandler(c *gin.Context) {
 	log.Debug("[RegisterNodeHandler] node name: ", node.Data.Name)
 	log.Debug("[RegisterNodeHandler] key: ", key)
 
+	// 3. record the timestamp
+	node.Status.Time = utils.GetCurrentTime()
+	
 	err = nodeStorageTool.Create(context.Background(), key, &node)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

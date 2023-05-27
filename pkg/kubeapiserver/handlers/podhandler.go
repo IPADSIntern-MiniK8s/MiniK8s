@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
+	"minik8s/pkg/apiobject/utils"
 	"minik8s/pkg/kubeapiserver/storage"
 	"minik8s/pkg/kubeapiserver/watch"
 	"minik8s/utils/resourceutils"
@@ -269,6 +270,23 @@ func updatePod(pod *apiobject.Pod, key string) error {
 	return nil
 }
 
+// checkHeartbeat check the heartbeat of the node
+func checkHeartbeat(nodeName string) {
+	// find the node 
+	key := "/registry/nodes/" + nodeName
+	node := apiobject.Node{}
+	err := podStorageTool.Get(context.Background(), key, &node)
+	if err != nil {
+		log.Warn("[checkHeartbeat] get node failed, the key: ", key, "the error message: ", err.Error())
+		return
+	}
+	node.Status.Time = utils.GetCurrentTime()
+	err = podStorageTool.GuaranteedUpdate(context.Background(), key, &node)
+	if err != nil {
+		log.Warn("[checkHeartbeat] update node failed, the key: ", key, "the error message: ", err.Error())
+		return
+	}
+}
 
 // CreatePodHandler the url format is POST /api/v1/namespaces/:namespace/pods
 // TODO: bind the pod in runtime
@@ -542,6 +560,13 @@ func UpdatePodStatusHandler(c *gin.Context) {
 
 // GetAllPodsHandler the url format is GET /api/v1/pods
 func GetAllPodsHandler(c *gin.Context) {
+	// 1. use this api to check heartbeat
+	// get the node name
+	nodeName := c.GetHeader("source")
+	if nodeName != "" {
+		checkHeartbeat(nodeName)
+	}
+	
 	key := "/registry/pods"
 	var pods []apiobject.Pod
 	err := podStorageTool.GetList(context.Background(), key, &pods)
