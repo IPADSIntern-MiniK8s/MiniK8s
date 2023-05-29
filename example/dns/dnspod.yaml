@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dnspod
+  namespace: default
+  labels:
+    app: dns-test
+spec:
+  containers:
+    - name: c1
+      image: docker.io/mcastelino/nettools
+      ports:
+        - name: p1
+          containerPort: 22222
+          protocol: TCP
+      command:
+        - /root/test_mount/simple_http_server
+      env:
+        - name: port
+          value: '22222'
+      volumeMounts:
+        - name: test-volume
+          mountPath: /root/test_mount
+    - name: c2
+      image: docker.io/mcastelino/nettools
+      ports:
+        - name: p1
+          containerPort: 23456
+          protocol: TCP
+      command:
+        - /root/test_mount/test_network
+      env:
+        - name: port
+          value: '23456'
+      volumeMounts:
+        - name: test-volume
+          mountPath: /root/test_mount
+  volumes:
+    - name: test-volume
+      hostPath:
+        path: /home/test_mount

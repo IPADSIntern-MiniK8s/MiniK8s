@@ -1,0 +1,15 @@
+http {
+    {{range .Servers}}
+    server {
+        listen 0.0.0.0:{{.Port}};
+        server_name {{.ServerName}};
+
+        {{range .Locations}}
+        location /{{.Path}}/ {
+            access_log /var/log/nginx/access.log;
+            proxy_pass http://{{.IP}}:{{.Port}}/;
+        }
+        {{end}}
+    }
+    {{end}}
+}
