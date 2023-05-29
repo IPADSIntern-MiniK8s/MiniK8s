@@ -2,13 +2,14 @@ package controller
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/utils"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 )
 
 /* 主要工作：
@@ -60,7 +61,7 @@ func (s svcServiceHandler) HandleDelete(message []byte) {
 	index := strings.SplitN(svc.Status.ClusterIP, ",", -1)
 	indexLast, _ := strconv.Atoi(index[len(index)-1])
 	print(indexLast)
-	IPMap[indexLast] = false
+	IPMap[indexLast-1] = false
 
 	// delete corresponding endpoints
 	for _, edpt := range *svcToEndpoints[svc.Status.ClusterIP] {
