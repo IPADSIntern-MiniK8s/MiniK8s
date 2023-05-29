@@ -167,6 +167,26 @@ func get(cmd *cobra.Command, args []string) {
 			}
 			fmt.Println(table)
 		}
+	case "function":
+		{
+			table, _ := gotable.Create("NAME", "PATH", "STATUS")
+			funcList := gjson.Parse(_json).Array()
+			for _, f := range funcList {
+				function := &apiobject.Function{}
+				function.UnMarshalJSON([]byte(f.String()))
+				table.AddRow(map[string]string{
+					"NAME":   function.Name,
+					"PATH":   function.Path,
+					"STATUS": string(function.Status),
+				})
+			}
+			fmt.Println(table)
+		}
+	case "workflow":
+		{
+			table, _ := gotable.Create("NAME", "PATH", "STATUS")
+			
+		}
 	}
 
 	if err != nil {

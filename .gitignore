@@ -24,3 +24,6 @@ go_build*
 
 # ignore log
 *.log
+
+# ignore build/bin
+build/bin/
