@@ -55,7 +55,7 @@ func (kl *Kubelet) register() {
 			Capability:map[string]string{
 				"cpu":kl.CPU,
 				"memory":kl.Memory,
-			}
+			},
 			Addresses: []apiobject.Address{
 				{
 					Type:    "InternalIP",
