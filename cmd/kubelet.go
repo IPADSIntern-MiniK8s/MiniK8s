@@ -31,6 +31,8 @@ var KubeletConfig = kubelet.Config{
 	IP:            "192.168.1.14",
 	Labels:        map[string]string{},
 	ListenAddr:    "localhost:10250",
+	CPU:	"2",
+	Memory:	"3Gi",
 }
 
 func initConfig() {

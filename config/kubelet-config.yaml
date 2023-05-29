@@ -9,3 +9,5 @@ IP            : 192.168.1.14
 Labels        :
   - resource : gpu
 ListenAddr    : 192.168.1.14:10250
+CPU:    "2"
+Memory: "3Gi"

@@ -20,6 +20,8 @@ type Kubelet struct {
 	IP            string            //host ip
 	Labels        map[string]string // for nodeSelector
 	ListenAddr    string            //MetricsServer listen for auto-scaling
+	CPU		string
+	Memory		string
 	Server        *metricsserver.MetricsServer
 }
 
@@ -30,6 +32,8 @@ func NewKubelet(config Config) *Kubelet {
 		IP:            config.IP,
 		Labels:        config.Labels,
 		ListenAddr:    config.ListenAddr,
+		CPU:		config.CPU,
+		Memory:		config.Memory,
 		Server:        metricsserver.NewMetricsServer(),
 	}
 }
@@ -48,6 +52,10 @@ func (kl *Kubelet) register() {
 			PodCIDR:       kl.FlannelSubnet,
 		},
 		Status: apiobject.NodeStatus{
+			Capability:map[string]string{
+				"cpu":kl.CPU,
+				"memory":kl.Memory,
+			}
 			Addresses: []apiobject.Address{
 				{
 					Type:    "InternalIP",
