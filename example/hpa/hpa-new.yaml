@@ -15,7 +15,7 @@ spec:
     - resource:
         name: "cpu"
         target:
-          averageValue: 1000
+          averageValue: 250
           type: AverageValue
       type: Resource
   scaleTargetRef:   # 指定要控制的deploy

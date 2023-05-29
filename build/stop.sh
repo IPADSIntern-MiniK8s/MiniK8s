@@ -3,7 +3,6 @@
 # stop the components
 echo "stop the minik8s"
 # find the pid of the components by command
-<<<<<<< HEAD
 # if can find multiple pid, kill them all
 pids=$(pgrep -f './apiserver')
 if [[ -n "$pids" ]]; then
@@ -12,13 +11,8 @@ if [[ -n "$pids" ]]; then
     echo "Killing process with PID $pid"
     kill "$pid"
   done
-=======
-pids=$(pgrep -f './apiserver')
-if [[ -n "$pids" ]]; then
-  echo "kill apiserver"
-  kill "$pids"
->>>>>>> remotes/origin/develop
 fi
+
 
 pids=$(pgrep -f './scheduler')
 if [[ -n "$pids" ]]; then
@@ -37,6 +31,7 @@ if [[ -n "$pids" ]]; then
     kill "$pid"
   done
 fi
+
 
 pids=$(pgrep -f './kubeproxy')
 if [[ -n "$pids" ]]; then

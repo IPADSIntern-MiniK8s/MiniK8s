@@ -16,11 +16,13 @@ func TestNginxEditor(t *testing.T) {
 		Host:       "node1.com",
 		Paths: []apiobject.Path{
 			{
+				PathName: "path1",
 				Address: "127.1.1.10",
 				Service: "service1",
 				Port:    8010,
 			},
 			{
+				PathName: "path2",
 				Address: "127.1.1.11",
 				Service: "service2",
 				Port:    8011,

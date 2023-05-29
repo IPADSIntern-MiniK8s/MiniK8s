@@ -19,6 +19,11 @@ func init() {
 	RootCmd.AddCommand(DescribeCmd)
 
 	RootCmd.AddCommand(DeleteCmd)
+
+	TriggerCmd.Flags().StringVarP(&filePath, "filePath", "f", "", "kubectl trigger <resource> <name> -f <FILENAME>")
+	TriggerCmd.MarkFlagRequired("filePath")
+	RootCmd.AddCommand(TriggerCmd)
+
 }
 
 var filePath string
