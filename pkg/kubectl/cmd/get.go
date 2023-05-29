@@ -61,7 +61,6 @@ func get(cmd *cobra.Command, args []string) {
 		{
 			table, _ := gotable.Create("NAME", "POD-IP", "STATUS", "NODE-IP")
 			podList := gjson.Parse(_json).Array()
-			fmt.Println(podList)
 			for _, p := range podList {
 				name := gjson.Get(p.String(), "metadata.name").String()
 				status := gjson.Get(p.String(), "status.phase").String()
@@ -74,6 +73,7 @@ func get(cmd *cobra.Command, args []string) {
 					"NODE-IP": nodeIP,
 				})
 			}
+			fmt.Println(table)
 		}
 	case "job":
 		{
@@ -196,7 +196,7 @@ func get(cmd *cobra.Command, args []string) {
 				})
 			}
 		}
-	case "node": 
+	case "node":
 		{
 			table, _ := gotable.Create("NAME", "IP", "STATUS")
 			nodeList := gjson.Parse(_json).Array()
@@ -205,7 +205,7 @@ func get(cmd *cobra.Command, args []string) {
 				node.UnMarshalJSON([]byte(f.String()))
 				table.AddRow(map[string]string{
 					"NAME":   node.Data.Name,
-					"IP": node.Status.Addresses[0].Address,
+					"IP":     node.Status.Addresses[0].Address,
 					"STATUS": string(node.Status.Conditions[0].Status),
 				})
 			}
@@ -219,13 +219,13 @@ func get(cmd *cobra.Command, args []string) {
 				dns.UnMarshalJSON([]byte(f.String()))
 				jsonBytes, _ := json.Marshal(dns.Paths)
 				table.AddRow(map[string]string{
-					"NAME": dns.Name,
-					"HOST": dns.Host,
+					"NAME":  dns.Name,
+					"HOST":  dns.Host,
 					"PATHS": string(jsonBytes),
 				})
 			}
 		}
-		
+
 	}
 
 	if err != nil {
