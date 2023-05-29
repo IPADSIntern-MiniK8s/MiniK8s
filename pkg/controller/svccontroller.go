@@ -2,14 +2,13 @@ package controller
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/utils"
 	"strconv"
 	"strings"
-
-	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 )
 
 /* 主要工作：
@@ -140,7 +139,11 @@ func allocateClusterIP() string {
 	for i, used := range IPMap {
 		if !used {
 			IPMap[i] = true
+<<<<<<< HEAD
 			return IPStart + strconv.Itoa(i+1)
+=======
+			return IPStart + strconv.Itoa(i)
+>>>>>>> remotes/origin/develop
 		}
 	}
 	log.Fatal("[svc controller] Cluster IP used up!")

@@ -43,7 +43,10 @@ make apiserver
 make scheduler
 make controller
 make serverless
+<<<<<<< HEAD
 make kubeproxy
+=======
+>>>>>>> remotes/origin/develop
 cd bin
 
 # start the components in different terminals

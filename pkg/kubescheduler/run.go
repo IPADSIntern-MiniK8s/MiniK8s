@@ -42,9 +42,16 @@ func connect(scheduler policy.Scheduler) error {
 	headers.Set("X-Source", "scheduler")
 
 	dialer := websocket.Dialer{}
+<<<<<<< HEAD
 	conn, _, err := dialer.Dial("ws://"+config.ApiServerIp+"/api/v1/watch/podList", headers)
 	if err != nil {
 		log.Error("[Run] scheduler websocket connect fail")
+=======
+	conn, _, err := dialer.Dial("ws://"+config.ApiServerIp+"/api/v1/watch/pods", headers)
+	if err != nil {
+		log.Error("[Run] scheduler websocket connect fail")
+		time.Sleep(5 * time.Second) // wait 5 seconds to reconnect
+>>>>>>> remotes/origin/develop
 		return err
 	}
 	defer conn.Close()
@@ -59,7 +66,11 @@ func connect(scheduler policy.Scheduler) error {
 
 		if err != nil {
 			log.Error("[Run] scheduler websocket read message fail")
+<<<<<<< HEAD
 			return err
+=======
+			return err 
+>>>>>>> remotes/origin/develop
 		}
 
 		if len(message) == 0 {
@@ -126,6 +137,7 @@ func Run(c Config) {
 	filter = concreteFilter
 	var scheduler policy.Scheduler
 
+<<<<<<< HEAD
 	if policyName == "default" || policyName == "frequency" {
 		concreteScheduler := policy.NewLeastRequestScheduler(filter)
 		scheduler = concreteScheduler
@@ -134,6 +146,18 @@ func Run(c Config) {
 		scheduler = concreteScheduler
 	}
 
+=======
+	if policyName == "default" || policyName == "resource" {
+		concreteScheduler := policy.NewResourceScheduler(filter)
+		scheduler = concreteScheduler
+	} else if policyName == "frequency" {
+		concreteScheduler := policy.NewLeastRequestScheduler(filter)
+		scheduler = concreteScheduler
+	}
+
+	
+
+>>>>>>> remotes/origin/develop
 	for {
 		err := connect(scheduler)
 		if err != nil {
@@ -141,5 +165,9 @@ func Run(c Config) {
 		}
 		time.Sleep(5 * time.Second)
 	}
+<<<<<<< HEAD
 
+=======
+	
+>>>>>>> remotes/origin/develop
 }
