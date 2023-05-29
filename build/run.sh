@@ -43,14 +43,20 @@ make apiserver
 make scheduler
 make controller
 make serverless
+<<<<<<< HEAD
+make kubeproxy
+=======
+>>>>>>> remotes/origin/develop
 cd bin
 
 # start the components in different terminals
 echo "start the minik8s"
-./apiserver > ../log/apiserver.log &
+# ./apiserver > ../log/apiserver.log 2> /dev/null &
+./apiserver > ../log/apiserver.log 2>&1 &
 sleep 3
 ./scheduler > ../log/scheduler.log 2>&1 &
 ./controller > ../log/controller.log 2>&1 &
+./kubeproxy > ../log/kubeproxy.log 2>&1 &
 
 
 chmod +x /home/mini-k8s/pkg/serverless/function/registry.sh

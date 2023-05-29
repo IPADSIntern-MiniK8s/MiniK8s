@@ -140,7 +140,11 @@ func allocateClusterIP() string {
 	for i, used := range IPMap {
 		if !used {
 			IPMap[i] = true
+<<<<<<< HEAD
+			return IPStart + strconv.Itoa(i+1)
+=======
 			return IPStart + strconv.Itoa(i)
+>>>>>>> remotes/origin/develop
 		}
 	}
 	log.Fatal("[svc controller] Cluster IP used up!")

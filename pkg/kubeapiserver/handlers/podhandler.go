@@ -212,6 +212,7 @@ func bind(pod *apiobject.Pod, node *apiobject.Node) error {
 }
 
 func sendPodToNode(pod *apiobject.Pod, nodeKey string) error {
+	log.Info("[sendPodToNode] the node key is ", nodeKey)
 	watcher, ok := watch.WatchTable[nodeKey]
 	if !ok {
 		log.Warn("[keepSchedule] the nodeKey is not in the watchTable, the nodeKey: ", nodeKey)
@@ -402,6 +403,8 @@ func CreatePodHandler(c *gin.Context) {
 			log.Error("[CreatePodHandler] unmarshal the response failed")
 		}
 
+		log.Info("[CreatePodHandler] the selected nodes are: ", selectedNodes)
+
 		if selectedNodes == nil || len(selectedNodes) == 0 {
 			log.Error("[CreatePodHandler] no available node")
 			if len(nodeList) == 0 {
@@ -431,9 +434,9 @@ func CreatePodHandler(c *gin.Context) {
 		}
 
 		// keep check and resend to the next node if necessary
-		if len(selectedNodes) > 1 {
-			go keepSchedule(key, selectedNodes)
-		}
+		// if len(selectedNodes) > 1 {
+		// 	go keepSchedule(key, selectedNodes)
+		// }
 	}
 
 	// 4. return the pod to the client

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"minik8s/pkg/apiobject"
 	ctlutils "minik8s/pkg/kubectl/utils"
@@ -60,7 +61,6 @@ func get(cmd *cobra.Command, args []string) {
 		{
 			table, _ := gotable.Create("NAME", "POD-IP", "STATUS", "NODE-IP")
 			podList := gjson.Parse(_json).Array()
-			fmt.Println(podList)
 			for _, p := range podList {
 				name := gjson.Get(p.String(), "metadata.name").String()
 				status := gjson.Get(p.String(), "status.phase").String()
@@ -73,6 +73,7 @@ func get(cmd *cobra.Command, args []string) {
 					"NODE-IP": nodeIP,
 				})
 			}
+			fmt.Println(table)
 		}
 	case "job":
 		{
@@ -167,6 +168,64 @@ func get(cmd *cobra.Command, args []string) {
 			}
 			fmt.Println(table)
 		}
+	case "function":
+		{
+			table, _ := gotable.Create("NAME", "PATH", "STATUS")
+			funcList := gjson.Parse(_json).Array()
+			for _, f := range funcList {
+				function := &apiobject.Function{}
+				function.UnMarshalJSON([]byte(f.String()))
+				table.AddRow(map[string]string{
+					"NAME":   function.Name,
+					"PATH":   function.Path,
+					"STATUS": string(function.Status),
+				})
+			}
+			fmt.Println(table)
+		}
+	case "workflow":
+		{
+			table, _ := gotable.Create("NAME", "STATUS")
+			wfList := gjson.Parse(_json).Array()
+			for _, f := range wfList {
+				wf := &apiobject.WorkFlow{}
+				wf.UnMarshalJSON([]byte(f.String()))
+				table.AddRow(map[string]string{
+					"NAME":   wf.Name,
+					"STATUS": string(wf.Status),
+				})
+			}
+		}
+	case "node":
+		{
+			table, _ := gotable.Create("NAME", "IP", "STATUS")
+			nodeList := gjson.Parse(_json).Array()
+			for _, f := range nodeList {
+				node := &apiobject.Node{}
+				node.UnMarshalJSON([]byte(f.String()))
+				table.AddRow(map[string]string{
+					"NAME":   node.Data.Name,
+					"IP":     node.Status.Addresses[0].Address,
+					"STATUS": string(node.Status.Conditions[0].Status),
+				})
+			}
+		}
+	case "dnsrecord":
+		{
+			table, _ := gotable.Create("NAME", "HOST", "PATHS")
+			dnsList := gjson.Parse(_json).Array()
+			for _, f := range dnsList {
+				dns := &apiobject.DNSRecord{}
+				dns.UnMarshalJSON([]byte(f.String()))
+				jsonBytes, _ := json.Marshal(dns.Paths)
+				table.AddRow(map[string]string{
+					"NAME":  dns.Name,
+					"HOST":  dns.Host,
+					"PATHS": string(jsonBytes),
+				})
+			}
+		}
+
 	}
 
 	if err != nil {

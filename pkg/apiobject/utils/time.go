@@ -27,7 +27,7 @@ import (
 // of the factory methods that the time package offers.
 //
 
-var HeartbeatTimeout = 30 * time.Second
+var HeartbeatTimeout = 3 * time.Minute
 
 type Time struct {
 	time.Time `protobuf:"-"`

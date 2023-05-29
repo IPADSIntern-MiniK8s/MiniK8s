@@ -2,12 +2,16 @@ package cmd
 
 import (
 	"fmt"
+	ctlutils "minik8s/pkg/kubectl/utils"
+	log "github.com/sirupsen/logrus"
+	"minik8s/utils"
+	"os"
+	"strings"
+
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
+	"github.com/tidwall/gjson"
 	"github.com/wxnacy/wgo/arrays"
-	ctlutils "minik8s/pkg/kubectl/utils"
-	"minik8s/utils"
-	"strings"
 )
 
 var DescribeCmd = &cobra.Command{
@@ -46,7 +50,7 @@ func describe(cmd *cobra.Command, args []string) {
 		_url = ctlutils.ParseUrlOne(kind, name, nameSpace)
 		fmt.Printf("url:%s\n", _url)
 
-	}
+	} 
 
 	/* display the info */
 	var str []byte
@@ -56,9 +60,28 @@ func describe(cmd *cobra.Command, args []string) {
 		/* 解析info，错误判断pod名字是否存在 */
 		fmt.Print(_json)
 	}
-	info, _ := yaml.JSONToYAML([]byte(_json))
-	fmt.Print(string(info))
-	fmt.Print("\n")
+
+
+	if kind == "function" {
+		path := gjson.Get(string(_json), "path")
+		if path.Exists() {
+			f, err := os.Open("example.txt")
+			if err != nil {
+				log.Info("open file error")
+			}
+			defer f.Close()
+			buf := make([]byte, 1024)
+			// read the entire file
+			n, err := f.Read(buf)
+			fmt.Print(string(buf[:n]))
+			fmt.Print("\n")
+		}
+	} else {
+		info, _ := yaml.JSONToYAML([]byte(_json))
+		fmt.Print(string(info))
+		fmt.Print("\n")
+	}
+	
 
 	/* {"error":"key not found: /registry/pods/default/test"} */
 	/* {"metadata":{"name":"test-pod"},"spec":{"containers":[{"name":"test-container","resources":{"limits":{},"requests":{}}}]},"status":{"phase":"Pending"}}root@minik8s-2:~/mini-k8s/pkg/kubectl/test# */

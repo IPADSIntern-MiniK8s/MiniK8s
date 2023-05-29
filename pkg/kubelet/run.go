@@ -12,6 +12,8 @@ type Config struct {
 	IP            string //192.168.1.12
 	Labels        map[string]string
 	ListenAddr    string //localhost:10250
+	CPU		string
+	Memory		string
 }
 
 func Run(c Config) {
