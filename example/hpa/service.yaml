@@ -9,5 +9,5 @@ spec:
   ports:
     - name: service-port1
       protocol: TCP
-      port: 12345 # 对外暴露的端口
+      port: 32345 # 对外暴露的端口
       targetPort: p1 # 转发的端口，pod对应的端口
