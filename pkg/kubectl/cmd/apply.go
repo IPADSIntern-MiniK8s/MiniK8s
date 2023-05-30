@@ -41,14 +41,15 @@ func apply(cmd *cobra.Command, args []string) {
 		namespace = gjson.Get(string(_json), "namespace").String()
 	}
 	var _url string
+	//fmt.Print(namespace)
 	if idx := arrays.ContainsString(ctlutils.Resources, kind); idx != -1 {
-		_url = ctlutils.ParseUrlMany(kind, nameSpace)
 		if namespace == "" {
 			var obj map[string]interface{}
 			json.Unmarshal(_json, &obj)
 			obj["metadata"].(map[string]interface{})["namespace"] = "default"
 			_json, _ = json.Marshal(obj)
 		}
+		_url = ctlutils.ParseUrlMany(kind, namespace)
 	} else if idx := arrays.ContainsString(ctlutils.Globals, kind); idx != -1 {
 		_url = ctlutils.ParseUrlMany(kind, "nil")
 	} else {
