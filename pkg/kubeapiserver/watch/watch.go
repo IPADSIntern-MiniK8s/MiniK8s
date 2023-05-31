@@ -6,12 +6,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	//"minik8s/pkg/kubeapiserver/storage"
 	"net/http"
+	"sync"
 )
 
 //var Storage = storage.NewEtcdStorageNoParam()
 
 // WatchServer WebSocket server
 type WatchServer struct {
+	connMutex sync.Mutex
 	Conn *websocket.Conn
 }
 
@@ -35,21 +37,25 @@ func NewWatchServer(c *gin.Context) (*WatchServer, error) {
 
 // Read websocket message
 func (s *WatchServer) Read() ([]byte, error) {
+	s.connMutex.Lock()
 	_, message, err := s.Conn.ReadMessage()
 	if err != nil {
+		s.connMutex.Unlock()
 		return nil, err
 	}
-
+	s.connMutex.Unlock()
 	return message, nil
 }
 
 // Write websocket message
 func (s *WatchServer) Write(message []byte) error {
+	s.connMutex.Lock()
 	err := s.Conn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
+		s.connMutex.Unlock()
 		return err
 	}
-
+	s.connMutex.Unlock()
 	return nil
 }
 

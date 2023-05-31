@@ -37,7 +37,7 @@ func checkReplicaReady(pod *apiobject.Pod) {
 		}
 		// check the previous pod's status
 		replicaInc := (previousPod.Status.Phase == apiobject.Pending || previousPod.Status.Phase == apiobject.Scheduled) && pod.Status.Phase == apiobject.Running
-		replicaDec := (previousPod.Status.Phase == apiobject.Running) && pod.Status.Phase == apiobject.Terminating
+		replicaDec := (previousPod.Status.Phase == apiobject.Running) && (pod.Status.Phase == apiobject.Terminating || pod.Status.Phase == apiobject.Failed)
 		if replicaInc || replicaDec {
 			// get the according replica
 			var replica apiobject.ReplicationController
