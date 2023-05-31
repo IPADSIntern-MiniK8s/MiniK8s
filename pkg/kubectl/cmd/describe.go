@@ -71,7 +71,7 @@ func describe(cmd *cobra.Command, args []string) {
 	if kind == "function" {
 		path := gjson.Get(string(_json), "path")
 		if path.Exists() {
-			f, err := os.Open("example.txt")
+			f, err := os.Open(path.String())
 			if err != nil {
 				log.Info("open file error")
 			}

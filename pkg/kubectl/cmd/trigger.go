@@ -40,7 +40,7 @@ func trigger(cmd *cobra.Command, args []string) {
 	name := strings.ToLower(args[1])
 	_url := ctlutils.ParseUrlTrigger(kind, name)
 	fmt.Printf("url:%s\n", _url)
-	fmt.Printf("json:%s\n", _json)
+	// fmt.Printf("json:%s\n", _json)
 	info, err := utils.SendRequest("POST", _json, _url)
 	fmt.Println("the response: ", info)
 }
