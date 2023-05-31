@@ -146,6 +146,7 @@ func apiContainer2Container(metaData apiobject.MetaData, volumes []apiobject.Vol
 			"uts":     namespacePathPrefix + "uts",
 		},
 		Labels: map[string]string{"pod": metaData.Name},
+		Hostname: metaData.Name,
 	}
 	return c
 }

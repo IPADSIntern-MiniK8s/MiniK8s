@@ -26,6 +26,7 @@ func TestContainer(t *testing.T) {
 		Memory:  100 * 1024 * 1024,                     //100M
 		CmdLine: []string{"/root/test_mount/test_cpu"}, //test_cpu test_memory
 		Envs:    []string{"envA=envAvalue", "envB=envBvalue"},
+		Hostname: "hahaha",
 	}
 	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
 	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
@@ -54,7 +55,7 @@ func TestContainer(t *testing.T) {
 	t.Logf("container started, use htop to see cpu utilization")
 	time.Sleep(time.Second * 10)
 
-	hostnameCorrect := utils.CheckCmd(spec.ContainerNamespace, spec.Name, []string{"hostname"}, spec.Name)
+	hostnameCorrect := utils.CheckCmd(spec.ContainerNamespace, spec.Name, []string{"hostname"}, spec.Hostname)
 	if !hostnameCorrect {
 		t.Fatalf("hostname set failed")
 	}
