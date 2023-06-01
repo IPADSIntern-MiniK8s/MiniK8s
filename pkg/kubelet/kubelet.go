@@ -88,8 +88,9 @@ func (kl *Kubelet) watchPod() {
 		pod := &apiobject.Pod{}
 		_, msgjson, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Println(err)
-			continue
+			//fmt.Println(err)
+			//continue
+			return
 		}
 		pod.UnMarshalJSON(msgjson)
 		if pod.Status.HostIp != kl.IP {
