@@ -27,7 +27,7 @@ import (
 // of the factory methods that the time package offers.
 //
 
-var HeartbeatTimeout = 3 * time.Minute
+var HeartbeatTimeout = 30 * time.Second
 
 type Time struct {
 	time.Time `protobuf:"-"`
@@ -182,13 +182,11 @@ func (t Time) MarshalQueryParameter() (string, error) {
 	return t.UTC().Format(time.RFC3339), nil
 }
 
-
 func GetCurrentTime() int64 {
 	return time.Now().Unix()
 }
 
-
 // CheckTimeout checks if the given node is timeout
 func CheckTimeout(preTimestamp int64) bool {
-	return GetCurrentTime() - preTimestamp > int64(HeartbeatTimeout.Seconds())
+	return GetCurrentTime()-preTimestamp > int64(HeartbeatTimeout.Seconds())
 }
