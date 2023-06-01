@@ -12,16 +12,27 @@ type Config struct {
 	IP            string //192.168.1.12
 	Labels        map[string]string
 	ListenAddr    string //localhost:10250
-	CPU		string
-	Memory		string
+	CPU           string
+	Memory        string
 }
 
 func Run(c Config) {
 	config.ApiServerIp = c.ApiserverAddr
 	kl := NewKubelet(c)
-	kl.register()
-	time.Sleep(time.Second * 5)
-	go kl.watchPod()
+	go func() {
+		for {
+			if !kl.register() {
+				time.Sleep(time.Second * 10)
+				continue
+			}
+			time.Sleep(time.Second * 2)
+			//normally, watch Pod will not return
+			kl.watchPod()
+			fmt.Println("trying to reconnect to apiserver")
+			time.Sleep(time.Second * 10)
+		}
+	}()
+
 	go kl.watchContainersStatus()
 	err := kl.Server.Run(kl.ListenAddr)
 	if err != nil {
