@@ -25,11 +25,11 @@ var HandlerTable = [...]Route{
 	{Path: "/api/v1/namespaces/:namespace/endpoints/:name", Method: "DELETE", Handler: DeleteEndpointHandler},     // DELETE, delete a endpoint
 	{Path: "api/v1/namespaces/:namespace/endpoints/:name/update", Method: "POST", Handler: UpdateEndpointHandler}, // POST, update a endpoint
 
-	{Path: "/api/v1/namespaces/:namespace/dns", Method: "POST", Handler: CreateDNSRecordHandler},              // POST, create a dns
-	{Path: "/api/v1/namespaces/:namespace/dns/:name", Method: "GET", Handler: GetDNSRecordHandler},            // GET, get a dns
-	{Path: "/api/v1/namespaces/:namespace/dns", Method: "GET", Handler: GetDNSRecordsHandler},                 // GET, list all dns records
-	{Path: "/api/v1/namespaces/:namespace/dns/:name", Method: "DELETE", Handler: DeleteDNSRecordHandler},      // DELETE, delete a dns record
-	{Path: "/api/v1/namespaces/:namespace/dns/:name/update", Method: "POST", Handler: UpdateDNSRecordHandler}, // POST, update a dns record
+	{Path: "/api/v1/namespaces/:namespace/dnsrecords", Method: "POST", Handler: CreateDNSRecordHandler},              // POST, create a dns
+	{Path: "/api/v1/namespaces/:namespace/dnsrecords/:name", Method: "GET", Handler: GetDNSRecordHandler},            // GET, get a dns
+	{Path: "/api/v1/namespaces/:namespace/dnsrecords", Method: "GET", Handler: GetDNSRecordsHandler},                 // GET, list all dns records
+	{Path: "/api/v1/namespaces/:namespace/dnsrecords/:name", Method: "DELETE", Handler: DeleteDNSRecordHandler},      // DELETE, delete a dns record
+	{Path: "/api/v1/namespaces/:namespace/dnsrecords/:name/update", Method: "POST", Handler: UpdateDNSRecordHandler}, // POST, update a dns record
 
 	{Path: "/api/v1/namespaces/:namespace/replicas", Method: "POST", Handler: CreateReplicaHandler},              // POST, create a replica
 	{Path: "/api/v1/namespaces/:namespace/replicas/:name", Method: "GET", Handler: GetReplicaHandler},            // GET, get a replica

@@ -2,6 +2,7 @@ package apiobject
 
 import (
 	"encoding/json"
+	"fmt"
 	"minik8s/config"
 	"minik8s/pkg/apiobject/utils"
 )
@@ -354,6 +355,7 @@ func (h *HorizontalPodAutoscaler) SetStatusValue(m *MetricValueStatus, v float64
 			if m.AverageValue == nil {
 				var v utils.Quantity
 				m.AverageValue = &v
+				fmt.Print("here")
 			}
 			*m.AverageValue = utils.Quantity(v)
 		}

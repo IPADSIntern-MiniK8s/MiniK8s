@@ -1,4 +1,4 @@
-kind: Workflow
+kind: workflow
 apiVersion: v1
 name: workflow-exp
 startAt: getsum

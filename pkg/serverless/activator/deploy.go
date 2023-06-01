@@ -19,6 +19,7 @@ import (
 
 const retryTimes = 10
 const serverIp = "master"
+const threshold = 6
 
 func GenerateReplicaSet(name string, namespace string, image string, replicas int32) *apiobject.ReplicationController {
 	return &apiobject.ReplicationController{
@@ -89,20 +90,29 @@ func getPodIpList(pods []*apiobject.Pod) []string {
 
 
 // CheckConnection check if the connection is ok
-func CheckConnection(ip string) {
+func CheckConnection(ip string) error {
+	timer := time.NewTimer(30 * time.Second)
 	for {
-		// try to connect to the ip
-		address := ip + ":8081"
-		conn, err := net.DialTimeout("tcp", address, time.Second)
-		if err != nil {
-			continue
+		select {
+			case <-timer.C: 
+				return errors.New("timeout")
+			default: {
+				// try to connect to the ip
+				address := ip + ":8081"
+				conn, err := net.DialTimeout("tcp", address, time.Second)
+				if err != nil {
+					continue
+				}
+
+				defer conn.Close()
+
+				log.Info("[CheckConnection] Connection is ok")
+				return nil
+			}
 		}
-
-		defer conn.Close()
-
-		log.Info("[CheckConnection] Connection is ok")
-		break
+		
 	}
+	return nil
 }
 
 // CheckPrepare check if the function is deployed
@@ -167,13 +177,15 @@ func CheckPrepare(name string) ([]string, error) {
 					}
 					// if the call count is larger than the threshold, scale up
 					log.Info("[CheckPrepare] record found, the call count: ", record.CallCount, "the replica number: ", record.Replicas)
-					if record.CallCount > replicaSet.Status.Scale {
+					if record.CallCount > replicaSet.Status.Scale && record.CallCount < threshold {
 						replicaSet.Status.Scale = record.CallCount
 						log.Info("[CheckPrepare] scale up the function: ", name, "the replica number: ", replicaSet.Status.Scale)
 						utils.UpdateObject(replicaSet, config.REPLICA, replicaSet.Data.Namespace, replicaSet.Data.Name)
 					} else {
 						autoscaler.RecordMutex.Unlock()
-						return podIps, nil
+						if len(podIps) > 0 {
+							return podIps, nil
+						}
 					}
 					autoscaler.RecordMutex.Unlock()
 					deployed = true
@@ -283,42 +295,52 @@ func LoadBalance(name string, podIps []string) (string, error) {
 func TriggerFunc(name string, params []byte) ([]byte, error) {
 	// 1. check if the function is deployed
 	log.Info("[TriggerFunc] trigger function: ", name)
-	podIps, err := CheckPrepare(name)
-	if err != nil {
-		log.Error("[TriggerFunc] check prepare error: ", err)
-		return nil, err
+	retry := 3
+	for retry > 0 {
+		retry -= 1
+		podIps, err := CheckPrepare(name)
+		if err != nil {
+			log.Error("[TriggerFunc] check prepare error: ", err)
+			continue
+		}
+
+		// 2. load balance
+		podIp, err := LoadBalance(name, podIps)
+		if err != nil {
+			log.Error("[TriggerFunc] load balance error: ", err)
+			continue
+		}
+
+		// 3. trigger the function
+		url := "http://" + podIp + ":8081/"
+		var data interface{}
+		err = json.Unmarshal(params, &data)
+		prettyJSON, err := json.MarshalIndent(data, "", "  ")
+		if err != nil {
+			log.Error("[TriggerFunc] marshal params error: ", err)
+		}
+		log.Info ("[TriggerFunc] prettyJSON: ", string(prettyJSON), "url: ", url)
+
+		// 4. send the request
+		// first check the connection
+		err = CheckConnection(podIp)
+		if err != nil {
+			log.Error("[TriggerFunc] check connection error: ", err)
+			continue
+		}
+		log.Info("[TriggerFunc] connection is finished")
+
+		ret, err := utils.SendRequest("POST", params, url)
+		log.Info("[TriggerFunc] ret: ", string(ret))
+		result := bytes.NewBufferString(ret).Bytes()
+		if err != nil {
+			log.Error("[TriggerFunc] send request error: ", err)
+			continue
+		}
+
+		return result, err
 	}
-
-	// 2. load balance
-	podIp, err := LoadBalance(name, podIps)
-	if err != nil {
-		log.Error("[TriggerFunc] load balance error: ", err)
-		return nil, err
-	}
-
-	// 3. trigger the function
-	url := "http://" + podIp + ":8081/"
-	var data interface{}
-	err = json.Unmarshal(params, &data)
-	prettyJSON, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		log.Error("[TriggerFunc] marshal params error: ", err)
-	}
-	log.Info ("[TriggerFunc] prettyJSON: ", string(prettyJSON))
-
-	// 4. send the request
-	// first check the connection
-	CheckConnection(podIp)
-
-	ret, err := utils.SendRequest("POST", params, url)
-	log.Info("[TriggerFunc] ret: ", string(ret))
-	result := bytes.NewBufferString(ret).Bytes()
-	if err != nil {
-		log.Error("[TriggerFunc] send request error: ", err)
-		return nil, err
-	}
-
-	return result, err
+	return nil, errors.New("trigger function error")
 }
 
 // DeleteFunc delete the function

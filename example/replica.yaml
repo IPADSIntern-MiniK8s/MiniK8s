@@ -1,7 +1,7 @@
 kind: Replica
 apiVersion: apps/v1
 metadata:
-  name: replica-practice
+  name: replica-practice1
 spec:
   replicas: 2
   selector:

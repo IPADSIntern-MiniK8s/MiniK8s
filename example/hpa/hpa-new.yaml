@@ -15,7 +15,7 @@ spec:
     - resource:
         name: "cpu"
         target:
-          averageValue: 1000
+          averageValue: 100
           type: AverageValue
       type: Resource
   scaleTargetRef:   # 指定要控制的deploy
@@ -27,7 +27,7 @@ spec:
       policies:
         - type: Pods
           value: 8
-          periodSeconds: 60 # 每分钟最多10%
+          periodSeconds: 60 # 每分钟最多8
     scaleDown:
       policies:
         - type: Percent

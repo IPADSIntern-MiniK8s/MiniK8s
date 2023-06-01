@@ -15,6 +15,7 @@ type DNSRecord struct {
 
 type Path struct {
 	Address string `json:"address,omitempty"`
+	PathName string `json:"pathName,omitempty"`
 	Service string `json:"service"`
 	Port    int    `json:"port"`
 }

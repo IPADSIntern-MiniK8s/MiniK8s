@@ -32,11 +32,14 @@ func get(cmd *cobra.Command, args []string) {
 		kind = strings.ToLower(args[0])
 		kind = kind[0 : len(kind)-1]
 		/* validate if `kind` is in the resource list */
-		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx == -1 {
+		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx != -1 {
+			_url = ctlutils.ParseUrlMany(kind, nameSpace)
+		} else if idx := arrays.ContainsString(ctlutils.Globals, kind); idx != -1 {
+			_url = ctlutils.ParseUrlMany(kind, "nil")
+		} else {
 			fmt.Printf("error: the server doesn't have a resource type \"%s\"", kind)
 		}
 
-		_url = ctlutils.ParseUrlMany(kind, nameSpace)
 		fmt.Printf("url:%s\n", _url)
 
 	} else {
@@ -44,11 +47,14 @@ func get(cmd *cobra.Command, args []string) {
 		kind = strings.ToLower(args[0])
 		name := strings.ToLower(args[1])
 		/* validate if `kind` is in the resource list */
-		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx == -1 {
+		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx != -1 {
+			_url = ctlutils.ParseUrlOne(kind, name, nameSpace)
+		} else if idx := arrays.ContainsString(ctlutils.Globals, kind); idx != -1 {
+			_url = ctlutils.ParseUrlOne(kind, name, "nil")
+		} else {
 			fmt.Printf("error: the server doesn't have a resource type \"%s\"", kind)
 		}
 
-		_url = ctlutils.ParseUrlOne(kind, name, nameSpace)
 		fmt.Printf("url:%s\n", _url)
 
 	}
@@ -195,6 +201,7 @@ func get(cmd *cobra.Command, args []string) {
 					"STATUS": string(wf.Status),
 				})
 			}
+			fmt.Println(table)
 		}
 	case "node":
 		{
@@ -209,6 +216,7 @@ func get(cmd *cobra.Command, args []string) {
 					"STATUS": string(node.Status.Conditions[0].Status),
 				})
 			}
+			fmt.Println(table)
 		}
 	case "dnsrecord":
 		{
@@ -224,6 +232,7 @@ func get(cmd *cobra.Command, args []string) {
 					"PATHS": string(jsonBytes),
 				})
 			}
+			fmt.Println(table)
 		}
 
 	}

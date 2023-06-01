@@ -28,6 +28,7 @@ type ContainerSpec struct {
 	Envs               []string
 	LinuxNamespaces    map[string]string
 	Labels             map[string]string
+	Hostname	   string
 }
 
 func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Container {
@@ -43,7 +44,11 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) containerd.Contain
 		fmt.Println("get image failed")
 		return nil
 	}
-	opts := []oci.SpecOpts{oci.WithImageConfig(im), GenerateHostnameSpec(spec.Name)}
+	//containers in pod belongs to one uts namespace,has only one hostname
+	opts := []oci.SpecOpts{oci.WithImageConfig(im)}
+	if spec.Hostname!=""{
+		opts = append(opts,GenerateHostnameSpec(spec.Hostname))
+	}
 	if spec.Mounts != nil && len(spec.Mounts) > 0 {
 		opts = append(opts, GenerateMountSpec(spec.Mounts))
 	}

@@ -1,4 +1,4 @@
-kind: Function
+kind: function
 apiVersion: app/v1
 name: getsum
 path: /home/mini-k8s/example/serverless/add.py

@@ -186,6 +186,7 @@ func reconcileAutoscaler(hpa *apiobject.HorizontalPodAutoscaler) {
 			max = expect
 		}
 	}
+	utils.UpdateObjectStatus(hpa, config.HPA, hpa.Data.Namespace, hpa.Data.Name)
 	desired := max
 
 	// 4. update the autoscaler

@@ -39,23 +39,31 @@ nohup nginx -c /home/mini-k8s/pkg/kubedns/config/nginx.conf &
 
 # build the components and run the server
 cd /home/mini-k8s/build
+make kubectl
 make apiserver
 make scheduler
 make controller
 make serverless
-<<<<<<< HEAD
 make kubeproxy
-=======
->>>>>>> remotes/origin/develop
+
+# create the log directory if not exist
+if [ ! -d "/home/mini-k8s/build/log" ]; then
+  mkdir /home/mini-k8s/build/log
+fi
+
 cd bin
 
 # start the components in different terminals
 echo "start the minik8s"
 # ./apiserver > ../log/apiserver.log 2> /dev/null &
+
 ./apiserver > ../log/apiserver.log 2>&1 &
+echo "start apiserver"
 sleep 3
 ./scheduler > ../log/scheduler.log 2>&1 &
+echo "start scheduler"
 ./controller > ../log/controller.log 2>&1 &
+echo "start controller"
 ./kubeproxy > ../log/kubeproxy.log 2>&1 &
 
 
@@ -64,6 +72,6 @@ cd /home/mini-k8s/pkg/serverless/function
 ./registry.sh
 cd /home/mini-k8s/build/bin
 ./serverless  > ../log/serverless.log 2>&1 &
-
+echo "start serverless"
 
 

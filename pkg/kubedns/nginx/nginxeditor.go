@@ -57,7 +57,7 @@ events {
 		locations := make([]Location, 0)
 		for _, path := range config.Paths {
 			location := Location{
-				Path: path.Service,
+				Path: path.PathName,
 				IP:   path.Address,
 				Port: strconv.Itoa(path.Port),
 			}

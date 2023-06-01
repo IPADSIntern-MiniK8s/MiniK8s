@@ -23,11 +23,7 @@ go_build*
 .vscode/
 
 # ignore log
-<<<<<<< HEAD
 *.log
 
 # ignore build/bin
 build/bin/
-=======
-*.log
->>>>>>> remotes/origin/develop
