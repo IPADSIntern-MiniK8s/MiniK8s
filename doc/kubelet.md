@@ -174,8 +174,17 @@ nerdctl对于网络的解析太复杂了，对于pause并没有很多额外的�
 
 ### 原理
 
-
 [k8s网络插件之Flannel_林凡修的博客-CSDN博客](https://blog.csdn.net/weixin_43266367/article/details/127836595)
+
+### 其他
+
+由于需要给pod增加dns服务，在master上使用coredns作为dns server，解决方法是在resolve.conf中第一条加入master节点的ip（必须53端口）
+
+resolv.conf的逻辑是 如果前一个nameserver连接不上，才会继续向下一个nameserver查找。
+
+如果前一个nameserver连接上了但是没有记录，则会直接报无记录，不会向下一个nameserver查找。
+
+因此必须保证在集群网络通常的情况下，master节点必须启用coredns并且coredns除了minik8s需要的dns服务，必须包括其他通用的dns服务。
 
 ## 资源监控
 
@@ -191,3 +200,18 @@ nerdctl对于网络的解析太复杂了，对于pause并没有很多额外的�
 进程创建开始之后累计执行的时间，如果跑在2个核上，过了1s，则记为2s
 通过与上一次获取的cpu执行时间的delta和时间delta可以计算出CPUPercent，和top展示的cpu%是一模一样的
 CPUPercent和容器创建指定的cpu参数可对应，例如指定cpu=1，则cpu%=100%;cpu=2,cpu%=200%（两核跑满）;cpu=500m,cpu%=50%
+
+## 总结
+
+kubelet主要做三件事
+
+1. websocket与apiserver保持长连接，监听到pod的创建、销毁状态时进行对应的容器操作。
+2. 作为http server接收对于容器资源的请求，获取并计算容器资源后返回。
+3. 每隔一段时间检查所有容器的状态，将存在停止容器的pod的状态通过短链接更新给apiserver
+
+针对container，1是写，23是读，可能会发生冲突。例如操作2正在统计某容器资源的时候，该容器被操作1删除。
+
+使用读写锁为每个pod上锁，即`map[string]sync.RWMutex` 其中key为`namespace-podname`
+
+go的map本身是线程不安全的，在对于同一个pod同时拿锁时可能创建两个不同的锁，严重时可能导致对于map的修改崩溃，因此将map替换为`sync.Map`
+

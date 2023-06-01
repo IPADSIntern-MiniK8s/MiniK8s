@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Job
+metadata:
+  name: matrix-add
+  namespace: gpu
+spec:
+  containers:
+    - name: gpu-server
+      image: gpu-server
+      command:
+        - "./job.py"
+      env:
+        - name: source-path
+          value: /gpu
+        - name: job-name
+          value: matrix-add
+        - name: partition
+          value: dgx2
+        - name: "N"
+          value: "1"
+        - name: ntasks-per-node
+          value: "1"
+        - name: cpus-per-task
+          value: "6"
+        - name: gres
+          value: gpu:1
+      volumeMounts:
+        - name: share-data
+          mountPath: /gpu
+  volumes:
+    - name: share-data
+      hostPath:
+        path: /minik8s-sharedata/gpu/matrix-add
+
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 10
