@@ -7,7 +7,6 @@
     }
     forward . 114.114.114.114
     reload 6s
-    log
     errors
     loop
     prometheus  # 监控插件

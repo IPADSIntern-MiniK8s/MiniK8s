@@ -80,7 +80,6 @@ func (a *APIServer) UpgradeToWebSocket() gin.HandlerFunc {
 			// add the watch server to the watch server map
 			// only service and node watch need to add to the watch table, and all of them watch the all pods
 			log.Info("[UpgradeToWebSocket] watchKey: ", watchKey)
-			println("the source: ", sourceHeader)
 			if sourceHeader != "" {
 				watch.WatchTable[sourceHeader] = newWatcher
 				log.Info("[NodeWatchHandler] watchTable size: ", len(watch.WatchTable))
@@ -102,9 +101,7 @@ func (a *APIServer) UpgradeToWebSocket() gin.HandlerFunc {
 				newList := watch.NewThreadSafeList()
 				newList.PushBack(newWatcher)
 				watch.WatchStorage.Store(watchKey, newList)
-				// watch.ListWatch(watchKey)
 			}
-			// newWatcher.Watch(watchKey)
 		} else {
 			// Continue with the request processing
 			c.Next()
