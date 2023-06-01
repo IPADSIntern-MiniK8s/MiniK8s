@@ -1,10 +1,11 @@
 package controller
 
 import (
-	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 	"minik8s/pkg/apiobject"
 	"minik8s/utils"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 )
 
 /*
@@ -103,11 +104,12 @@ func (p rsPodHandler) HandleUpdate(message []byte) {
 	pod := &apiobject.Pod{}
 	pod.UnMarshalJSON(message)
 
-	// check if the pod label changes
-	if pod.Status.OwnerReference.Controller == true {
+	if pod.Status.OwnerReference.Controller {
 		info := utils.GetObject(utils.REPLICA, pod.Data.Namespace, pod.Status.OwnerReference.Name)
 		rs := &apiobject.ReplicationController{}
 		rs.UnMarshalJSON([]byte(info))
+
+		// check if the pod label changes
 		if !utils.IsLabelEqual(rs.Spec.Selector, pod.Data.Labels) {
 			// update rs controller
 			rs.Status.Replicas = rs.Status.Replicas - 1
@@ -116,6 +118,11 @@ func (p rsPodHandler) HandleUpdate(message []byte) {
 			// update pod: delete controller info
 			pod.Status.OwnerReference.Controller = false
 			utils.UpdateObject(pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
+		}
+
+		// check if the pod status if FAILED or FINISHED
+		if pod.Status.Phase == apiobject.Failed || pod.Status.Phase == apiobject.Finished {
+			utils.DeleteObject(utils.POD, pod.Data.Namespace, pod.Data.Name)
 		}
 	}
 
