@@ -201,7 +201,7 @@ resolv.conf的逻辑是 如果前一个nameserver连接不上，才会继续向�
 通过与上一次获取的cpu执行时间的delta和时间delta可以计算出CPUPercent，和top展示的cpu%是一模一样的
 CPUPercent和容器创建指定的cpu参数可对应，例如指定cpu=1，则cpu%=100%;cpu=2,cpu%=200%（两核跑满）;cpu=500m,cpu%=50%
 
-## 总结
+## 其他
 
 kubelet主要做三件事
 
@@ -211,9 +211,11 @@ kubelet主要做三件事
 
 针对container，1是写，23是读，可能会发生冲突。例如操作2正在统计某容器资源的时候，该容器被操作1删除。
 
-使用读写锁为每个pod上锁，即`map[string]sync.RWMutex` 其中key为`namespace-podname`
+使用读写锁为每个pod上锁，即`map[string]sync.RWMutex` 其中key为`namespace-podname` 锁必须细粒度，因为2操作非常慢。
 
-go的map本身是线程不安全的，在对于同一个pod同时拿锁时可能创建两个不同的锁，严重时可能导致对于map的修改崩溃，因此将map替换为`sync.Map`
+go的map本身是线程不安全的，在对于同一个pod同时拿锁时可能创建两个不同的锁，严重时可能导致对于map的修改崩溃，因此将map替换为`sync.Map`。虽然同时写map没问题，但是很可能出现t1创建完并拿完锁之后return t2再次创建并拿锁，原因是并没有另一把锁来让对于map中某个key的访问设为临界区。使用`sync.Map`提供的`LoadOrStore(key,value)`方法，它会先判断是否存在某个key，如果存在返回`map[key]`，否则设置`map[key]=value`后返回value，最后用value.lock。这个方法只是压缩代码行数到了两行，但仍然不是原子的。最好是有类似`tbb::concurrent_hash_map::accessor`之类的东西。
+
+解决方法是使用一把大锁保护`sync.Map`，每次写map都需要拿锁，虽然粒度从pod变大到了整个空间，但是这里锁保护的临界区非常小，之后对于map数据结构的写，很快。
 
 在和apiserver连接中断后，任务2会继续做，任务1会每5s再发起一次连接请求，任务3会按之前的频率继续做(由于get请求会失败所以拿不到pod信息)
 
