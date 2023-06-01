@@ -35,7 +35,6 @@ func CreateImage(path string, name string) error {
 	}
 
 	// 1.2 create the image
-	// TODO: here I use the absolute path, need to change to relative path
 	cmd := exec.Command("docker", "build", "-t", name, "/home/mini-k8s/pkg/serverless/imagedata/")
 	err = cmd.Run()
 	if err != nil {
@@ -126,7 +125,6 @@ func DeleteImage(name string) error {
 }
 
 // RunImage to run image for function
-// TODO: need change to containerd
 func RunImage(name string) error {
 	// 1. run the image
 	cmd := exec.Command("docker", "run", "-d", "--name", name, "localhost:5000/"+name+":latest")
