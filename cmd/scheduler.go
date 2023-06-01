@@ -17,8 +17,7 @@ var SchedulerCmd = &cobra.Command{
 var schedulerConfigAddr string
 
 var SchedulerConfig = kubescheduler.Config{
-	ApiserverAddr: "192.168.1.13:8080",
-	Policy:        "default",
+	Policy: "default",
 }
 
 func schedulerInitConfig() {

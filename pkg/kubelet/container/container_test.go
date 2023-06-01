@@ -3,11 +3,9 @@ package container
 import (
 	"context"
 	"fmt"
-	v1 "github.com/containerd/cgroups/stats/v1"
 	"github.com/containerd/containerd"
-	"github.com/gogo/protobuf/proto"
+	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubelet/utils"
-	"reflect"
 	"testing"
 	"time"
 )
@@ -28,11 +26,12 @@ func TestContainer(t *testing.T) {
 		Memory:  100 * 1024 * 1024,                     //100M
 		CmdLine: []string{"/root/test_mount/test_cpu"}, //test_cpu test_memory
 		Envs:    []string{"envA=envAvalue", "envB=envBvalue"},
+		Hostname: "hahaha",
 	}
 	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
 	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
 	time.Sleep(time.Second * 2)
-	client, err := NewClient(spec.ContainerNamespace)
+	client, err := utils.NewClient(spec.ContainerNamespace)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -56,7 +55,7 @@ func TestContainer(t *testing.T) {
 	t.Logf("container started, use htop to see cpu utilization")
 	time.Sleep(time.Second * 10)
 
-	hostnameCorrect := utils.CheckCmd(spec.ContainerNamespace, spec.Name, []string{"hostname"}, spec.Name)
+	hostnameCorrect := utils.CheckCmd(spec.ContainerNamespace, spec.Name, []string{"hostname"}, spec.Hostname)
 	if !hostnameCorrect {
 		t.Fatalf("hostname set failed")
 	}
@@ -75,7 +74,7 @@ func TestContainer(t *testing.T) {
 	if c.ID() != spec.Name {
 		t.Fatalf("wrong container")
 	}
-	if GetContainerStatus(ctx, c) != "running" {
+	if s,_:=GetContainerStatus(ctx, c);s != "running" {
 		t.Fatalf("container status wrong")
 	}
 
@@ -83,7 +82,7 @@ func TestContainer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	if GetContainerStatus(ctx, c) != "stopped" {
+	if s,_:=GetContainerStatus(ctx, c);s != "stopped" {
 		t.Fatalf("container status wrong")
 	}
 	_, err = utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
@@ -111,7 +110,7 @@ func TestRemoveContainer(t *testing.T) {
 	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
 	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
 	time.Sleep(time.Second * 2)
-	client, err := NewClient(spec.ContainerNamespace)
+	client, err := utils.NewClient(spec.ContainerNamespace)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -145,7 +144,7 @@ func TestRemoveContainer(t *testing.T) {
 	if c.ID() != spec.Name {
 		t.Fatalf("wrong container")
 	}
-	if GetContainerStatus(ctx, c) != "running" {
+	if s,_:=GetContainerStatus(ctx, c);s != "running" {
 		t.Fatalf("container status wrong")
 	}
 
@@ -154,31 +153,16 @@ func TestRemoveContainer(t *testing.T) {
 		t.Fatalf("remove container failed")
 	}
 	time.Sleep(time.Second)
-	client, err = NewClient(spec.ContainerNamespace)
+	client, err = utils.NewClient(spec.ContainerNamespace)
 	containers, _ = client.Containers(ctx)
 	if len(containers) > 0 {
-		t.Fatalf("rm container failed,%v:%v", c.ID(), GetContainerStatus(ctx, c))
-	}
-}
-
-func TestPadImageName(t *testing.T) {
-	answer := "docker.io/library/ubuntu:latest"
-	if PadImageName("ubuntu") != answer {
-		t.Fatalf("pad image name wrong")
-	}
-	if PadImageName("ubuntu:latest") != answer {
-		t.Fatalf("pad image name wrong")
-	}
-	if PadImageName("docker.io/library/ubuntu") != answer {
-		t.Fatalf("pad image name wrong")
-	}
-	if PadImageName(answer) != answer {
-		t.Fatalf("pad image name wrong")
+		s,_:= GetContainerStatus(ctx, c)
+		t.Fatalf("rm container failed,%v:%v", c.ID(),s)
 	}
 }
 
 func TestGetContainerStatus(t *testing.T) {
-	client, err := NewClient("testpod18")
+	client, err := utils.NewClient("teststatus")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -194,7 +178,7 @@ func TestGetContainerStatus(t *testing.T) {
 }
 
 func TestRemoveOneContainer(t *testing.T) {
-	client, err := NewClient("testpod1")
+	client, err := utils.NewClient("testpod1")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -210,22 +194,45 @@ func TestRemoveOneContainer(t *testing.T) {
 }
 
 func TestContainerFilter(t *testing.T) {
-	client, err := NewClient("default")
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 	ctx := context.Background()
-	containers, err := client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "nerdctl/name", "testpod2-pause"))
+	ns:="filter"
+	spec := ContainerSpec{
+		Image:              "ubuntu",
+		Name:               "test-filter",
+		ContainerNamespace: ns,
+		CmdLine: []string{"sleep","10"},
+		Labels: map[string]string{"pod":"podname"},
+	}
+	container := CreateContainer(ctx, spec)
+	if container == nil {
+		t.Fatalf("create container failed")
+	}
+
+	client, err := utils.NewClient(ns)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	for _, c := range containers {
-		fmt.Println(c.ID())
+	containers, err := client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "pod", "podname"))
+	if err != nil {
+		t.Fatalf("%v", err)
 	}
+	if len(containers) !=1{
+		t.Fatalf("get container error")
+	}
+	containers, err = client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "pod", "wrong"))
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if len(containers) !=0{
+		t.Fatalf("get container error")
+	}
+	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
+
 }
 
 func TestContainerMetric(t *testing.T) {
-	client, err := NewClient("default")
+	client, err := utils.NewClient("test-metrics")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -237,59 +244,34 @@ func TestContainerMetric(t *testing.T) {
 	if len(containers) == 0 {
 		return
 	}
-	c := containers[0]
-	fmt.Println(c.ID())
-	task, err := c.Task(ctx, nil)
-	if err != nil {
-		t.Fatalf(err.Error())
+	metrics := GetContainersMetrics(containers)
+	if metrics == nil {
+		t.Fatalf("get metrics failed")
 	}
-	fmt.Println(task.Pid())
-	var data v1.Metrics
-	var v interface{}
-
-	var preTime time.Time
-	var curTime time.Time
-	var preCPU uint64 = 0
-	var curCPU uint64 = 0
-	for i := 0; i < 5; i++ {
-		metrics, err := task.Metrics(ctx)
-		if err != nil {
-			continue
-		}
-		curTime = time.Now()
-
-		//can not use Unmarshall, strange
-		//fmt.Println(typeurl.UnmarshalAny(metrics.Data))
-		//fmt.Println(typeurl.UnmarshalByTypeURL(metrics.Data.TypeUrl, metrics.Data.Value))
-		v = reflect.New(reflect.TypeOf(data)).Interface()
-		err = proto.Unmarshal(metrics.Data.Value, v.(proto.Message))
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		switch value := v.(type) {
-		case *v1.Metrics:
-			data = *value
-		default:
-			return
-		}
-		if preCPU == 0 {
-			preTime = curTime
-			preCPU = data.CPU.Usage.Total
-			continue
-		}
-
-		fmt.Println("memory:", data.Memory.Usage.Usage)
-		fmt.Println("CPU:", data.CPU.Usage.Total)
-		curCPU = data.CPU.Usage.Total
-		cpuDelta := curCPU - preCPU
-
-		timeDelta := curTime.Sub(preTime)
-		cpuPercent := float64(cpuDelta) / float64(timeDelta.Nanoseconds()) * 100.0
-		fmt.Println("cpuPercent:", cpuPercent)
-		preCPU = data.CPU.Usage.Total
-		preTime = curTime
-		time.Sleep(time.Second)
-
+	for _, mi := range metrics.Containers {
+		fmt.Println(mi.Name)
+		fmt.Println(mi.Usage[apiobject.ResourceCPU])
+		fmt.Println(mi.Usage[apiobject.ResourceMemory])
 	}
-
+}
+func TestUseLocalImage(t *testing.T) {
+	ctx := context.Background()
+	spec := ContainerSpec{
+		Image:              "master:5000/gpu-server:latest",
+		Name:               "test-local-image",
+		ContainerNamespace: "default",
+		Mounts: map[string]string{
+			"/home/test_mount": "/root/test_mount",
+		},
+		CmdLine: []string{"sleep", "100"}, //test_cpu test_memory
+	}
+	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
+	//time.Sleep(time.Second * 2)
+	container := CreateContainer(ctx, spec)
+	if container == nil {
+		t.Fatalf("create container failed")
+	}
+	utils.Ctl(spec.ContainerNamespace, "stop", spec.Name)
+	utils.Ctl(spec.ContainerNamespace, "rm", spec.Name)
 }

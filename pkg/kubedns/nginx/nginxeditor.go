@@ -57,7 +57,7 @@ events {
 		locations := make([]Location, 0)
 		for _, path := range config.Paths {
 			location := Location{
-				Path: path.Service,
+				Path: path.PathName,
 				IP:   path.Address,
 				Port: strconv.Itoa(path.Port),
 			}
@@ -86,10 +86,6 @@ events {
 func ReloadNginx() error {
 	cmd := exec.Command("pkill", "nginx")
 	err := cmd.Run()
-    if err != nil {
-        log.Error("[ReloadNginx] cmd.Run() failed with ", err.Error())
-		return err
-    }
 	cmd = exec.Command("nginx", "-c", "/home/mini-k8s/pkg/kubedns/config/nginx.conf")
 	err = cmd.Run()
 	if err != nil {

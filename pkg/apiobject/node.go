@@ -139,6 +139,7 @@ type NodeStatus struct {
 	//DaemonEnd   DaemonEnd         `json:"daemonEndpoints,omitempty"`
 	//NodeInfo    NodeInfo          `json:"nodeInfo,omitempty"`
 	Images []Image `json:"images,omitempty"`
+  Time        int64         `json:"time,omitempty"`
 }
 
 type Condition struct {

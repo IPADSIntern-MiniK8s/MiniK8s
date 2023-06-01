@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: HPA
+metadata:
+  name: hpa-practice
+spec:
+  minReplicas: 2  # 最小pod数量
+  maxReplicas: 5  # 最大pod数量
+  metrics:
+    - resource:
+        name: "memory"
+        target:
+          averageValue: 100000000
+          type: AverageValue
+      type: Resource
+    - resource:
+        name: "cpu"
+        target:
+          averageValue: 100
+          type: AverageValue
+      type: Resource
+  scaleTargetRef:   # 指定要控制的deploy
+    apiVersion:  apps/v1
+    kind: replicas
+    name: replica-practice
+  behavior:
+    scaleUp:
+      policies:
+        - type: Pods
+          value: 8
+          periodSeconds: 60 # 每分钟最多8
+    scaleDown:
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60 # 每分钟最多10%
+      stabilizationWindowSeconds: 30

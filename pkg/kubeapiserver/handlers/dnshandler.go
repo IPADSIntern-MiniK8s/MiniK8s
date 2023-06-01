@@ -44,21 +44,24 @@ func getAllDNSRecords() []apiobject.DNSRecord {
 	return dnsRecords
 }
 
-func getServiceAddr(serviceName string) (string, error) {
-	var services []apiobject.Service
+func getServiceAddr(serviceName string, namespace string) (string, error) {
+	var service apiobject.Service
 	key := "/registry/services/"
-	err := dnsStorageTool.GetList(context.Background(), key, &services)
+	if namespace != "" {
+		key = key + namespace + "/" + serviceName
+	} else {
+		key = key + "default/" + serviceName
+	}
+	err := dnsStorageTool.Get(context.Background(), key, &service)
 	if err != nil {
 		log.Error("[getServiceAddr] error getting service: ", err)
 		return "", err
 	}
-	for _, service := range services {
-		if service.Data.Name == serviceName {
-			if service.Status.ClusterIP != "" {
-				return service.Status.ClusterIP, nil
-			}
+	
+	if service.Data.Name == serviceName {
+		if service.Status.ClusterIP != "" {
+			return service.Status.ClusterIP, nil
 		}
-
 	}
 
 	return "", errors.New("service not found")
@@ -72,8 +75,15 @@ func updateNginx() error {
 	return err
 }
 // CreateDNSRecordHandler create a DNS record
-// CreateDNSRecordHandler the url format POST /api/v1/dns
+// CreateDNSRecordHandler the url format POST /api/v1/namespaces/:namespace/dns
 func CreateDNSRecordHandler(c *gin.Context) {
+	namespace := c.Param("namespace")
+	if namespace == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "namespace is empty",
+		})
+		return
+	}
 	var dnsRecord *apiobject.DNSRecord
 	if err := c.Bind(&dnsRecord); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -83,21 +93,22 @@ func CreateDNSRecordHandler(c *gin.Context) {
 	}
 
 	// 1. if the address field is empty, fill it with the service address
-	for _, path := range dnsRecord.Paths {
-		if path.Address == "" {
-			addr, err := getServiceAddr(path.Service)
+	n := len(dnsRecord.Paths)
+	for i := 0; i < n; i++ {
+		if dnsRecord.Paths[i].Address == "" {
+			addr, err := getServiceAddr(dnsRecord.Paths[i].Service, dnsRecord.NameSpace)
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{
 					"error": err.Error(),
 				})
 				return
 			}
-			path.Address = addr
+			dnsRecord.Paths[i].Address = addr
 		}
 	}
-
+	
 	// 2. save the DNSRecord and the path in the etcd
-	key := "/registry/dnsrecords/" + dnsRecord.Name
+	key := "/registry/dnsrecords/" + namespace + "/" + dnsRecord.Name
 	err := dnsStorageTool.Create(context.Background(), key, &dnsRecord)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -131,9 +142,16 @@ func CreateDNSRecordHandler(c *gin.Context) {
 }
 
 // UpdateDNSRecordHandler update a DNS record
-// UpdateDNSRecordHandler the url format POST /api/v1/dns/:name/update
+// UpdateDNSRecordHandler the url format POST /api/v1/namespaces/:namespace/dns/:name/update
 func UpdateDNSRecordHandler(c *gin.Context) {
 	// 1. parse the DNSRecord from the request to get the name
+	namespace := c.Param("namespace")
+	if namespace == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "namespace is empty",
+		})
+		return
+	}
 	name := c.Param("name")
 	if name == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -152,7 +170,7 @@ func UpdateDNSRecordHandler(c *gin.Context) {
 	}
 
 	// 3. save the DNSRecord and the path in the etcd
-	key := "/registry/dnsrecords/" + name
+	key := "/registry/dnsrecords/" + namespace + "/" + name
 	err := dnsStorageTool.GuaranteedUpdate(context.Background(), key, &dnsRecord)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -184,9 +202,17 @@ func UpdateDNSRecordHandler(c *gin.Context) {
 }
 
 // DeleteDNSRecordHandler delete a DNS record
-// DeleteDNSRecordHandler the url format DELETE /api/v1/dns/:name
+// DeleteDNSRecordHandler the url format DELETE /api/v1/namespaces/:namespace/dns/:name
 func DeleteDNSRecordHandler(c *gin.Context) {
 	// 1. parse the DNSRecord from the request to get the name
+	namespace := c.Param("namespace")
+	if namespace == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "namespace is empty",
+		})
+		return
+	}
+
 	name := c.Param("name")
 	if name == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -196,7 +222,7 @@ func DeleteDNSRecordHandler(c *gin.Context) {
 	}
 
 	// 2. delete the DNSRecord and the path in the etcd
-	key := "/registry/dnsrecords/" + name
+	key := "/registry/dnsrecords/" + namespace + "/" + name
 	err := dnsStorageTool.Delete(context.Background(), key)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -220,9 +246,16 @@ func DeleteDNSRecordHandler(c *gin.Context) {
 }
 
 // GetDNSRecordHandler get a DNS record
-// GetDNSRecordHandler the url format GET /api/v1/dns/:name
+// GetDNSRecordHandler the url format GET /api/v1/namespaces/:namespace/dns/:name
 func GetDNSRecordHandler(c *gin.Context) {
 	// 1. parse the DNSRecord from the request to get the name
+	namespace := c.Param("namespace")
+	if namespace == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "namespace is empty",
+		})
+		return
+	}
 	name := c.Param("name")
 	if name == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -232,7 +265,7 @@ func GetDNSRecordHandler(c *gin.Context) {
 	}
 
 	// 2. get the DNSRecord and the path in the etcd
-	key := "/registry/dnsrecords/" + name
+	key := "/registry/dnsrecords/" + namespace + "/" + name
 	dnsRecord := &apiobject.DNSRecord{}
 	err := dnsStorageTool.Get(context.Background(), key, dnsRecord)
 	if err != nil {

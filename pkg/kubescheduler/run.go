@@ -1,18 +1,20 @@
 package kubescheduler
 
 import (
-	"github.com/gorilla/websocket"
-	log "github.com/sirupsen/logrus"
+	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	filter2 "minik8s/pkg/kubescheduler/filter"
 	"minik8s/pkg/kubescheduler/policy"
 	"minik8s/utils"
 	"net/http"
+	"time"
+
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
-	ApiserverAddr string
-	Policy        string
+	Policy string
 }
 
 // generate the new pointer slice
@@ -34,49 +36,34 @@ func toValueSlice(slice []*apiobject.Node) []apiobject.Node {
 	return result
 }
 
-func Run(config Config) {
-	// init scheduler and filter
-	policyName := config.Policy
-	var filter filter2.TemplateFilter
-	concreteFilter := filter2.ConfigFilter{Name: "ConfigFilter"}
-	filter = concreteFilter
-	var scheduler policy.Scheduler
-
-	if policyName == "default" || policyName == "resource" {
-		concreteScheduler := policy.NewResourceScheduler(filter)
-		scheduler = concreteScheduler
-	} else if policyName == "frequency" {
-		concreteScheduler := policy.NewLeastRequestScheduler(filter)
-		scheduler = concreteScheduler
-	}
-
+func connect(scheduler policy.Scheduler) error {
 	// create websocket connection
 	headers := http.Header{}
 	headers.Set("X-Source", "scheduler")
 
 	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial("ws://"+utils.ApiServerIp+"/api/v1/watch/pods", headers)
+	conn, _, err := dialer.Dial("ws://"+config.ApiServerIp+"/api/v1/watch/podList", headers)
 	if err != nil {
 		log.Error("[Run] scheduler websocket connect fail")
-		return
+		return err
 	}
 	defer conn.Close()
 
 	// create http client for ask api server
 	httpMethod := "GET"
-	httpUrl := "http://" + utils.ApiServerIp + "/api/v1/nodes"
+	httpUrl := "http://" + config.ApiServerIp + "/api/v1/nodes"
 
 	// keep reading from websocket
 	for {
 		_, message, err := conn.ReadMessage()
 
-		if len(message) == 0 {
-			continue
-		}
-
 		if err != nil {
 			log.Error("[Run] scheduler websocket read message fail")
-			conn.WriteMessage(websocket.TextMessage, []byte{})
+			return err
+		}
+
+		if len(message) == 0 {
+			continue
 		}
 
 		// parse message
@@ -87,11 +74,13 @@ func Run(config Config) {
 			conn.WriteMessage(websocket.TextMessage, []byte{})
 		}
 		if pod == nil {
+			log.Error("[Run] scheduler websocket pod is nil")
 			conn.WriteMessage(websocket.TextMessage, []byte{})
 		}
 
 		// check whether pod is need to be scheduled
-		if pod == nil || pod.Status.Phase != apiobject.Pending {
+		if pod.Status.Phase != apiobject.Pending {
+			log.Error("[Run] scheduler websocket pod is nil or pod is not pending, the pod phase is: ", pod.Status.Phase)
 			conn.WriteMessage(websocket.TextMessage, []byte{})
 		}
 
@@ -117,7 +106,39 @@ func Run(config Config) {
 
 		// marshal the nodes that pod will be scheduled to and send to api server
 		jsonBytes, err := apiobject.MarshalJSONList(nodeCandidates)
+		if err != nil {
+			log.Error("[Run] scheduler marshal nodes fail, the error message is: ", err)
+		} else {
+			log.Info("[Run] the node candidate  count is: ", len(nodeCandidates))
+			if len(nodeCandidates) > 0 {
+				log.Info("[Run] the node candidate is: ", nodeCandidates[0].Data.Name)
+			}
+		}
 		conn.WriteMessage(websocket.TextMessage, jsonBytes)
 	}
+}
 
+func Run(c Config) {
+	// init scheduler and filter
+	policyName := c.Policy
+	var filter filter2.TemplateFilter
+	concreteFilter := filter2.ConfigFilter{Name: "ConfigFilter"}
+	filter = concreteFilter
+	var scheduler policy.Scheduler
+
+	if policyName == "default" || policyName == "frequency" {
+		concreteScheduler := policy.NewLeastRequestScheduler(filter)
+		scheduler = concreteScheduler
+	} else if policyName == "resource" {
+		concreteScheduler := policy.NewResourceScheduler(filter)
+		scheduler = concreteScheduler
+	}
+
+	for {
+		err := connect(scheduler)
+		if err != nil {
+			log.Error("[Run] scheduler connect fail, the error message is: ", err)
+		}
+		time.Sleep(5 * time.Second)
+	}
 }

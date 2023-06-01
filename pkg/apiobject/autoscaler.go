@@ -2,6 +2,8 @@ package apiobject
 
 import (
 	"encoding/json"
+	"fmt"
+	"minik8s/config"
 	"minik8s/pkg/apiobject/utils"
 )
 
@@ -45,16 +47,16 @@ type HorizontalPodAutoscaler struct {
 
 type HorizontalPodAutoscalerSpec struct {
 	ScaleTargetRef CrossVersionObjectReference      `json:"scaleTargetRef"`
-	MinReplicas    *int32                           `json:"minReplicas,omitempty"`
+	MinReplicas    int32                            `json:"minReplicas,omitempty"`
 	MaxReplicas    int32                            `json:"maxReplicas"`
 	Metrics        []MetricSpec                     `json:"metrics,omitempty"`
 	Behavior       *HorizontalPodAutoscalerBehavior `json:"behavior,omitempty"`
 }
 
 type CrossVersionObjectReference struct {
-	Kind       string `json:"kind"`
-	Name       string `json:"name"`
-	APIVersion string `json:"apiVersion,omitempty"`
+	Kind       config.ObjType `json:"kind"`
+	Name       string         `json:"name"`
+	APIVersion string         `json:"apiVersion,omitempty"`
 }
 
 type MetricSpec struct {
@@ -82,7 +84,7 @@ type MetricTarget struct {
 	Type MetricTargetType `json:"type"`
 	// value is the target value of the metric (as a quantity).
 	// +optional
-	Value *utils.Quantity `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+	Value *utils.Quantity `json:"value,omitempty"`
 	// averageValue is the target value of the average of the
 	// metric across all relevant pods (as a quantity)
 	// +optional
@@ -226,7 +228,7 @@ type HorizontalPodAutoscalerStatus struct {
 	// lastScaleTime is the last time the HorizontalPodAutoscaler scaled the number of pods,
 	// used by the autoscaler to control how often the number of pods is changed.
 	// +optional
-	LastScaleTime *utils.Time `json:"lastScaleTime,omitempty"`
+	LastScaleTime utils.Time `json:"lastScaleTime,omitempty"`
 
 	// currentReplicas is current number of replicas of pods managed by this autoscaler,
 	// as last seen by the autoscaler.
@@ -236,14 +238,31 @@ type HorizontalPodAutoscalerStatus struct {
 	// as last calculated by the autoscaler.
 	DesiredReplicas int32 `json:"desiredReplicas"`
 
-	//// currentMetrics is the last read state of the metrics used by this autoscaler.
-	//// +optional
-	//CurrentMetrics []MetricStatus `json:"currentMetrics"`
+	// currentMetrics is the last read state of the metrics used by this autoscaler.
+	// +optional
+	CurrentMetrics []MetricValueStatus `json:"currentMetrics"`
 	//
 	//// conditions is the set of conditions required for this autoscaler to scale its target,
 	//// and indicates whether or not those conditions are met.
 	//// +optional
 	//Conditions []HorizontalPodAutoscalerCondition `json:"conditions"`
+}
+
+type MetricValueStatus struct {
+	// type represents whether the metric type is Utilization, Value, or AverageValue
+	Type MetricTargetType `json:"type"`
+	// value is the current value of the metric (as a quantity).
+	// +optional
+	Value *utils.Quantity `json:"value,omitempty"`
+	// averageValue is the current value of the average of the
+	// metric across all relevant pods (as a quantity)
+	// +optional
+	AverageValue *utils.Quantity `json:"averageValue,omitempty"`
+	// currentAverageUtilization is the current value of the average of the
+	// resource metric across all relevant pods, represented as a percentage of
+	// the requested value of the resource for the pods.
+	// +optional
+	AverageUtilization *int32 `json:"averageUtilization,omitempty"`
 }
 
 func (h *HorizontalPodAutoscaler) MarshalJSON() ([]byte, error) {
@@ -266,4 +285,113 @@ func (h *HorizontalPodAutoscaler) UnMarshalJSON(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (h *HorizontalPodAutoscaler) GetTargetValue(m *MetricSpec) int {
+	switch m.Type {
+	case ResourceMetricSourceType:
+		{
+			switch m.Resource.Target.Type {
+			case AverageValueMetricType:
+				{
+					return int(*m.Resource.Target.AverageValue)
+				}
+			case ValueMetricType:
+				{
+					return int(*m.Resource.Target.Value)
+				}
+			case UtilizationMetricType:
+				{
+					return int(*m.Resource.Target.AverageUtilization)
+				}
+
+			}
+		}
+	case PodsMetricSourceType:
+		{
+			switch m.Pods.Target.Type {
+			case AverageValueMetricType:
+				{
+					return int(*m.Pods.Target.AverageValue)
+				}
+			case ValueMetricType:
+				{
+					return int(*m.Pods.Target.Value)
+				}
+			case UtilizationMetricType:
+				{
+					return int(*m.Pods.Target.AverageUtilization)
+				}
+
+			}
+		}
+	}
+	return 0
+}
+
+func (h *HorizontalPodAutoscaler) GetStatusValue(m *MetricValueStatus) int {
+	switch m.Type {
+	case AverageValueMetricType:
+		{
+			return int(*m.AverageValue)
+		}
+	case ValueMetricType:
+		{
+			return int(*m.Value)
+		}
+	case UtilizationMetricType:
+		{
+			return int(*m.AverageUtilization)
+		}
+
+	}
+	return 0
+}
+
+func (h *HorizontalPodAutoscaler) SetStatusValue(m *MetricValueStatus, v float64) {
+	switch m.Type {
+	case AverageValueMetricType:
+		{
+			if m.AverageValue == nil {
+				var v utils.Quantity
+				m.AverageValue = &v
+				fmt.Print("here")
+			}
+			*m.AverageValue = utils.Quantity(v)
+		}
+	case ValueMetricType:
+		{
+			if m.Value == nil {
+				var v utils.Quantity
+				m.Value = &v
+			}
+			*m.Value = utils.Quantity(v)
+		}
+	case UtilizationMetricType:
+		{
+			if m.AverageUtilization == nil {
+				var v int32
+				m.AverageUtilization = &v
+			}
+			*m.AverageUtilization = int32(v)
+		}
+	}
+}
+
+func (hpa *HorizontalPodAutoscaler) Union(other *HorizontalPodAutoscaler) {
+	if hpa.Status.ObservedGeneration == nil {
+		hpa.Status.ObservedGeneration = other.Status.ObservedGeneration
+	}
+	if hpa.Status.LastScaleTime.IsZero() {
+		hpa.Status.LastScaleTime = other.Status.LastScaleTime
+	}
+	if hpa.Status.CurrentReplicas == 0 {
+		hpa.Status.CurrentReplicas = other.Status.CurrentReplicas
+	}
+	if hpa.Status.DesiredReplicas == 0 {
+		hpa.Status.DesiredReplicas = other.Status.DesiredReplicas
+	}
+	if hpa.Status.CurrentMetrics == nil {
+		hpa.Status.CurrentMetrics = other.Status.CurrentMetrics
+	}
 }

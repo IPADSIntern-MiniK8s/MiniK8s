@@ -1,16 +1,18 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"minik8s/pkg/apiobject"
+	ctlutils "minik8s/pkg/kubectl/utils"
+	"minik8s/utils"
+	"strconv"
+	"strings"
+
 	"github.com/liushuochen/gotable"
 	"github.com/spf13/cobra"
 	"github.com/tidwall/gjson"
 	"github.com/wxnacy/wgo/arrays"
-	"minik8s/pkg/apiobject"
-	"minik8s/pkg/kubectl/utils"
-	"minik8s/utils"
-	"strconv"
-	"strings"
 )
 
 var GetCmd = &cobra.Command{
@@ -26,15 +28,18 @@ func get(cmd *cobra.Command, args []string) {
 	var _url string
 	var kind string
 	if len(args) == 1 {
-		/* get all resources of in certain type under specified namespace */
+		/* get all resources in certain type under specified namespace */
 		kind = strings.ToLower(args[0])
 		kind = kind[0 : len(kind)-1]
 		/* validate if `kind` is in the resource list */
-		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx == -1 {
+		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx != -1 {
+			_url = ctlutils.ParseUrlMany(kind, nameSpace)
+		} else if idx := arrays.ContainsString(ctlutils.Globals, kind); idx != -1 {
+			_url = ctlutils.ParseUrlMany(kind, "nil")
+		} else {
 			fmt.Printf("error: the server doesn't have a resource type \"%s\"", kind)
 		}
 
-		_url = ctlutils.ParseUrlMany(kind, nameSpace)
 		fmt.Printf("url:%s\n", _url)
 
 	} else {
@@ -42,11 +47,14 @@ func get(cmd *cobra.Command, args []string) {
 		kind = strings.ToLower(args[0])
 		name := strings.ToLower(args[1])
 		/* validate if `kind` is in the resource list */
-		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx == -1 {
+		if idx := arrays.ContainsString(ctlutils.Resources, kind); idx != -1 {
+			_url = ctlutils.ParseUrlOne(kind, name, nameSpace)
+		} else if idx := arrays.ContainsString(ctlutils.Globals, kind); idx != -1 {
+			_url = ctlutils.ParseUrlOne(kind, name, "nil")
+		} else {
 			fmt.Printf("error: the server doesn't have a resource type \"%s\"", kind)
 		}
 
-		_url = ctlutils.ParseUrlOne(kind, name, nameSpace)
 		fmt.Printf("url:%s\n", _url)
 
 	}
@@ -57,16 +65,33 @@ func get(cmd *cobra.Command, args []string) {
 	switch kind {
 	case "pod":
 		{
-			table, _ := gotable.Create("NAME", "POD-IP", "STATUS")
+			table, _ := gotable.Create("NAME", "POD-IP", "STATUS", "NODE-IP")
 			podList := gjson.Parse(_json).Array()
 			for _, p := range podList {
 				name := gjson.Get(p.String(), "metadata.name").String()
 				status := gjson.Get(p.String(), "status.phase").String()
 				IP := gjson.Get(p.String(), "status.podIP").String()
+				nodeIP := gjson.Get(p.String(), "status.hostIP").String()
 				table.AddRow(map[string]string{
-					"NAME":   name,
-					"POD-IP": IP,
-					"STATUS": status,
+					"NAME":    name,
+					"POD-IP":  IP,
+					"STATUS":  status,
+					"NODE-IP": nodeIP,
+				})
+			}
+			fmt.Println(table)
+		}
+	case "job":
+		{
+			table, _ := gotable.Create("NAME", "POD-NAME", "STATUS")
+			job := gjson.Parse(_json).Array()
+			for _, p := range job {
+				name := gjson.Get(p.String(), "metadata.name").String()
+				status := gjson.Get(p.String(), "status.phase").String()
+				table.AddRow(map[string]string{
+					"NAME":     name,
+					"POD-NAME": name,
+					"STATUS":   status,
 				})
 			}
 			fmt.Println(table)
@@ -91,7 +116,7 @@ func get(cmd *cobra.Command, args []string) {
 					"NAME":       name,
 					"TYPE":       ty,
 					"CLUSTER-IP": ip,
-					"PORTS":      portString,
+					"PORT(S)":    portString,
 				})
 			}
 			fmt.Println(table)
@@ -113,7 +138,7 @@ func get(cmd *cobra.Command, args []string) {
 		}
 	case "replica":
 		{
-			table, _ := gotable.Create("NAME", "DESIRED", "CURRENT")
+			table, _ := gotable.Create("NAME", "DESIRED", "READY")
 			rsList := gjson.Parse(_json).Array()
 			for _, p := range rsList {
 				rs := &apiobject.ReplicationController{}
@@ -121,12 +146,97 @@ func get(cmd *cobra.Command, args []string) {
 				table.AddRow(map[string]string{
 					"NAME":    rs.Data.Name,
 					"DESIRED": strconv.Itoa(int(rs.Spec.Replicas)),
-					"CURRENT": strconv.Itoa(int(rs.Status.Replicas)),
+					"READY":   strconv.Itoa(int(rs.Status.ReadyReplicas)),
 				})
 			}
 			fmt.Println(table)
 		}
+	case "hpa":
+		{
+			table, _ := gotable.Create("NAME", "REFERENCE", "TARGETS", "MINPODS", "MAXPODS")
+			hpaList := gjson.Parse(_json).Array()
+			for _, p := range hpaList {
+				hpa := &apiobject.HorizontalPodAutoscaler{}
+				hpa.UnMarshalJSON([]byte(p.String()))
+				target := ""
+				for i, m := range hpa.Spec.Metrics {
+					if i < len(hpa.Status.CurrentMetrics) {
+						target += strconv.Itoa(hpa.GetStatusValue(&hpa.Status.CurrentMetrics[i])) + "/" + strconv.Itoa(hpa.GetTargetValue(&m)) + ","
+					}
+				}
+				table.AddRow(map[string]string{
+					"NAME":      hpa.Data.Name,
+					"REFERENCE": string(hpa.Spec.ScaleTargetRef.Kind) + "/" + hpa.Spec.ScaleTargetRef.Name,
+					"TARGETS":   target,
+					"MINPODS":   strconv.Itoa(int(hpa.Spec.MinReplicas)),
+					"MAXPODS":   strconv.Itoa(int(hpa.Spec.MaxReplicas)),
+				})
+			}
+			fmt.Println(table)
+		}
+	case "function":
+		{
+			table, _ := gotable.Create("NAME", "PATH", "STATUS")
+			funcList := gjson.Parse(_json).Array()
+			for _, f := range funcList {
+				function := &apiobject.Function{}
+				function.UnMarshalJSON([]byte(f.String()))
+				table.AddRow(map[string]string{
+					"NAME":   function.Name,
+					"PATH":   function.Path,
+					"STATUS": string(function.Status),
+				})
+			}
+			fmt.Println(table)
+		}
+	case "workflow":
+		{
+			table, _ := gotable.Create("NAME", "STATUS")
+			wfList := gjson.Parse(_json).Array()
+			for _, f := range wfList {
+				wf := &apiobject.WorkFlow{}
+				wf.UnMarshalJSON([]byte(f.String()))
+				table.AddRow(map[string]string{
+					"NAME":   wf.Name,
+					"STATUS": string(wf.Status),
+				})
+			}
+			fmt.Println(table)
+		}
+	case "node":
+		{
+			table, _ := gotable.Create("NAME", "IP", "STATUS")
+			nodeList := gjson.Parse(_json).Array()
+			for _, f := range nodeList {
+				node := &apiobject.Node{}
+				node.UnMarshalJSON([]byte(f.String()))
+				table.AddRow(map[string]string{
+					"NAME":   node.Data.Name,
+					"IP":     node.Status.Addresses[0].Address,
+					"STATUS": string(node.Status.Conditions[0].Status),
+				})
+			}
+			fmt.Println(table)
+		}
+	case "dnsrecord":
+		{
+			table, _ := gotable.Create("NAME", "HOST", "PATHS")
+			dnsList := gjson.Parse(_json).Array()
+			for _, f := range dnsList {
+				dns := &apiobject.DNSRecord{}
+				dns.UnMarshalJSON([]byte(f.String()))
+				jsonBytes, _ := json.Marshal(dns.Paths)
+				table.AddRow(map[string]string{
+					"NAME":  dns.Name,
+					"HOST":  dns.Host,
+					"PATHS": string(jsonBytes),
+				})
+			}
+			fmt.Println(table)
+		}
+
 	}
+
 	if err != nil {
 		//log.Fatal(err)
 		/* 解析info，错误判断pod名字是否存在 */

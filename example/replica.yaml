@@ -1,9 +1,9 @@
 kind: Replica
 apiVersion: apps/v1
 metadata:
-  name: replica-practice
+  name: replica-practice1
 spec:
-  replicas: 3
+  replicas: 2
   selector:
       app: replica-practice
   template:
@@ -12,14 +12,20 @@ spec:
         app: replica-practice
     spec:
       containers:
-        - name: fileserver
-          image: hejingkai/fileserver:latest
+        - name: server
+          image: docker.io/mcastelino/nettools
           ports:
             - name: p1 # 端口名称
               containerPort: 8080  # 容器端口
+          command:
+            - /root/test_mount/simple_http_server
+          env:
+            - name: port
+              value: '8080'
           volumeMounts:
-            - name: download
-              mountPath: /usr/share/files
-      volumes: # 定义数据卷
-        - name: download # 数据卷名称
-          emptyDir: {} # 数据卷类型
+            - name: data
+              mountPath: /root/test_mount
+      volumes:
+        - name: data
+          hostPath:
+            path: /home/test_mount

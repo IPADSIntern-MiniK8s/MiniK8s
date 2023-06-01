@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod4
+  namespace: demo
+spec:
+  nodeSelector:
+    env: test
+  containers:
+    - name: c1
+      image: docker.io/mcastelino/nettools
+      ports:
+        - containerPort: 12345
+      command:
+        - /root/test_mount/test_network
+      env:
+        - name: port
+          value: '12345'
+      volumeMounts:
+        - name: test-volume
+          mountPath: /root/test_mount
+    - name: c2
+      image: docker.io/mcastelino/nettools
+      ports:
+        - containerPort: 23456
+      command:
+        - /root/test_mount/test_network
+      env:
+        - name: port
+          value: '23456'
+      volumeMounts:
+        - name: test-volume
+          mountPath: /root/test_mount
+  volumes:
+    - name: test-volume
+      hostPath:
+        path: /home/test_mount
+

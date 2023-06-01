@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/wxnacy/wgo/arrays"
 	"log"
-	"minik8s/pkg/kubectl/utils"
+	ctlutils "minik8s/pkg/kubectl/utils"
 	"minik8s/utils"
 	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/wxnacy/wgo/arrays"
 )
 
 var DeleteCmd = &cobra.Command{
@@ -25,11 +26,14 @@ func delete(cmd *cobra.Command, args []string) {
 	kind := strings.ToLower(args[0])
 	name := strings.ToLower(args[1])
 	/* validate if `kind` is in the resource list */
-	if idx := arrays.ContainsString(ctlutils.Resources, kind); idx == -1 {
-		fmt.Printf("error: the server doesn't have a resource type \"%s\"\n", kind)
+	if idx := arrays.ContainsString(ctlutils.Resources, kind); idx != -1 {
+		_url = ctlutils.ParseUrlOne(kind, name, nameSpace)
+	} else if idx := arrays.ContainsString(ctlutils.Globals, kind); idx != -1 {
+		_url = ctlutils.ParseUrlOne(kind, name, "nil")
+	} else {
+		fmt.Printf("error: the server doesn't have a resource type \"%s\"", kind)
 	}
 
-	_url = ctlutils.ParseUrlOne(kind, name, nameSpace)
 	fmt.Printf("url:%s\n", _url)
 
 	/* display the return info */

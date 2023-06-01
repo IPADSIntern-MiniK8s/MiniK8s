@@ -3,6 +3,7 @@ package apiobject
 import (
 	"encoding/json"
 	"fmt"
+	"minik8s/config"
 )
 
 /* an basic example of a pod apiobject:
@@ -116,26 +117,27 @@ type Volume struct {
 }
 
 type PodStatus struct {
-	Phase          PhaseLabel     `json:"phase,omitempty""`
+	Phase          PhaseLabel     `json:"phase,omitempty"`
 	HostIp         string         `json:"hostIP,omitempty"`
 	PodIp          string         `json:"podIP,omitempty"`
 	OwnerReference OwnerReference `json:"ownerReference,omitempty"`
 }
 
 type OwnerReference struct {
-	Kind       string `json:"kind"`
-	Name       string `json:"name"`
-	Controller bool   `json:"controller,omitempty"`
+	Kind       config.ObjType `json:"kind"`
+	Name       string         `json:"name"`
+	Controller bool           `json:"controller,omitempty"`
 }
 
 type PhaseLabel string
 
 const (
+	Created     PhaseLabel = "Created"//only for job
 	Pending     PhaseLabel = "Pending"
+	Scheduled   PhaseLabel = "Scheduled"
 	Running     PhaseLabel = "Running"
-	Succeeded   PhaseLabel = "Succeeded"
-	Failed      PhaseLabel = "Failed"
-	Finished    PhaseLabel = "Finished"
+	Failed      PhaseLabel = "Failed"	//one of containers of pod return not 0
+	Finished    PhaseLabel = "Finished"	//one of containers of pod return 0
 	Terminating PhaseLabel = "Terminating"
 	Deleted     PhaseLabel = "Deleted"
 	Unknown     PhaseLabel = "Unknown"
@@ -174,4 +176,20 @@ func (p *Pod) UnMarshalJsonList(data []byte) ([]Pod, error) {
 		return nil, err
 	}
 	return pods, nil
+}
+
+func (p *Pod) Union(other *Pod) {
+	if p.Status.Phase == "" {
+		p.Status.Phase = other.Status.Phase
+	}
+	if p.Status.HostIp == "" {
+		p.Status.HostIp = other.Status.HostIp
+	}
+	if p.Status.PodIp == "" {
+		p.Status.PodIp = other.Status.PodIp
+	}
+	empty := OwnerReference{}
+	if empty == p.Status.OwnerReference {
+		p.Status.OwnerReference = other.Status.OwnerReference
+	}
 }

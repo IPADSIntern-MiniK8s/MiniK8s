@@ -1,12 +1,15 @@
 package apimachinery
 
 import (
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	"context"
+	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/handlers"
 	"minik8s/pkg/kubeapiserver/storage"
 	"minik8s/pkg/kubeapiserver/watch"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 type APIServer struct {
@@ -14,12 +17,33 @@ type APIServer struct {
 	EtcdStorage *storage.EtcdStorage
 }
 
+
+func InitNodes(tool *storage.EtcdStorage) {
+	// delete all nodes' info in etcd
+	key := "/registry/nodes/"
+	var nodes []apiobject.Node
+	err := tool.GetList(context.Background(), key, &nodes)
+	if err != nil {
+		log.Info("[InitNodes] the node list is empty")
+	} else {
+		for _, node := range nodes {
+			nodeKey := "/registry/nodes/" + node.Data.Name
+			err := tool.Delete(context.Background(), nodeKey)
+			if err != nil {
+				log.Error("[InitNodes] delete node error: ", err)
+			}
+		}
+	}
+
+}
+
 func NewAPI() *APIServer {
 	storage := storage.NewEtcdStorageNoParam()
 	if storage == nil {
 		return nil
 	}
-
+	
+	InitNodes(storage)
 	return &APIServer{HttpServer: gin.Default(), EtcdStorage: storage}
 }
 
@@ -102,9 +126,11 @@ func (a *APIServer) RegisterHandler(route handlers.Route) {
 	}
 }
 
+
 func (a *APIServer) Run(addr string) error {
 	for _, route := range handlers.HandlerTable {
 		a.RegisterHandler(route)
 	}
+
 	return a.HttpServer.Run(addr)
 }

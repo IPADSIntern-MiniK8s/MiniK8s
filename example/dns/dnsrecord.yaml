@@ -1,0 +1,12 @@
+kind: dnsrecord
+apiVersion: app/v1
+name: dns-test1
+namespace: default
+host: minik8s.com
+paths:
+  - service: dns-service
+    pathName: path1
+    port: 22222
+  - service: dns-service2
+    pathName: path2
+    port: 23456

@@ -1,15 +1,18 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/ghodss/yaml"
-	"github.com/spf13/cobra"
-	"github.com/tidwall/gjson"
 	"log"
-	"minik8s/pkg/kubectl/utils"
+	ctlutils "minik8s/pkg/kubectl/utils"
 	"minik8s/utils"
 	"os"
 	"strings"
+
+	"github.com/ghodss/yaml"
+	"github.com/spf13/cobra"
+	"github.com/tidwall/gjson"
+	"github.com/wxnacy/wgo/arrays"
 )
 
 var ApplyCmd = &cobra.Command{
@@ -34,13 +37,28 @@ func apply(cmd *cobra.Command, args []string) {
 
 	kind := strings.ToLower(gjson.Get(string(_json), "kind").String())
 	namespace := gjson.Get(string(_json), "metadata.namespace").String()
-	_url := ctlutils.ParseUrlMany(kind, namespace)
+	if kind == "dnsrecord" {
+		namespace = gjson.Get(string(_json), "namespace").String()
+	}
+	var _url string
+	//fmt.Print(namespace)
+	if idx := arrays.ContainsString(ctlutils.Resources, kind); idx != -1 {
+		if namespace == "" {
+			var obj map[string]interface{}
+			json.Unmarshal(_json, &obj)
+			obj["metadata"].(map[string]interface{})["namespace"] = "default"
+			_json, _ = json.Marshal(obj)
+		}
+		_url = ctlutils.ParseUrlMany(kind, namespace)
+	} else if idx := arrays.ContainsString(ctlutils.Globals, kind); idx != -1 {
+		_url = ctlutils.ParseUrlMany(kind, "nil")
+	} else {
+		fmt.Printf("error: the server doesn't have a resource type \"%s\"", kind)
+	}
 	fmt.Printf("url:%s\n", _url)
-
-	//utils.SendJsonObject("POST", _json, _url)
-	_, err = utils.SendRequest("POST", _json, _url)
+	info, err := utils.SendRequest("POST", _json, _url)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(info)
 	}
 	name := gjson.Get(string(_json), "metadata.name")
 	fmt.Print(name, " configured", "\n")

@@ -1,0 +1,4 @@
+kind: function
+apiVersion: app/v1
+name: printdiff
+path: /home/mini-k8s/example/serverless/printdiff.py

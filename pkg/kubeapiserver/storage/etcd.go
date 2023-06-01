@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"go.etcd.io/etcd/clientv3"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubeapiserver/watch"
 	"reflect"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"go.etcd.io/etcd/clientv3"
 )
 
 type EtcdStorage struct {
@@ -61,11 +62,14 @@ func (e *EtcdStorage) GetList(ctx context.Context, key string, out interface{}) 
 	if err != nil {
 		return err
 	}
-	if resp.Kvs == nil || len(resp.Kvs) == 0 {
-		return fmt.Errorf("key not found: %s", key)
-	}
 
 	outType := reflect.TypeOf(out).Elem().Elem()
+
+	if resp.Kvs == nil || len(resp.Kvs) == 0 {
+		items := reflect.MakeSlice(reflect.SliceOf(outType), 0, 0)
+		reflect.ValueOf(out).Elem().Set(items)
+		return nil
+	}
 
 	// make a slice to hold the items
 	items := reflect.MakeSlice(reflect.SliceOf(outType), len(resp.Kvs), len(resp.Kvs))
@@ -156,7 +160,7 @@ func (e *EtcdStorage) Watch(ctx context.Context, key string, callback func(strin
 func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData interface{}) error {
 	for {
 		// Get the current version of the data to update
-
+		var existingData interface{}
 		resp, err := e.client.Get(ctx, key)
 		if err != nil {
 			return err
@@ -164,12 +168,18 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 		if resp.Kvs == nil || len(resp.Kvs) == 0 {
 			return fmt.Errorf("key not found: %s", key)
 		}
+		if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+			return err
+		}
 
 		// Compare the current data to the new data to see if an update is needed
-		//if existingData == newData {
-		//	return nil // No update needed
-		//}
-		// replace the status of the newData with the status of the existingData
+		t := reflect.TypeOf(newData)
+		functionType := reflect.TypeOf(&apiobject.Function{})
+		if existingData == newData && t != functionType {
+			return nil // No update needed
+		}
+
+		// Replace the status of the newData with the status of the existingData
 		switch value := (newData).(type) {
 		case *apiobject.Pod:
 			{
@@ -177,19 +187,7 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
 					return err
 				}
-				empty := apiobject.PodStatus{}
-				if value.Status == empty {
-					value.Status = existingData.Status
-				}
-			}
-
-		case *apiobject.Node:
-			{
-				var existingData apiobject.Node
-				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
-					return err
-				}
-				value.Status = existingData.Status
+				value.Union(&existingData)
 			}
 		case *apiobject.Service:
 			{
@@ -197,7 +195,7 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
 					return err
 				}
-				value.Status = existingData.Status
+				value.Union(&existingData)
 			}
 		case *apiobject.ReplicationController:
 			{
@@ -205,7 +203,15 @@ func (e *EtcdStorage) GuaranteedUpdate(ctx context.Context, key string, newData 
 				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
 					return err
 				}
-				value.Status = existingData.Status
+				value.Union(&existingData)
+			}
+		case *apiobject.HorizontalPodAutoscaler:
+			{
+				var existingData apiobject.HorizontalPodAutoscaler
+				if err := json.Unmarshal(resp.Kvs[0].Value, &existingData); err != nil {
+					return err
+				}
+				value.Union(&existingData)
 			}
 		}
 

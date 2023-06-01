@@ -15,6 +15,7 @@ test-kubelet:
   script:
     - sudo /usr/local/go/bin/go test minik8s/pkg/kubelet/container -cover
     - sudo /usr/local/go/bin/go test minik8s/pkg/kubelet/pod -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubelet/image -cover
   tags:
     - shell
 

@@ -6,12 +6,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	//"minik8s/pkg/kubeapiserver/storage"
 	"net/http"
+	"sync"
 )
 
 //var Storage = storage.NewEtcdStorageNoParam()
 
 // WatchServer WebSocket server
 type WatchServer struct {
+	connMutex sync.Mutex
 	Conn *websocket.Conn
 }
 
@@ -35,21 +37,25 @@ func NewWatchServer(c *gin.Context) (*WatchServer, error) {
 
 // Read websocket message
 func (s *WatchServer) Read() ([]byte, error) {
+	s.connMutex.Lock()
 	_, message, err := s.Conn.ReadMessage()
 	if err != nil {
+		s.connMutex.Unlock()
 		return nil, err
 	}
-
+	s.connMutex.Unlock()
 	return message, nil
 }
 
 // Write websocket message
 func (s *WatchServer) Write(message []byte) error {
+	s.connMutex.Lock()
 	err := s.Conn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
+		s.connMutex.Unlock()
 		return err
 	}
-
+	s.connMutex.Unlock()
 	return nil
 }
 
@@ -58,24 +64,6 @@ func (s *WatchServer) Close() error {
 	return s.Conn.Close()
 }
 
-// Watch an etcd key
-//func (s *WatchServer) innerWatch(key string) error {
-//	// TODO: concurrent problem
-//	err := Storage.Watch(context.Background(), key, func(key string, value []byte) error {
-//		innerErr := s.Write(value)
-//		log.Info("[innerWatch] key: ", key, "timestamp: ")
-//		if innerErr != nil {
-//			log.Error("[Watch] Write message error: ", innerErr)
-//			return innerErr
-//		}
-//		return nil
-//	})
-//	return err
-//}
-//
-//func (s *WatchServer) Watch(key string) {
-//	go s.innerWatch(key)
-//}
 
 func ListWatch(watchKey string, value []byte) error {
 

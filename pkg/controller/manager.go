@@ -15,5 +15,16 @@ func Run() {
 	go utils.Sync(rp)
 	go utils.Sync(rr)
 
+	/* hpa controller */
+	var hs hpaScalerHandler
+	go utils.Sync(hs)
+	go regularCheck()
+
+	var jc jobPodHandler
+	var jh jobHandler
+	go utils.Sync(jc)
+	go utils.Sync(jh)
+
+
 	utils.WaitForever()
 }

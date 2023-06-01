@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"minik8s/config"
 	"minik8s/pkg/apiobject"
 	"minik8s/utils"
 
@@ -31,16 +32,24 @@ func (r rsReplicaHandler) HandleCreate(message []byte) {
 	rs := &apiobject.ReplicationController{}
 	rs.UnMarshalJSON(message)
 
+	var expectReplica int32
+	// check if the rs is controlled
+	if rs.Status.OwnerReference.Controller == true {
+		expectReplica = rs.Status.Scale
+	} else {
+		expectReplica = rs.Spec.Replicas
+	}
+
 	// 1. traverse the pod list to find the pod fits the selector and add owner reference to them
-	rest := createFromPodList(rs)
+	rest := createFromPodList(rs, expectReplica)
 
 	// 2. if the number is less than the required number, create new pods according to the template
 	if rest > 0 {
 		createFromTemplate(rs.Spec.Template, rest, rs.Data.Name, rs.Data.Namespace)
 	}
 
-	rs.Status.Replicas = rs.Spec.Replicas
-	utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+	rs.Status.Replicas = expectReplica
+	utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 
 	log.Info("[rs controller] Create replicaset. Name:", rs.Data.Name)
 }
@@ -50,7 +59,6 @@ func (r rsReplicaHandler) HandleDelete(message []byte) {
 	rs.UnMarshalJSON(message)
 
 	deleteFromPodList(rs, rs.Status.Replicas)
-	utils.DeleteObject(utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
 
 	log.Info("[rs controller] Delete replicaset. Name:", rs.Data.Name)
 }
@@ -59,25 +67,32 @@ func (r rsReplicaHandler) HandleUpdate(message []byte) {
 	rs := &apiobject.ReplicationController{}
 	rs.UnMarshalJSON(message)
 
-	if rs.Spec.Replicas > rs.Status.Replicas {
-		rest := createFromPodList(rs)
+	var expectReplica int32
+	// check if the rs is controlled by HPA
+	if rs.Status.OwnerReference.Controller == true {
+		expectReplica = rs.Status.Scale
+	} else {
+		expectReplica = rs.Spec.Replicas
+	}
+	if expectReplica > rs.Status.Replicas {
+		rest := createFromPodList(rs, expectReplica)
 		if rest > 0 {
 			createFromTemplate(rs.Spec.Template, rest, rs.Data.Name, rs.Data.Namespace)
 		}
-		rs.Status.Replicas = rs.Spec.Replicas
-		utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
-	} else if rs.Spec.Replicas < rs.Status.Replicas {
+		rs.Status.Replicas = expectReplica
+		utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
+	} else if expectReplica < rs.Status.Replicas {
 		// choose  pod to delete
-		deleteFromPodList(rs, rs.Status.Replicas-rs.Spec.Replicas)
-		rs.Status.Replicas = rs.Spec.Replicas
-		utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+		deleteFromPodList(rs, rs.Status.Replicas-expectReplica)
+		rs.Status.Replicas = expectReplica
+		utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 	}
 
 	/* TODO: rs selector change */
 }
 
-func (r rsReplicaHandler) GetType() utils.ObjType {
-	return utils.REPLICA
+func (r rsReplicaHandler) GetType() config.ObjType {
+	return config.REPLICA
 }
 
 /* ========== Start Pod Handler ========== */
@@ -91,12 +106,12 @@ func (p rsPodHandler) HandleDelete(message []byte) {
 	pod.UnMarshalJSON(message)
 
 	// check if the pod belongs to the replica
-	if pod.Status.OwnerReference.Controller && pod.Status.OwnerReference.Kind == "replica" {
-		info := utils.GetObject(utils.REPLICA, pod.Data.Namespace, pod.Status.OwnerReference.Name)
+	if pod.Status.OwnerReference.Controller && pod.Status.OwnerReference.Kind == config.REPLICA {
+		info := utils.GetObject(config.REPLICA, pod.Data.Namespace, pod.Status.OwnerReference.Name)
 		rs := &apiobject.ReplicationController{}
 		rs.UnMarshalJSON([]byte(info))
 		rs.Status.Replicas = rs.Status.Replicas - 1
-		utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+		utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 	}
 }
 
@@ -105,7 +120,7 @@ func (p rsPodHandler) HandleUpdate(message []byte) {
 	pod.UnMarshalJSON(message)
 
 	if pod.Status.OwnerReference.Controller {
-		info := utils.GetObject(utils.REPLICA, pod.Data.Namespace, pod.Status.OwnerReference.Name)
+		info := utils.GetObject(config.REPLICA, pod.Data.Namespace, pod.Status.OwnerReference.Name)
 		rs := &apiobject.ReplicationController{}
 		rs.UnMarshalJSON([]byte(info))
 
@@ -113,29 +128,29 @@ func (p rsPodHandler) HandleUpdate(message []byte) {
 		if !utils.IsLabelEqual(rs.Spec.Selector, pod.Data.Labels) {
 			// update rs controller
 			rs.Status.Replicas = rs.Status.Replicas - 1
-			utils.UpdateObject(rs, utils.REPLICA, rs.Data.Namespace, rs.Data.Name)
+			utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 
 			// update pod: delete controller info
 			pod.Status.OwnerReference.Controller = false
-			utils.UpdateObject(pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
+			utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
 		}
 
 		// check if the pod status if FAILED or FINISHED
 		if pod.Status.Phase == apiobject.Failed || pod.Status.Phase == apiobject.Finished {
-			utils.DeleteObject(utils.POD, pod.Data.Namespace, pod.Data.Name)
+			utils.DeleteObject(config.POD, pod.Data.Namespace, pod.Data.Name)
 		}
 	}
 
 }
 
-func (p rsPodHandler) GetType() utils.ObjType {
-	return utils.POD
+func (p rsPodHandler) GetType() config.ObjType {
+	return config.POD
 }
 
 /* ========== Util Function ========== */
 
-func createFromPodList(rs *apiobject.ReplicationController) int32 {
-	info := utils.GetObject(utils.POD, rs.Data.Namespace, "")
+func createFromPodList(rs *apiobject.ReplicationController, expect int32) int32 {
+	info := utils.GetObject(config.POD, rs.Data.Namespace, "")
 	podList := gjson.Parse(info).Array()
 	var num = rs.Status.Replicas
 	for _, p := range podList {
@@ -143,32 +158,35 @@ func createFromPodList(rs *apiobject.ReplicationController) int32 {
 		pod.UnMarshalJSON([]byte(p.String()))
 		if pod.Status.OwnerReference.Controller == false && utils.IsLabelEqual(rs.Spec.Selector, pod.Data.Labels) {
 			setController(rs.Data.Name, pod)
-			utils.UpdateObject(pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
+			utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
 			num++
-			if num == rs.Spec.Replicas {
+			if num == expect {
 				break
 			}
 		}
 	}
 	log.Info("[rs controller] Create from pod list. Create Num:", num-rs.Status.Replicas)
-	return rs.Spec.Replicas - num
+	return expect - num
 }
 
 func deleteFromPodList(rs *apiobject.ReplicationController, num int32) {
-	info := utils.GetObject(utils.POD, rs.Data.Namespace, "")
+	info := utils.GetObject(config.POD, rs.Data.Namespace, "")
 	podList := gjson.Parse(info).Array()
+	dNum := num
 	for _, p := range podList {
 		pod := &apiobject.Pod{}
 		pod.UnMarshalJSON([]byte(p.String()))
 		if isPodBelongToController(pod, rs) {
-			utils.DeleteObject(utils.POD, pod.Data.Namespace, pod.Data.Name)
+			pod.Status.OwnerReference.Controller = false
+			utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
+			utils.DeleteObject(config.POD, pod.Data.Namespace, pod.Data.Name)
 			num--
 			if num == 0 {
 				break
 			}
 		}
 	}
-	log.Info("[rs controller] Delete from pod list. Create Num:", num)
+	log.Info("[rs controller] Delete from pod list. Delete Num:", dNum)
 }
 
 func createFromTemplate(t *apiobject.PodTemplateSpec, num int32, name string, ns string) {
@@ -180,8 +198,8 @@ func createFromTemplate(t *apiobject.PodTemplateSpec, num int32, name string, ns
 		pod.Data.Name = utils.GenerateName(name, 10)
 		pod.Data.Namespace = ns
 		setController(name, pod)
-		print("name: ", pod.Data.Name, "\n")
-		utils.CreateObject(pod, utils.POD, ns)
+		print("[rs controller] name: ", pod.Data.Name, "\n")
+		utils.CreateObject(pod, config.POD, ns)
 	}
 
 	log.Info("[rs controller] Create from template. Create Num:", num)
@@ -190,16 +208,31 @@ func createFromTemplate(t *apiobject.PodTemplateSpec, num int32, name string, ns
 
 func setController(name string, p *apiobject.Pod) {
 	p.Status.OwnerReference = apiobject.OwnerReference{
-		Kind:       "replica",
+		Kind:       config.REPLICA,
 		Name:       name,
 		Controller: true,
 	}
 }
 
 func isPodBelongToController(p *apiobject.Pod, c *apiobject.ReplicationController) bool {
-	if p.Status.OwnerReference.Controller == true && p.Status.OwnerReference.Name == c.Data.Name && p.Status.OwnerReference.Kind == "replica" {
+	if p.Status.OwnerReference.Controller == true && p.Status.OwnerReference.Name == c.Data.Name && p.Status.OwnerReference.Kind == config.REPLICA {
 		return true
 	} else {
 		return false
 	}
+}
+
+func GetPodListFromRS(rs *apiobject.ReplicationController) []*apiobject.Pod {
+	var podList []*apiobject.Pod
+	info := utils.GetObject(config.POD, rs.Data.Namespace, "")
+	pList := gjson.Parse(info).Array()
+	for _, p := range pList {
+		pod := &apiobject.Pod{}
+		pod.UnMarshalJSON([]byte(p.String()))
+
+		if isPodBelongToController(pod, rs) {
+			podList = append(podList, pod)
+		}
+	}
+	return podList
 }

@@ -1,14 +1,19 @@
 package kubelet
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/tidwall/gjson"
+	"minik8s/config"
 	"minik8s/pkg/apiobject"
+	"minik8s/pkg/kubelet/metricsserver"
 	kubeletPod "minik8s/pkg/kubelet/pod"
+	kubeletUtils "minik8s/pkg/kubelet/utils"
 	"minik8s/utils"
 	"net/http"
 	"os"
+	"sync"
+	"time"
 )
 
 type Kubelet struct {
@@ -16,6 +21,11 @@ type Kubelet struct {
 	FlannelSubnet string            //service
 	IP            string            //host ip
 	Labels        map[string]string // for nodeSelector
+	ListenAddr    string            //MetricsServer listen for auto-scaling
+	CPU           string
+	Memory        string
+	Server        *metricsserver.MetricsServer
+	Locks         sync.Map
 }
 
 func NewKubelet(config Config) *Kubelet {
@@ -24,6 +34,11 @@ func NewKubelet(config Config) *Kubelet {
 		FlannelSubnet: config.FlannelSubnet,
 		IP:            config.IP,
 		Labels:        config.Labels,
+		ListenAddr:    config.ListenAddr,
+		CPU:           config.CPU,
+		Memory:        config.Memory,
+		Server:        metricsserver.NewMetricsServer(),
+		Locks:         sync.Map{},
 	}
 }
 
@@ -41,6 +56,10 @@ func (kl *Kubelet) register() {
 			PodCIDR:       kl.FlannelSubnet,
 		},
 		Status: apiobject.NodeStatus{
+			Capability: map[string]string{
+				"cpu":    kl.CPU,
+				"memory": kl.Memory,
+			},
 			Addresses: []apiobject.Address{
 				{
 					Type:    "InternalIP",
@@ -65,35 +84,39 @@ func (kl *Kubelet) watchPod() {
 		panic(err)
 	}
 	defer conn.Close()
-	var pod apiobject.Pod
 	for {
+		pod := &apiobject.Pod{}
 		_, msgjson, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
-
-		json.Unmarshal(msgjson, &pod)
-		fmt.Println(pod.Status.Phase)
+		pod.UnMarshalJSON(msgjson)
 		if pod.Status.HostIp != kl.IP {
 			continue
 		}
 		switch pod.Status.Phase {
-		case apiobject.Running:
+		case apiobject.Scheduled:
 			{
-				success, ip := kubeletPod.CreatePod(pod, kl.ApiserverAddr)
+				kubeletUtils.Lock(pod.Data.Namespace, pod.Data.Name)
+				success, ip := kubeletPod.CreatePod(*pod, kl.ApiserverAddr)
+				kubeletUtils.UnLock(pod.Data.Namespace, pod.Data.Name)
 				fmt.Println(success)
 				if !success {
+					pod.Status.Phase = apiobject.Failed
+					utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
 					continue
 				}
 
 				pod.Status.PodIp = ip
-				pod.Status.Phase = apiobject.Succeeded
+				pod.Status.Phase = apiobject.Running
 				break
 			}
 		case apiobject.Terminating:
 			{
-				success := kubeletPod.DeletePod(pod)
+				kubeletUtils.Lock(pod.Data.Namespace, pod.Data.Name)
+				success := kubeletPod.DeletePod(*pod)
+				kubeletUtils.UnLock(pod.Data.Namespace, pod.Data.Name)
 				if !success {
 					continue
 				}
@@ -103,13 +126,42 @@ func (kl *Kubelet) watchPod() {
 		default:
 			continue
 		}
-		//utils.UpdateObject(&pod, utils.POD, pod.Data.Namespace, pod.Data.Name)
+		utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
 		//time.Sleep(time.Millisecond * 200)
-		podjson, err := pod.MarshalJSON()
+		//podjson, err := pod.MarshalJSON()
+		//if err != nil {
+		//	fmt.Println(err)
+		//	continue
+		//}
+		//utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", kl.ApiserverAddr, pod.Data.Namespace, pod.Data.Name))
+	}
+
+}
+
+func (kl *Kubelet) watchContainersStatus() {
+	for {
+		time.Sleep(time.Second * 10)
+
+		url := fmt.Sprintf("http://%s/api/v1/pods", kl.ApiserverAddr)
+		hostname, _ := os.Hostname()
+		info, err := utils.SendRequestWithHb("GET", nil, url, hostname)
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
-		utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", kl.ApiserverAddr, pod.Data.Namespace, pod.Data.Name))
+		podList := gjson.Parse(info).Array()
+		for _, p := range podList {
+			pod := &apiobject.Pod{}
+			pod.UnMarshalJSON([]byte(p.String()))
+			kubeletUtils.RLock(pod.Data.Namespace, pod.Data.Name)
+			phase, stopped := kubeletPod.GetPodPhase(*pod)
+			if stopped {
+				fmt.Println(pod.Data.Name, phase)
+				pod.Status.Phase = phase
+				utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
+			}
+			kubeletUtils.RUnLock(pod.Data.Namespace, pod.Data.Name)
+
+		}
 	}
 }

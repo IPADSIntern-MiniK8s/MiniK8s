@@ -10,9 +10,16 @@ Mini-K8s支持的命令如下：
 
 `kubectl get <resource>+s [-n <namespace>]`
 
+#### kubectl describe
+
+`kubectl describe <resource> <name> [-n <namespace>]`
+
+`kubectl describe <resource>+s [-n <namespace>]`
+
 #### kubectl delete
 
 `kubectl delete <resource> <name> [-n <namespace>]`
+
 
 由于k8s的Api是基于REST的设计思想，因此，不同种类的HTTP请求也就对应了不同的操作。比较常用的对应关系是：
 
