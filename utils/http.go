@@ -12,7 +12,7 @@ func SendJsonObject(method string, jsonObject []byte, url string) {
 	request, err := http.NewRequest(method, url, bytes.NewBuffer(jsonObject))
 
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 
 	request.Header.Set("content-type", "application/json")
@@ -22,12 +22,12 @@ func SendJsonObject(method string, jsonObject []byte, url string) {
 	resp, err := client.Do(request)
 	if err != nil {
 		//log.Fatal("client.Do err:")
-		log.Fatal(err)
+		log.Error(err)
 	} else {
 		body := &bytes.Buffer{}
 		_, err := body.ReadFrom(resp.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 		resp.Body.Close()
 		//fmt.Println(resp.StatusCode)
@@ -61,7 +61,6 @@ func SendRequest(method string, str []byte, url string) (string, error) {
 	return body.String(), err
 
 }
-
 
 func SendRequestWithHb(method string, str []byte, url string, source string) (string, error) {
 	request, err := http.NewRequest(method, url, bytes.NewBuffer(str))

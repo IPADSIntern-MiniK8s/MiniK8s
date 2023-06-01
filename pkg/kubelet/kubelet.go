@@ -80,8 +80,9 @@ func (kl *Kubelet) watchPod() {
 	dialer.Jar = nil
 	conn, _, err := dialer.Dial(fmt.Sprintf("ws://%s/api/v1/watch/pods", kl.ApiserverAddr), headers)
 	if err != nil {
-		fmt.Println(err)
-		panic(err)
+		//fmt.Println(err)
+		//panic(err)
+		return
 	}
 	defer conn.Close()
 	for {
