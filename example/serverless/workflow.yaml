@@ -1,0 +1,38 @@
+kind: workflow
+apiVersion: v1
+name: workflow-exp
+startAt: getsum
+states:
+  getdiff:
+    type: Task
+    inputPath: $.x,$.y,$.z
+    next: printdiff
+  getsum:
+    type: Task
+    inputPath: $.x,$.y
+    next: judgesum
+  judgesum:
+    type: Choice
+    choices:
+      - variable: $.z
+        NumericGreaterThan: 5
+        next: printsum
+      - variable: $.z
+        NumericLessThan: 5
+        next: getdiff
+    default: printerror
+  printdiff:
+    type: Task
+    inputPath: $.w
+    outputPath: $.str
+    end: true
+  printerror:
+    type: Fail
+    error: DefaultStateError
+    cause: No Matches!
+  printsum:
+    type: Task
+    inputPath: $.z
+    outputPath: $.str
+    end: true
+comment: An example of basic workflow.

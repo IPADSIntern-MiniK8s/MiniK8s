@@ -3,48 +3,73 @@ package pod
 import (
 	"context"
 	"fmt"
+	"github.com/containerd/containerd"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubelet/container"
 	"minik8s/pkg/kubelet/utils"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // use pointer to add pause container
-func CreatePod(pod apiobject.Pod) (bool, string) {
+func CreatePod(pod apiobject.Pod, apiserverAddr string) (bool, string) {
 	//ctx := context.Background()
-	output, err := utils.Ctl(pod.Data.Namespace, "run", "-d", "--net", "flannel", "--name", generateContainerName("", pod.Data.Name, true), "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6")
+
+	pauseName := generateContainerName("", pod.Data.Name, true)
+	output, err := utils.Ctl(pod.Data.Namespace, "run", "-d", "--net", "flannel", "--name", pauseName, "registry.cn-hangzhou.aliyuncs.com/google_containers/pause:3.6")
+
 	if err != nil {
 		fmt.Println(output)
 		return false, ""
 	}
-	pauseContainerID := output[:12]
+
+	pauseContainerID := ""
+	outputLen := len(output)
+	if outputLen < 100 {
+		pauseContainerID = output[:12]
+	} else {
+		pauseContainerID = output[outputLen-64-1 : outputLen-64+12-1]
+	}
+	//fmt.Println(pauseContainerID)
+
+	deletePause := func() {
+		utils.Ctl(pod.Data.Namespace, "stop", pauseName)
+		utils.Ctl(pod.Data.Namespace, "rm", pauseName)
+	}
 	//although in one network namespace, other containers do not have the same network config files as pause, like dns server
-	_, err = utils.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/resolv.conf", "./resolv.conf")
+	output, err = utils.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/resolv.conf", "./resolv.conf")
 	if err != nil {
+
 		fmt.Println(output)
+		deletePause()
 		return false, ""
 	}
 	defer os.Remove("./resolv.conf")
 
-	if !addCoreDns("./resolv.conf") {
+	if !addCoreDns("./resolv.conf", apiserverAddr) {
+		fmt.Println("add coredns failed")
+		deletePause()
 		return false, ""
 	}
 
 	_, err = utils.Ctl(pod.Data.Namespace, "cp", pauseContainerID+":/etc/hosts", "./hosts")
 	if err != nil {
 		fmt.Println(output)
+		deletePause()
 		return false, ""
 	}
 	defer os.Remove("./hosts")
 	pausePid, err := utils.GetInfo(pod.Data.Namespace, pauseContainerID, ".State.Pid")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err.Error())
+		deletePause()
 		return false, ""
 	}
 	pid, err := strconv.Atoi(pausePid)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err.Error())
+		deletePause()
 		return false, ""
 	}
 	namespacePathPrefix := fmt.Sprintf("/proc/%d/ns/", pid)
@@ -53,20 +78,25 @@ func CreatePod(pod apiobject.Pod) (bool, string) {
 		cSpec := apiContainer2Container(pod.Data, pod.Spec.Volumes, apiContainerSpec, namespacePathPrefix)
 		c := container.CreateContainer(ctx, cSpec)
 		if c == nil {
+			deletePause()
 			return false, ""
 		}
 		pid := container.StartContainer(ctx, c)
 		if pid == 0 {
+			deletePause()
+			fmt.Println("start container failed")
 			return false, ""
 		}
 		_, err = utils.Ctl(pod.Data.Namespace, "cp", "./resolv.conf", cSpec.Name+":/etc/resolv.conf")
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("cp resolv failed:%v\n",err)
+			deletePause()
 			return false, ""
 		}
 		_, err = utils.Ctl(pod.Data.Namespace, "cp", "./hosts", cSpec.Name+":/etc/hosts")
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("cp hosts failed:%v\n",err)
+			deletePause()
 			return false, ""
 		}
 	}
@@ -115,40 +145,67 @@ func apiContainer2Container(metaData apiobject.MetaData, volumes []apiobject.Vol
 			"ipc":     namespacePathPrefix + "ipc",
 			"uts":     namespacePathPrefix + "uts",
 		},
+		Labels: map[string]string{"pod": metaData.Name},
+		Hostname: metaData.Name,
 	}
 	return c
 }
 
-/*
-1. its easier to create pause by nerdctl than by api (hard to set network)
-2. nerdctl can only set containerName, not containerID
-3. containerd api can only get ID, not containerName
-4. no place to store containerid because pause container belongs to a deep implementation of kubelet itself,which should not be seen by apiserver or kubectl
-
-
-*/
-
 func DeletePod(pod apiobject.Pod) bool {
-	var err error
-	for _, c := range pod.Spec.Containers {
-		n := generateContainerName(c.Name, pod.Data.Name, false)
-		_, err = utils.Ctl(pod.Data.Namespace, "stop", n)
-		if err != nil {
+	//client, err := utils.NewClient(pod.Data.Namespace)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return false
+	//}
+	ctx := context.Background()
+	//containers, err := client.Containers(ctx)
+	//if err != nil {
+	//	return false
+	//}
+	//containerNames := map[string]bool{}
+
+	//for _, c := range pod.Spec.Containers {
+	//	n := generateContainerName(c.Name, pod.Data.Name, false)
+	//	containerNames[n] = true
+	//}
+	//fmt.Println(containerNames)
+
+	containers := utils.GetContainersByPod(pod)
+	if containers == nil {
+		return false
+	}
+	for _, c := range containers {
+		//if _, ok := containerNames[c.ID()]; ok {
+		if success := container.RemoveContainer(ctx, c); !success {
 			return false
 		}
-		_, err = utils.Ctl(pod.Data.Namespace, "rm", n)
-		if err != nil {
-			return false
-		}
+		//}
 	}
 
-	//delete pause
-	name := generateContainerName("", pod.Data.Name, true)
-	_, err = utils.Ctl(pod.Data.Namespace, "stop", name)
+	//must delete pause at last, otherwise other containers will be stopped
+
+	pauseName := generateContainerName("", pod.Data.Name, true)
+
+	//use containerd api can find container according to name
+	//but pause containerd is created by nerdctl instead of containerd, and nerdctl itself maintains a namestore which should be released
+
+	//nerdctl pkg/idutil/containerwalkercontainerwalker.go
+	//containers, err = client.Containers(ctx, fmt.Sprintf("labels.%q==%s", "nerdctl/name", pauseName))
+	//if err != nil {
+	//	return false
+	//}
+	//if len(containers) < 0 {
+	//	return false
+	//}
+	//if success := container.RemoveContainer(ctx, containers[0]); !success {
+	//	return false
+	//}
+
+	_, err := utils.Ctl(pod.Data.Namespace, "stop", pauseName)
 	if err != nil {
 		return false
 	}
-	_, err = utils.Ctl(pod.Data.Namespace, "rm", name)
+	_, err = utils.Ctl(pod.Data.Namespace, "rm", pauseName)
 	if err != nil {
 		return false
 	}
@@ -162,13 +219,13 @@ func generateContainerName(containerName string, podName string, isPause bool) s
 	return fmt.Sprintf("%s-%s", podName, containerName)
 }
 
-func addCoreDns(path string) bool {
+func addCoreDns(path, apiserverAddr string) bool {
 	originalData, err := os.ReadFile(path)
 	if err != nil {
 		return false
 	}
 
-	newData := []byte("nameserver 192.168.1.13\n")
+	newData := []byte(fmt.Sprintf("nameserver %s\n", apiserverAddr[:strings.Index(apiserverAddr, ":")]))
 	newData = append(newData, originalData...)
 	//fmt.Println(string(newData))
 
@@ -178,4 +235,40 @@ func addCoreDns(path string) bool {
 		return false
 	}
 	return true
+}
+
+func GetPodMetrics(namespace string, pod apiobject.Pod) *apiobject.PodMetrics {
+	containers := utils.GetContainersByPod(pod)
+
+	cs := make([]containerd.Container, 0, 0)
+	for _, c := range containers {
+		cs = append(cs, c)
+	}
+	return container.GetContainersMetrics(cs)
+}
+
+func GetPodPhase(pod apiobject.Pod) (apiobject.PhaseLabel, bool) {
+	finished := false
+	ctx := context.Background()
+	containers := utils.GetContainersByPod(pod)
+	if containers == nil {
+		//err
+		return apiobject.Pending, false
+	}
+	for _, c := range containers {
+		status, code := container.GetContainerStatus(ctx, c)
+		//fmt.Println(c.ID(), status, code)
+		if status == "stopped" {
+			if code == 0 {
+				finished = true
+				continue
+			}
+			return apiobject.Failed, true
+		}
+	}
+	if finished {
+		return apiobject.Finished, true
+	}
+	//do not use this phase since pod may be creating
+	return apiobject.Running, false
 }

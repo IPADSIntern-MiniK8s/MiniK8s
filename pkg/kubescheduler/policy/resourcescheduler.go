@@ -1,10 +1,12 @@
 package policy
 
 import (
-	log "github.com/sirupsen/logrus"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/kubescheduler/filter"
+	"minik8s/utils/resourceutils"
 	"sort"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type ResourceScheduler struct {
@@ -53,16 +55,16 @@ func (s ResourceScheduler) Score(node *apiobject.Node) float64 {
 	cpu, ok := node.Status.Allocatable["cpu"]
 	cpuCap, capok := node.Status.Capability["cpu"]
 	if ok && capok {
-		cpuAvailable, _ := filter.ParseQuantity(cpu)
-		cpuCap, _ := filter.ParseQuantity(cpuCap)
+		cpuAvailable, _ := resourceutils.ParseQuantity(cpu)
+		cpuCap, _ := resourceutils.ParseQuantity(cpuCap)
 		totalScore += cpuAvailable / cpuCap
 	}
 
 	memory, ok := node.Status.Allocatable["memory"]
 	memoryCap, capok := node.Status.Capability["memory"]
 	if ok && capok {
-		memoryAvailable, _ := filter.ParseQuantity(memory)
-		memoryCap, _ := filter.ParseQuantity(memoryCap)
+		memoryAvailable, _ := resourceutils.ParseQuantity(memory)
+		memoryCap, _ := resourceutils.ParseQuantity(memoryCap)
 		totalScore += memoryAvailable / memoryCap
 	}
 

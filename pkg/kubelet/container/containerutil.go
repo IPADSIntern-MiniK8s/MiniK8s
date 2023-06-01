@@ -4,7 +4,6 @@ import (
 	"github.com/containerd/containerd/oci"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"strconv"
-	"strings"
 )
 
 func GenerateMountSpec(mounts map[string]string) oci.SpecOpts {
@@ -73,15 +72,4 @@ func GenerateEnvSpec(envs []string) oci.SpecOpts {
 
 func GenerateNamespaceSpec(nsType, path string) oci.SpecOpts {
 	return oci.WithLinuxNamespace(specs.LinuxNamespace{Type: specs.LinuxNamespaceType(nsType), Path: path})
-}
-
-func PadImageName(image string) string {
-	res := image
-	if strings.Index(image, ":") == -1 {
-		res += ":latest"
-	}
-	if strings.Index(image, "/") == -1 {
-		res = "docker.io/library/" + res
-	}
-	return res
 }
