@@ -21,12 +21,15 @@ func Run(c Config) {
 	kl := NewKubelet(c)
 	go func() {
 		for {
-			kl.register()
-			time.Sleep(time.Second * 5)
+			if !kl.register() {
+				time.Sleep(time.Second * 10)
+				continue
+			}
+			time.Sleep(time.Second * 2)
 			//normally, watch Pod will not return
 			kl.watchPod()
 			fmt.Println("trying to reconnect to apiserver")
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * 10)
 		}
 	}()
 

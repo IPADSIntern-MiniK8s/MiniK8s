@@ -42,7 +42,7 @@ func NewKubelet(config Config) *Kubelet {
 	}
 }
 
-func (kl *Kubelet) register() {
+func (kl *Kubelet) register() bool {
 	hostname, _ := os.Hostname()
 	node := apiobject.Node{
 		APIVersion: "v1",
@@ -69,7 +69,7 @@ func (kl *Kubelet) register() {
 		},
 	}
 	nodejson, _ := node.MarshalJSON()
-	utils.SendJsonObject("POST", nodejson, fmt.Sprintf("http://%s/api/v1/nodes", kl.ApiserverAddr))
+	return utils.SendJsonObject("POST", nodejson, fmt.Sprintf("http://%s/api/v1/nodes", kl.ApiserverAddr))
 }
 
 func (kl *Kubelet) watchPod() {
