@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"minik8s/config"
 	"minik8s/pkg/apiobject/utils"
+	"strconv"
 )
 
 /* an basic example of a autoscaler apiobject:
@@ -287,22 +288,22 @@ func (h *HorizontalPodAutoscaler) UnMarshalJSON(data []byte) error {
 	return nil
 }
 
-func (h *HorizontalPodAutoscaler) GetTargetValue(m *MetricSpec) int {
+func (h *HorizontalPodAutoscaler) GetTargetValue(m *MetricSpec) string {
 	switch m.Type {
 	case ResourceMetricSourceType:
 		{
 			switch m.Resource.Target.Type {
 			case AverageValueMetricType:
 				{
-					return int(*m.Resource.Target.AverageValue)
+					return strconv.Itoa(int(*m.Resource.Target.AverageValue))
 				}
 			case ValueMetricType:
 				{
-					return int(*m.Resource.Target.Value)
+					return strconv.Itoa(int(*m.Resource.Target.Value))
 				}
 			case UtilizationMetricType:
 				{
-					return int(*m.Resource.Target.AverageUtilization)
+					return strconv.Itoa(int(*m.Resource.Target.AverageUtilization)) + "%"
 				}
 
 			}
@@ -312,40 +313,40 @@ func (h *HorizontalPodAutoscaler) GetTargetValue(m *MetricSpec) int {
 			switch m.Pods.Target.Type {
 			case AverageValueMetricType:
 				{
-					return int(*m.Pods.Target.AverageValue)
+					return strconv.Itoa(int(*m.Pods.Target.AverageValue))
 				}
 			case ValueMetricType:
 				{
-					return int(*m.Pods.Target.Value)
+					return strconv.Itoa(int(*m.Pods.Target.Value))
 				}
 			case UtilizationMetricType:
 				{
-					return int(*m.Pods.Target.AverageUtilization)
+					return strconv.Itoa(int(*m.Pods.Target.AverageUtilization)) + "%"
 				}
 
 			}
 		}
 	}
-	return 0
+	return "0"
 }
 
-func (h *HorizontalPodAutoscaler) GetStatusValue(m *MetricValueStatus) int {
+func (h *HorizontalPodAutoscaler) GetStatusValue(m *MetricValueStatus) string {
 	switch m.Type {
 	case AverageValueMetricType:
 		{
-			return int(*m.AverageValue)
+			return strconv.Itoa(int(*m.AverageValue))
 		}
 	case ValueMetricType:
 		{
-			return int(*m.Value)
+			return strconv.Itoa(int(*m.Value))
 		}
 	case UtilizationMetricType:
 		{
-			return int(*m.AverageUtilization)
+			return strconv.Itoa(int(*m.AverageUtilization)) + "%"
 		}
 
 	}
-	return 0
+	return "0"
 }
 
 func (h *HorizontalPodAutoscaler) SetStatusValue(m *MetricValueStatus, v float64) {

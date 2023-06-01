@@ -7,6 +7,7 @@ import (
 	"minik8s/pkg/apiobject"
 	apiu "minik8s/pkg/apiobject/utils"
 	"minik8s/utils"
+	"strconv"
 	"time"
 
 	"github.com/robfig/cron"
@@ -172,16 +173,30 @@ func reconcileAutoscaler(hpa *apiobject.HorizontalPodAutoscaler) {
 
 	// 2. get metric of all the pods
 	var metricList []*apiobject.PodMetrics
+	var utilList []*apiobject.PodMetrics
+	nodeList := getNodeList()
 	for _, pod := range podList {
 		metric := getMetricsFromKubelet(pod.Status.HostIp, pod.Data.Namespace, pod.Data.Name)
 		metricList = append(metricList, metric)
+		util := *metric
+		node := getNodeByPod(&nodeList, pod)
+		var nList []apiobject.ContainerMetrics
+		for _, c := range util.Containers {
+			for k, u := range c.Usage {
+				v, _ := strconv.Atoi(node.Status.Capability[string(k)])
+				c.Usage[k] = apiu.Quantity(int(u) * 100 / v)
+			}
+			nList = append(nList, c)
+		}
+		util.Containers = nList
+		utilList = append(utilList, &util)
 	}
 
 	// 3. calculate expected replica for each metric requirement of hpa
 	var max int32
 	max = 0
 	for i, m := range hpa.Spec.Metrics {
-		expect := computeReplicasForMetric(hpa, &m, i, metricList)
+		expect := computeReplicasForMetric(hpa, &m, i, metricList, utilList)
 		if expect > 0 {
 			max = expect
 		}
@@ -233,7 +248,7 @@ func reconcileAutoscaler(hpa *apiobject.HorizontalPodAutoscaler) {
 	}
 }
 
-func computeReplicasForMetric(hpa *apiobject.HorizontalPodAutoscaler, metric *apiobject.MetricSpec, index int, metricList []*apiobject.PodMetrics) int32 {
+func computeReplicasForMetric(hpa *apiobject.HorizontalPodAutoscaler, metric *apiobject.MetricSpec, index int, metricList []*apiobject.PodMetrics, utilList []*apiobject.PodMetrics) int32 {
 	switch metric.Type {
 	case apiobject.PodsMetricSourceType:
 		{
@@ -241,16 +256,28 @@ func computeReplicasForMetric(hpa *apiobject.HorizontalPodAutoscaler, metric *ap
 		}
 	case apiobject.ResourceMetricSourceType:
 		{
-			return computeReplicasForResourceMetric(hpa, metric, index, metricList)
+			return computeReplicasForResourceMetric(hpa, metric, index, metricList, utilList)
 		}
 	}
 	return 0
 }
 
-func computeReplicasForResourceMetric(hpa *apiobject.HorizontalPodAutoscaler, required *apiobject.MetricSpec, index int, metricList []*apiobject.PodMetrics) int32 {
-	if required.Resource.Target.Type != apiobject.AverageValueMetricType {
-		log.Error("[HPA controller] Not implemented Metric Type for Resource MetricSourceType")
+func computeReplicasForResourceMetric(hpa *apiobject.HorizontalPodAutoscaler, required *apiobject.MetricSpec, index int, metricList []*apiobject.PodMetrics, utilList []*apiobject.PodMetrics) int32 {
+	switch required.Resource.Target.Type {
+	case apiobject.AverageValueMetricType:
+		{
+			return computeReplicasByAverageValue(hpa, required, index, metricList)
+		}
+	case apiobject.UtilizationMetricType:
+		{
+			return computeReplicasByUtilization(hpa, required, index, utilList)
+		}
 	}
+	log.Error("[hpa controller] Unimplemented Target Type")
+	return 0
+}
+
+func computeReplicasByAverageValue(hpa *apiobject.HorizontalPodAutoscaler, required *apiobject.MetricSpec, index int, metricList []*apiobject.PodMetrics) int32 {
 	total := 0
 	for _, m := range metricList {
 		sum := 0
@@ -262,6 +289,23 @@ func computeReplicasForResourceMetric(hpa *apiobject.HorizontalPodAutoscaler, re
 	avg := float64(total) / float64(len(metricList))
 	hpa.SetStatusValue(&hpa.Status.CurrentMetrics[index], avg)
 	scale := avg / float64(*required.Resource.Target.AverageValue)
+	expect := int32(math.Ceil(scale * float64(hpa.Status.CurrentReplicas)))
+	log.Info("[hpa controller] expect hpa replica ", expect)
+	return expect
+}
+
+func computeReplicasByUtilization(hpa *apiobject.HorizontalPodAutoscaler, required *apiobject.MetricSpec, index int, metricList []*apiobject.PodMetrics) int32 {
+	total := 0
+	for _, m := range metricList {
+		sum := 0
+		for _, s := range m.Containers {
+			sum += int(s.Usage[required.Resource.Name])
+		}
+		total += sum
+	}
+	avg := float64(total) / float64(len(metricList))
+	hpa.SetStatusValue(&hpa.Status.CurrentMetrics[index], avg)
+	scale := avg / float64(*required.Resource.Target.AverageUtilization)
 	expect := int32(math.Ceil(scale * float64(hpa.Status.CurrentReplicas)))
 	log.Info("[hpa controller] expect hpa replica ", expect)
 	return expect
@@ -345,4 +389,25 @@ func checkScalingRules(window *int32, rules *apiobject.HPAScalingRules, hpa *api
 	}
 
 	return res
+}
+
+func getNodeList() []*apiobject.Node {
+	var nodeList []*apiobject.Node
+	info := utils.GetObject(config.NODE, "nil", "")
+	nList := gjson.Parse(info).Array()
+	for _, n := range nList {
+		node := &apiobject.Node{}
+		node.UnMarshalJSON([]byte(n.String()))
+		nodeList = append(nodeList, node)
+	}
+	return nodeList
+}
+
+func getNodeByPod(nodeList *[]*apiobject.Node, pod *apiobject.Pod) *apiobject.Node {
+	for _, n := range *nodeList {
+		if n.Status.Addresses[0].Address == pod.Status.HostIp {
+			return n
+		}
+	}
+	return nil
 }
