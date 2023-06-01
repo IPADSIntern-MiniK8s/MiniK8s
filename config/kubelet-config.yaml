@@ -6,7 +6,7 @@
 # ListenAddr    : 192.168.1.14:10250
 # CPU:    "2"
 # Memory: "3Gi"
-ApiserverAddr : 192.168.1.14:8080
+ApiserverAddr : 192.168.1.13:8080
 FlannelSubnet : 10.2.9.1/24
 IP            : 192.168.1.14
 Labels        :
