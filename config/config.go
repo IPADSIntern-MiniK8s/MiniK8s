@@ -15,4 +15,5 @@ const (
 	HPA      ObjType = "hpas"
 	FUNCTION ObjType = "functions"
 	JOB      ObjType = "jobs"
+	NODE     ObjType = "nodes"
 )

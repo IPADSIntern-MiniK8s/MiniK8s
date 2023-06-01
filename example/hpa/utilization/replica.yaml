@@ -1,0 +1,34 @@
+kind: Replica
+apiVersion: apps/v1
+metadata:
+  name: replica-practice
+spec:
+  replicas: 1
+  selector:
+      app: replica-practice
+  template:
+    metadata:
+      labels:
+        app: replica-practice
+    spec:
+      containers:
+        - name: server
+          image: docker.io/mcastelino/nettools
+          ports:
+            - name: p1 # 端口名称
+              containerPort: 8080  # 容器端口
+          command:
+            - /root/test_mount/test_resource
+          env:
+            - name: port
+              value: '8080'
+          volumeMounts:
+            - name: data
+              mountPath: /root/test_mount
+          resources:
+            limits: 
+              cpu: "1"
+      volumes:
+        - name: data
+          hostPath:
+            path: /home/test_mount

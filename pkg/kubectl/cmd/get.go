@@ -161,7 +161,7 @@ func get(cmd *cobra.Command, args []string) {
 				target := ""
 				for i, m := range hpa.Spec.Metrics {
 					if i < len(hpa.Status.CurrentMetrics) {
-						target += strconv.Itoa(hpa.GetStatusValue(&hpa.Status.CurrentMetrics[i])) + "/" + strconv.Itoa(hpa.GetTargetValue(&m)) + ","
+						target += hpa.GetStatusValue(&hpa.Status.CurrentMetrics[i]) + "/" + hpa.GetTargetValue(&m) + ","
 					}
 				}
 				table.AddRow(map[string]string{
