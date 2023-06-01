@@ -112,7 +112,6 @@ func CheckConnection(ip string) error {
 		}
 		
 	}
-	return nil
 }
 
 // CheckPrepare check if the function is deployed

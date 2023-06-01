@@ -396,20 +396,12 @@ func CreatePodHandler(c *gin.Context) {
 		}
 		pod.Status.Phase = apiobject.Scheduled
 
+		// update in etcd and trigger watch
 		err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
 		if err != nil {
 			log.Error("[CreatePodHandler] save scheduled pod fail")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "save scheduled pod fail"})
 			return 
-		}
-
-		// write the pod to the node
-		if selectedNodes == nil || len(selectedNodes) == 0 {
-			nodeKey := nodeList[0].Data.Name
-			sendPodToNode(pod, nodeKey)
-		} else {
-			nodeKey := selectedNodes[0].Data.Name
-			sendPodToNode(pod, nodeKey)
 		}
 
 		// keep check and resend to the next node if necessary
