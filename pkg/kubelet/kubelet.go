@@ -88,6 +88,7 @@ func (kl *Kubelet) watchPod() {
 	for {
 		pod := &apiobject.Pod{}
 		_, msgjson, err := conn.ReadMessage()
+		fmt.Println("received message from apiserver")
 		if err != nil {
 			//fmt.Println(err)
 			//continue
@@ -97,45 +98,41 @@ func (kl *Kubelet) watchPod() {
 		if pod.Status.HostIp != kl.IP {
 			continue
 		}
+		fmt.Println(*pod)
 		switch pod.Status.Phase {
 		case apiobject.Scheduled:
 			{
-				kubeletUtils.Lock(pod.Data.Namespace, pod.Data.Name)
-				success, ip := kubeletPod.CreatePod(*pod, kl.ApiserverAddr)
-				kubeletUtils.UnLock(pod.Data.Namespace, pod.Data.Name)
-				fmt.Println(success)
-				if !success {
-					pod.Status.Phase = apiobject.Failed
-					utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
-					continue
-				}
+				go func(p apiobject.Pod){
+					kubeletUtils.Lock(pod.Data.Namespace, pod.Data.Name)
+					success, ip := kubeletPod.CreatePod(*pod, kl.ApiserverAddr)
+					kubeletUtils.UnLock(pod.Data.Namespace, pod.Data.Name)
+					fmt.Println(success)
+					if success {
+						pod.Status.PodIp = ip
+						pod.Status.Phase = apiobject.Running
+						utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
+					}else{
+						pod.Status.Phase = apiobject.Failed
+						utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
+					}
+				}(*pod)
 
-				pod.Status.PodIp = ip
-				pod.Status.Phase = apiobject.Running
-				break
 			}
 		case apiobject.Terminating:
 			{
-				kubeletUtils.Lock(pod.Data.Namespace, pod.Data.Name)
-				success := kubeletPod.DeletePod(*pod)
-				kubeletUtils.UnLock(pod.Data.Namespace, pod.Data.Name)
-				if !success {
-					continue
-				}
-				pod.Status.Phase = apiobject.Deleted
-				break
+				go func(p apiobject.Pod){
+					kubeletUtils.Lock(pod.Data.Namespace, pod.Data.Name)
+					success := kubeletPod.DeletePod(*pod)
+					kubeletUtils.UnLock(pod.Data.Namespace, pod.Data.Name)
+					if !success {
+						pod.Status.Phase = apiobject.Deleted
+						utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
+					}
+				}(*pod)
 			}
 		default:
 			continue
 		}
-		utils.UpdateObject(pod, config.POD, pod.Data.Namespace, pod.Data.Name)
-		//time.Sleep(time.Millisecond * 200)
-		//podjson, err := pod.MarshalJSON()
-		//if err != nil {
-		//	fmt.Println(err)
-		//	continue
-		//}
-		//utils.SendJsonObject("POST", podjson, fmt.Sprintf("http://%s/api/v1/namespaces/%s/pods/%s/update", kl.ApiserverAddr, pod.Data.Namespace, pod.Data.Name))
 	}
 
 }
