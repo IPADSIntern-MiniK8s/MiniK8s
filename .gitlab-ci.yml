@@ -55,9 +55,9 @@ test-serverless:
   stage: test
   script: 
     - echo "testing serverless"
-    - sudo /usr/local/go/bin/go test mini-k8s/pkg/serverless/activator -cover
-    - sudo /usr/local/go/bin/go test mini-k8s/pkg/serverless/function -cover
-    - sudo /usr/local/go/bin/go test mini-k8s/pkg/serverless/workflow -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/serverless/activator -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/serverless/function -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/serverless/workflow -cover
   tags:
     - shell
 
@@ -65,7 +65,7 @@ test-dns:
   stage: test
   script: 
     - echo "testing dns"
-    - sudo /usr/local/go/bin/go test mini-k8s/pkg/kubedns/nginx -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubedns/nginx -cover
   tags:
     - shell
 
