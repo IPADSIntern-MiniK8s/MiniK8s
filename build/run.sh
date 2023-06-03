@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # cd to the home directory
+current_path=$(pwd)
 cd ~
 cd /home
 
@@ -23,7 +24,7 @@ fi
 if ! pgrep -x "coredns" > /dev/null
 then
     echo "coredns is not running, start it"
-    nohup ./coredns -conf /home/mini-k8s/pkg/kubedns/config/Corefile &
+    nohup ./coredns -conf $(pwd)/mini-k8s/pkg/kubedns/config/Corefile &
 fi
 
 # check the default nginx, if it is running, stop it
@@ -35,10 +36,10 @@ fi
 
 # start the nginx in the background
 echo "start nginx"
-nohup nginx -c /home/mini-k8s/pkg/kubedns/config/nginx.conf &
+nohup nginx -c $(pwd)/mini-k8s/pkg/kubedns/config/nginx.conf &
 
 # build the components and run the server
-cd /home/mini-k8s/build
+cd "$current_path"
 make kubectl
 make apiserver
 make scheduler
@@ -47,9 +48,10 @@ make serverless
 make kubeproxy
 
 # create the log directory if not exist
-if [ ! -d "/home/mini-k8s/build/log" ]; then
-  mkdir /home/mini-k8s/build/log
+if [ ! -d "./log" ]; then
+  mkdir ./log
 fi
+
 
 cd bin
 
@@ -67,10 +69,11 @@ echo "start controller"
 ./kubeproxy > ../log/kubeproxy.log 2>&1 &
 
 
-chmod +x /home/mini-k8s/pkg/serverless/function/registry.sh
-cd /home/mini-k8s/pkg/serverless/function
+chmod +x ../../pkg/serverless/function/registry.sh
+cd ../../pkg/serverless/function
+chmod +x ../../
 ./registry.sh
-cd /home/mini-k8s/build/bin
+cd ../../../build/bin/
 ./serverless  > ../log/serverless.log 2>&1 &
 echo "start serverless"
 
