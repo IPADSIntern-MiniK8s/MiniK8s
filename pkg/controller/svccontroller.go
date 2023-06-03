@@ -61,7 +61,7 @@ func (s svcServiceHandler) HandleDelete(message []byte) {
 	index := strings.SplitN(svc.Status.ClusterIP, ",", -1)
 	indexLast, _ := strconv.Atoi(index[len(index)-1])
 	print(indexLast)
-	IPMap[indexLast-1] = false
+	IPMap[indexLast] = false
 
 	// delete corresponding endpoints
 	for _, edpt := range *svcToEndpoints[svc.Status.ClusterIP] {
@@ -138,7 +138,7 @@ func (s svcPodHandler) GetType() config.ObjType {
 
 func allocateClusterIP() string {
 	for i, used := range IPMap {
-		if !used {
+		if i != 0 && !used {
 			IPMap[i] = true
 			return IPStart + strconv.Itoa(i)
 		}

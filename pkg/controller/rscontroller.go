@@ -88,7 +88,7 @@ func (r rsReplicaHandler) HandleUpdate(message []byte) {
 		utils.UpdateObject(rs, config.REPLICA, rs.Data.Namespace, rs.Data.Name)
 	}
 
-	/* TODO: rs selector change */
+	/* rs selector change */
 }
 
 func (r rsReplicaHandler) GetType() config.ObjType {

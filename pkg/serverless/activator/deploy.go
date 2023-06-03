@@ -227,12 +227,6 @@ func CheckPrepare(name string) ([]string, error) {
 
 // InitFunc init the function, initialize the replicaSet and generate the image
 func InitFunc(name string, path string) error {
-	// check whether the function name is duplicated
-	info := utils.GetObject(config.REPLICA, "serverless", name)
-	if info != "" {
-		return errors.New("the function name is duplicated")
-	}
-	
 	err := function.CreateImage(path, name)
 	if err != nil {
 		log.Error("[InitFunc] create image error: ", err)
@@ -373,8 +367,6 @@ func DeleteFunc(name string) error {
 		log.Error("[DeleteFunc] delete image error: ", err)
 		return err
 	}
-
-	// 4. ensure the replicaset is deleted
-
+	
 	return nil
 }

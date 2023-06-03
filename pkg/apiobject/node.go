@@ -154,7 +154,6 @@ type NodeStatusTag string
 
 const (
 	Ready              NodeStatusTag = "Ready"
-	OutoFSpace         NodeStatusTag = "OutOfDisk"
 	MemoryPressure     NodeStatusTag = "MemoryPressure"
 	DiskPressure       NodeStatusTag = "DiskPressure"
 	NetworkUnavailable NodeStatusTag = "NetworkUnavailable"

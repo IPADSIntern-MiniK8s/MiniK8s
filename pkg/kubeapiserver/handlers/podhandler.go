@@ -548,11 +548,6 @@ func DeletePodHandler(c *gin.Context) {
 		return
 	}
 
-	if pod.Status.Phase == apiobject.Scheduled {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "the pod is running, can not delete"})
-		return
-	}
-
 	// 2.2 change the pod's status
 	err = changePodResourceVersion(&pod, c)
 	if err != nil {

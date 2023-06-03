@@ -130,7 +130,6 @@ func TestWorkflowExample(t *testing.T) {
 	t.Logf("workflow: %s", workflowJson)
 
 	workflowJson, err = example.MarshalJSON()
-	// t.Logf(string(workflowJson))
 	if err != nil {
 		t.Errorf("GenerateWorkflow failed, error marshalling replicas: %s", err)
 	}

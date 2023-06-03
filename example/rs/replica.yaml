@@ -3,7 +3,7 @@ apiVersion: apps/v1
 metadata:
   name: replica-practice
 spec:
-  replicas: 2
+  replicas: 3
   selector:
       app: replica-practice
   template:
