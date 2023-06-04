@@ -38,8 +38,7 @@ test-apiserver:
   stage: test
   script:
     - echo "testing apiserver"
-#    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/storage -cover
-#    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/handlers -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/kubeapiserver/storage -cover
   tags:
     - shell
 
@@ -51,6 +50,16 @@ test-scheduler:
     - sudo /usr/local/go/bin/go test minik8s/pkg/kubescheduler/filter -cover
   tags:
     - shell
+
+test-serverless:
+  stage: test
+  script: 
+    - echo "testing serverless"
+    - sudo /usr/local/go/bin/go test minik8s/pkg/serverless/activator -cover
+    - sudo /usr/local/go/bin/go test minik8s/pkg/serverless/workflow -cover
+  tags:
+    - shell
+
 
 build:
   stage: build

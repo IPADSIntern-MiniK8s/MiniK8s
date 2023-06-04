@@ -138,9 +138,9 @@ func (s svcPodHandler) GetType() config.ObjType {
 
 func allocateClusterIP() string {
 	for i, used := range IPMap {
-		if !used {
+		if i != 0 && !used {
 			IPMap[i] = true
-			return IPStart + strconv.Itoa(i+1)
+			return IPStart + strconv.Itoa(i)
 		}
 	}
 	log.Fatal("[svc controller] Cluster IP used up!")

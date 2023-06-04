@@ -256,6 +256,76 @@ func keepSchedule(podKey string, nodes []apiobject.Node) {
 	}
 }
 
+func Reschedule(node *apiobject.Node) {
+	// get all pods from etcd
+	prefix := "/registry/pods"
+	tmpPod := &apiobject.Pod{}
+	err := bind(tmpPod, node)
+	if err != nil {
+		log.Error("[node.Status.Addresses] get hostIp error: ", err.Error())
+	}
+
+	var podList []apiobject.Pod
+	err = podStorageTool.GetList(context.Background(), prefix, &podList)
+	if err != nil {
+		log.Error("[reschedule] get pod list from etcd fail, error: ", err.Error())
+		return 
+	}
+
+	for _, pod := range(podList) {
+		if pod.Status.Phase != apiobject.Running || pod.Status.HostIp != tmpPod.Status.HostIp {
+			continue
+		}
+		pod.Status.Phase = apiobject.Pending
+
+		scheduler, ok := watch.WatchTable["scheduler"]
+		if ok {
+			jsonBytes, err := pod.MarshalJSON()
+			err = scheduler.Write(jsonBytes)
+			if err != nil {
+				log.Error("[reschedule] send to the node failed")
+			}
+
+			// read from the scheduler util something can be read
+			response, err := scheduler.Read()
+			if err != nil {
+				log.Error("[reschedule] read from the scheduler failed")
+			}
+			// parse the response
+			var selectedNodes []apiobject.Node
+			node := apiobject.Node{}
+			selectedNodes, err = node.UnMarshalJSONList(response)
+			if err != nil {
+				log.Error("[reschedule] unmarshal the response failed")
+			}
+
+			log.Info("[reschedule] the selected nodes are: ", selectedNodes)
+
+			if selectedNodes == nil || len(selectedNodes) == 0 {
+				log.Error("[reschedule] no available node")
+			} else {
+				// for convenience, api server take the duty of binding the pod to the node
+				err = bind(&pod, &selectedNodes[0])
+			}
+
+			// change to running status
+			if err != nil {
+				log.Error("[reschedule] bind the pod to the node failed")
+			}
+			pod.Status.Phase = apiobject.Scheduled
+
+			key := "/registry/pods/" + pod.Data.Namespace + "/" + pod.Data.Name
+
+			// update in etcd and trigger watch
+			err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
+			if err != nil {
+				log.Error("[reschedule] save scheduled pod fail")
+				return 
+			}
+		}
+	}
+}
+
 // updatePod update the existing pod
 func updatePod(pod *apiobject.Pod, key string) error {
 	pod.Data.ResourcesVersion = apiobject.UPDATE
@@ -294,8 +364,8 @@ func checkHeartbeat(nodeName string) {
 	}
 }
 
+
 // CreatePodHandler the url format is POST /api/v1/namespaces/:namespace/pods
-// TODO: bind the pod in runtime
 func CreatePodHandler(c *gin.Context) {
 	// 1. parse the request get the pod from the request
 	namespace := c.Param("namespace")
@@ -352,34 +422,6 @@ func CreatePodHandler(c *gin.Context) {
 		return
 	}
 
-	//for _, node := range nodeList {
-	//	if node.Status.Conditions[0].Status == "Ready" {
-	//		nodeKey = node.Data.Name
-	//		println("the watchTable is: ", watch.WatchTable, "the length is: ", len(watch.WatchTable))
-	//		log.Debug("[CreatePodHandler] the nodeKey is: ", nodeKey)
-	//		// print the watchTable keys
-	//		for k, _ := range watch.WatchTable {
-	//			println("the key is: ", k)
-	//		}
-	//		watcher, ok := watch.WatchTable[nodeKey]
-	//		if ok && node.Status.Addresses != nil && len(node.Status.Addresses) != 0 {
-	//			// TODO: the message format should be defined later
-	//			log.Info("[CreatePod] choose the node")
-	//			pod.Status.Phase = apiobject.Scheduled
-	//			pod.Status.HostIp = node.Status.Addresses[0].Address
-	//			jsonBytes, err := pod.MarshalJSON()
-	//			err = watcher.Write(jsonBytes)
-	//			if err != nil {
-	//				log.Error("[CreatePodHandler] send to the node failed")
-	//				continue
-	//			}
-	//			scheduled = true
-	//			break
-	//		} else {
-	//			continue
-	//		}
-	//	}
-	//}
 
 	// send the pod to scheduler by websocket
 	scheduler, ok := watch.WatchTable["scheduler"]
@@ -424,19 +466,18 @@ func CreatePodHandler(c *gin.Context) {
 		}
 		pod.Status.Phase = apiobject.Scheduled
 
-		// write the pod to the node
-		if selectedNodes == nil || len(selectedNodes) == 0 {
-			nodeKey := nodeList[0].Data.Name
-			sendPodToNode(pod, nodeKey)
-		} else {
-			nodeKey := selectedNodes[0].Data.Name
-			sendPodToNode(pod, nodeKey)
+		// update in etcd and trigger watch
+		err = podStorageTool.GuaranteedUpdate(context.Background(), key, &pod)
+		if err != nil {
+			log.Error("[CreatePodHandler] save scheduled pod fail")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "save scheduled pod fail"})
+			return 
 		}
 
 		// keep check and resend to the next node if necessary
-		// if len(selectedNodes) > 1 {
-		// 	go keepSchedule(key, selectedNodes)
-		// }
+		if len(selectedNodes) > 1 {
+			go keepSchedule(key, selectedNodes)
+		}
 	}
 
 	// 4. return the pod to the client
@@ -503,11 +544,6 @@ func DeletePodHandler(c *gin.Context) {
 	err := podStorageTool.Get(context.Background(), key, &pod)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if pod.Status.Phase == apiobject.Scheduled {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "the pod is running, can not delete"})
 		return
 	}
 

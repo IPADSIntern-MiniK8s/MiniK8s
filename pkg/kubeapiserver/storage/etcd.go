@@ -90,7 +90,6 @@ func (e *EtcdStorage) GetList(ctx context.Context, key string, out interface{}) 
 }
 
 // Create creates a new key with the given value.
-// TODO：need to consider TTL ?
 // the interface description in k8s.io/apiserver/pkg/storage/interfaces.go
 // Create adds a new apiobject at a key unless it already exists. 'ttl' is time-to-live
 // in seconds (0 means forever). If no error is returned and out is not nil, out will be

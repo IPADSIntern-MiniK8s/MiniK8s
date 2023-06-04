@@ -118,10 +118,6 @@ func CreateDNSRecordHandler(c *gin.Context) {
 	}
 
 	// 3. save the hostname and the path in the nginx
-	// hostKey := "dns/" + dnsRecord.Host
-	// // TODO: maybe need change later, now just use the default value
-	// hostContent := `{"host":0.0.0.0}`
-	// err = dnsStorageTool.Create(context.Background(), hostKey, &hostContent)
 	err = generatePath(dnsRecord.Host, "0.0.0.0", "create")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

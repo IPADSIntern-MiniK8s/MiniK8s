@@ -1,9 +1,9 @@
 kind: Replica
 apiVersion: apps/v1
 metadata:
-  name: replica-practice1
+  name: replica-practice
 spec:
-  replicas: 3
+  replicas: 1
   selector:
       app: replica-practice
   template:
@@ -18,13 +18,16 @@ spec:
             - name: p1 # 端口名称
               containerPort: 8080  # 容器端口
           command:
-            - /root/test_mount/simple_http_server
+            - /root/test_mount/test_resource
           env:
             - name: port
               value: '8080'
           volumeMounts:
             - name: data
               mountPath: /root/test_mount
+          resources:
+            limits: 
+              cpu: "1"
       volumes:
         - name: data
           hostPath:

@@ -4,10 +4,14 @@ import (
 	"context"
 	"minik8s/pkg/apiobject"
 	"minik8s/pkg/apiobject/utils"
+	"minik8s/pkg/kubeapiserver/handlers"
 	"minik8s/pkg/kubeapiserver/storage"
 	"time"
+
 	log "github.com/sirupsen/logrus"
 )
+
+
 
 func HeartBeat() {
 	// get all node from etcd
@@ -33,6 +37,8 @@ func HeartBeat() {
 					if err != nil {
 						log.Info("[HeartBeat] update node error: ", err)
 					}
+					// reschedule
+					handlers.Reschedule(&node)
 				}
 			}
 		}

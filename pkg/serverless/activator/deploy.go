@@ -112,7 +112,6 @@ func CheckConnection(ip string) error {
 		}
 		
 	}
-	return nil
 }
 
 // CheckPrepare check if the function is deployed
@@ -345,7 +344,6 @@ func TriggerFunc(name string, params []byte) ([]byte, error) {
 
 // DeleteFunc delete the function
 func DeleteFunc(name string) error {
-	// TODO: how to delete replicaset?
 	// 1. delete the replicaset
 	replicaUrl := "http://" + config.ApiServerIp + "/api/v1/namespaces/serverless/replicas/" + name
 	_, err := utils.SendRequest("DELETE", nil, replicaUrl)
@@ -368,5 +366,6 @@ func DeleteFunc(name string) error {
 		log.Error("[DeleteFunc] delete image error: ", err)
 		return err
 	}
+	
 	return nil
 }

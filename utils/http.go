@@ -8,11 +8,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func SendJsonObject(method string, jsonObject []byte, url string) {
+func SendJsonObject(method string, jsonObject []byte, url string) bool {
 	request, err := http.NewRequest(method, url, bytes.NewBuffer(jsonObject))
 
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return false
 	}
 
 	request.Header.Set("content-type", "application/json")
@@ -22,19 +23,21 @@ func SendJsonObject(method string, jsonObject []byte, url string) {
 	resp, err := client.Do(request)
 	if err != nil {
 		//log.Fatal("client.Do err:")
-		log.Fatal(err)
-	} else {
-		body := &bytes.Buffer{}
-		_, err := body.ReadFrom(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-		resp.Body.Close()
-		//fmt.Println(resp.StatusCode)
-		if resp.StatusCode != http.StatusOK {
-			fmt.Println(body)
-		}
+		log.Error(err)
+		return false
 	}
+	body := &bytes.Buffer{}
+	_, err = body.ReadFrom(resp.Body)
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+	resp.Body.Close()
+	//fmt.Println(resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println(body)
+	}
+	return true
 }
 
 func SendRequest(method string, str []byte, url string) (string, error) {
@@ -61,7 +64,6 @@ func SendRequest(method string, str []byte, url string) (string, error) {
 	return body.String(), err
 
 }
-
 
 func SendRequestWithHb(method string, str []byte, url string, source string) (string, error) {
 	request, err := http.NewRequest(method, url, bytes.NewBuffer(str))
