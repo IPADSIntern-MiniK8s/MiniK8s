@@ -199,7 +199,6 @@ func ExecuteTask(task apiobject.TaskState, functionName string, params []byte) (
 }
 
 
-// ExecuteChoice TODO: need to 'AND' and 'OR' later
 func ExecuteChoice(choice apiobject.ChoiceState, params []byte) (string, error) {
 	// get the val of the variable
 	for _, chElem := range(choice.Choices) {

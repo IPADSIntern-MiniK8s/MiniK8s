@@ -278,7 +278,6 @@ func Reschedule(node *apiobject.Node) {
 		}
 		pod.Status.Phase = apiobject.Pending
 
-		// TODO: the same as CreatePodHandler, need to be refactor later
 		scheduler, ok := watch.WatchTable["scheduler"]
 		if ok {
 			jsonBytes, err := pod.MarshalJSON()
